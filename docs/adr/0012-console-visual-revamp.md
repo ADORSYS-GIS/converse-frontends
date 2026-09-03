@@ -52,6 +52,13 @@ roles), `theme.css` (`--radius-box: 0.5rem` / `--radius-selector`/`-field: 0.25r
 
 ### D1 — Two-column shell; header band and persistent right rail removed
 
+> **Status note (2026-09-03, owner directive).** The sidebar width decided here is **296px**, not
+> 240px — "240px is too small for the left rail. Increase it to 296px." Nothing else in D1 changes:
+> the shell is the same two columns, the same `md` breakdown, the same content cap. One consequence
+> is worth recording because it is easy to state wrongly: `max-w-[1120px]` now only engages from
+> 1480px (`296 + 2×32`), so at a 1440 viewport the content measure is 1080px and the cap is inert.
+> The number in the paragraph below is left as written — it is what was decided in August.
+
 The shell is a persistent **240px sidebar** (`ConsoleSidebar`: brand, workspace switcher,
 sentence-case nav groups — Workspace / Account / Operator — a footer stack with `⌘K`, theme
 toggle, offline indicator, identity) beside a single **fluid content column**, capped at

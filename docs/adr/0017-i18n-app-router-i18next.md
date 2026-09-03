@@ -280,3 +280,11 @@ build failure rather than a silent regression.
   asserting `'Refills queue'` is simultaneously asserting the key exists.
 - **How a person switches language:** the sidebar footer's "Language" row, directly under Theme, or
   `/settings/info` → "Client state" → "Language". Both write `lb.locale` and refresh in place.
+- **The control is a `SelectField`** (owner directive, 2026-09-03: "Language selection should be a
+  dropdown"), not the `SegmentedControl` this ADR shipped. The strip's width is the SUM of every
+  language's endonym, so it is a control that grows — and eventually wraps or truncates the labels
+  a reader depends on — with each locale added; a dropdown is the same width at two languages as at
+  twelve. `layout="inline"` sizes the trigger to its content for the footer row's trailing slot,
+  and `hideLabel` keeps the row's own visible label the only one on screen while the control still
+  carries a real accessible name. The option labels stay **endonyms** ("English", "Deutsch"),
+  identical in both bundles, for the reason this ADR already gives.

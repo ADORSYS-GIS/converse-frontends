@@ -8,12 +8,18 @@
       "title": "Kosten nach Konto",
       "subtitle": "Die zwölf Konten mit den höchsten Kosten. Werte beim Überfahren."
     },
-    "model-mix-share": {
-      "title": "Kosten nach Modell — Anteil im Bestand"
-    },
     "spend-by-model": {
       "title": "Kosten nach Modell im Zeitverlauf",
       "subtitle": "Tageskosten, aufgeteilt nach Modell. Die Balkenhöhe ist die Tagessumme; alles jenseits der fünf größten Modelle wird zu einem summierten Segment „Andere“ zusammengefasst und niemals verworfen."
+    },
+    "model-mix-share": {
+      "title": "Kosten nach Modell — Anteil im Bestand"
+    },
+    "top-spender-users": {
+      "title": "Größte Kostenverursacher — Benutzer",
+      "subtitle": "Name und E‑Mail, sofern das Verzeichnis die Kennung auflösen konnte; eine nicht auflösbare Kennung behält ihre Zeile unter dem Rohwert und wird niemals verworfen. Zeilen öffnen die Nutzung der jeweiligen Person.",
+      "rowLabel": "Benutzer",
+      "unit": "Benutzer"
     },
     "top-spender-accounts": {
       "title": "Größte Kostenverursacher — Konten",

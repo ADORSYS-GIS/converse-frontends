@@ -1458,6 +1458,60 @@
 }
 
 /*
+ * `LatencyStatCards`' own card — one model's p50/p95/p99 (owner directive, 2026-09-03:
+ * "'Latency by model' shall be full width. Those numbers should appear clear").
+ *
+ * The panel treatment is `stat-card`'s, restated rather than shared: same `base-200` fill, same
+ * hairline, same `--radius-field`, same 1rem inset. A latency card IS a self-panelling stat card
+ * by every rule the console has, and it used to be a hand-written `bg-surface rounded-[2px] p-4`
+ * that mirrored `OverviewStatRow`'s SKELETON rather than the real `StatCard` beside it — a 2px
+ * radius and no border, where every other floor-sitting panel carries 4px and a hairline. This is
+ * the correction. (Restated, not `@apply`-ed onto `stat-card`: this file does not use `@apply`,
+ * and the two blocks' INTERIORS have nothing in common — a stat card is one numeral with an
+ * optional delta, this is three percentiles in a row.)
+ *
+ * `latency-card-figures` is a three-column grid rather than a flex row so the three percentiles
+ * line up across every card in the panel — a flex row would let each card's columns land wherever
+ * its own longest figure put them, and comparing p95 between two models is the entire job.
+ *
+ * `latency-card-value` is a BASELINE row: the unit sits beside the numeral, not inside it, so the
+ * figure keeps the metric type role's size and weight while `ms` reads as the qualifier it is.
+ * `align-items: baseline` (not `center`) is what stops a 12px unit from floating in the middle of
+ * a 20px numeral.
+ */
+@utility latency-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  background-color: var(--color-base-200);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-field);
+  padding: 1rem;
+
+  & .latency-card-figures {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  /* `min-width: 0` is not decoration: a grid item's default `min-width: auto` refuses to shrink
+     below its content, so one long figure (`1 m 27 s` on a p99) would push the card's own column
+     wider than the grid gave it and the panel would scroll sideways. */
+  & .latency-card-figure {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+  }
+
+  & .latency-card-value {
+    display: flex;
+    align-items: baseline;
+    gap: 0.1875rem;
+  }
+}
+
+/*
  * The one-time secret strip (api-keys.svg). Three rows: heading + dismiss, the caption, then the
  * readonly `<input>` beside its Copy button. Each row is selected structurally rather than
  * carrying a class, because the strip has exactly this shape and no other.

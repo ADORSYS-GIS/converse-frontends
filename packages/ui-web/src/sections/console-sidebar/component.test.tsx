@@ -56,6 +56,6 @@ describe('ConsoleSidebar', () => {
     );
 
     const aside = container.querySelector('aside');
-    expect(aside).toHaveClass('md:w-[240px]');
+    expect(aside).toHaveClass('md:w-[296px]');
   });
 });

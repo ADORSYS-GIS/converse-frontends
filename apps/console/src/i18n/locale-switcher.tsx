@@ -1,6 +1,6 @@
 'use client';
 
-import { SegmentedControl } from '@lightbridge/ui-web/src/components/segmented-control';
+import { SelectField } from '@lightbridge/ui-web/src/components/select-field';
 import React from 'react';
 
 import { useTranslation } from './client';
@@ -17,9 +17,22 @@ import { useLocaleSwitcher } from './use-locale-switcher';
  *  - `/settings/info`'s "Client state" card, beside the theme and connectivity readings, which is
  *    where a reader goes to see what this browser currently thinks.
  *
- * It composes `SegmentedControl` rather than introducing a fourth one-of-N treatment — the same
- * primitive `/admin/usage`'s actor lens uses. Two options fit the strip exactly; a `SelectField`
- * would be a dropdown to choose between two things.
+ * ## It is a DROPDOWN, not a segmented strip (owner directive, 2026-09-03)
+ *
+ * "Language selection should be a dropdown." This shipped as a `SegmentedControl` on the theory
+ * that two options fit a strip exactly and a dropdown to choose between two things is a click
+ * nobody needs. The owner's read is the one that governs, and it is also the one that scales: the
+ * strip's width is the SUM of every language's endonym, so it is a control that gets wider — and
+ * eventually wraps, or truncates the labels a reader is depending on — with every locale added.
+ * A `SelectField` is the same width at two languages as at twelve.
+ *
+ * `SelectField` is the console's ONE single-value dropdown (ADR 0010 D2, unify-select #368) — a
+ * Base UI `Select`, never a native `<select>` and never a second hand-rolled `Select.Root` tree
+ * at a call site. `layout="inline"` is what makes the trigger size to its own content
+ * (`theme.css`'s `.label > button.input { width: auto }`) so it sits in a footer row's trailing
+ * slot rather than filling it; `hideLabel` keeps `t('language.label')` as the trigger's real
+ * accessible name while the row it lives in renders the visible label — without it the control
+ * would read "Language Language" in the accessibility tree at both mounts.
  *
  * The option labels are ENDONYMS — "English", "Deutsch" — and therefore identical in both bundles.
  * That is deliberate: a reader who has landed in a language they cannot read needs to recognise
@@ -30,11 +43,13 @@ export function LocaleSwitcher({ className }: { className?: string }) {
   const { locale, setLocale } = useLocaleSwitcher();
 
   return (
-    <SegmentedControl<Locale>
-      aria-label={t('language.switch')}
+    <SelectField
+      label={t('language.label')}
+      hideLabel
+      layout="inline"
       options={LOCALES.map((value) => ({ value, label: t(`language.${value}`) }))}
       value={locale}
-      onChange={setLocale}
+      onChange={(next) => setLocale(next as Locale)}
       className={className}
     />
   );

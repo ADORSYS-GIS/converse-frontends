@@ -29,7 +29,7 @@ import { Button } from '../components/button';
 import { Card } from '../components/card';
 import { ConsoleShell } from '../components/console-shell';
 import { ConsoleTopBar } from '../components/console-top-bar';
-import { SegmentedControl } from '../components/segmented-control';
+import { SelectField } from '../components/select-field';
 import { ThemeToggle } from '../components/theme-toggle';
 import type { ThemeTogglePreference } from '../components/theme-toggle';
 import type { NavGroup } from '../components/nav-spine';
@@ -117,9 +117,13 @@ function germanAdminNav(): NavGroup[] {
 }
 
 /** The footer stack, in German — Search, Theme and the LANGUAGE row ADR 0017 adds directly under
- *  it, then the identity row. The language control is a `SegmentedControl` with endonym labels
- *  ("English"/"Deutsch"), which is deliberate: a reader who landed in a language they cannot read
- *  has to recognise their own language's name in the control. */
+ *  it, then the identity row. The language control is a `SelectField` (owner directive 2026-09-03:
+ *  "Language selection should be a dropdown" — it was a `SegmentedControl` until then, a strip
+ *  whose width grows with every locale added), `layout="inline"` so the trigger sizes to its own
+ *  content in the row's trailing slot and `hideLabel` so the visible row label is the only one a
+ *  reader sees while the control still carries a real accessible name. The option labels are
+ *  endonyms ("English"/"Deutsch"), which is deliberate: a reader who landed in a language they
+ *  cannot read has to recognise their own language's name in the control. */
 function GermanFooter() {
   const [preference, setPreference] = useState<ThemeTogglePreference>('black');
   const [locale, setLocale] = useState<'en' | 'de'>('de');
@@ -145,14 +149,16 @@ function GermanFooter() {
       <div className="sidebar-footer-row">
         <span aria-hidden="true" className={RAIL_ICON_COLUMN_CLASS} />
         <span className="text-subtle font-sans text-[13px]">{deCommon.language.label}</span>
-        <SegmentedControl<'en' | 'de'>
-          aria-label={deCommon.language.switch}
+        <SelectField
+          label={deCommon.language.label}
+          hideLabel
+          layout="inline"
           options={[
             { value: 'en', label: deCommon.language.en },
             { value: 'de', label: deCommon.language.de },
           ]}
           value={locale}
-          onChange={setLocale}
+          onChange={(next) => setLocale(next as 'en' | 'de')}
           className="ml-auto"
         />
       </div>

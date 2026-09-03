@@ -37,6 +37,18 @@ export const DATA_INK_CLASS = 'font-mono data-numeral text-[13px] text-ink';
 /** A key numeral inside a stat card or table footer. */
 export const METRIC_CLASS = 'font-mono data-numeral text-[28px] leading-[1.15] text-ink';
 
+/**
+ * `METRIC_CLASS` one step DOWN — a key numeral in a card that carries SEVERAL of them, where 28px
+ * three-across would overflow its own column long before the data did.
+ *
+ * The role exists for `LatencyStatCards` (owner directive, 2026-09-03: "Those numbers should
+ * appear clear"): p50, p95 and p99 are three readings of equal standing, so none of them is the
+ * card's one hero numeral and all three read at the same size. 20px is what fits three figures
+ * plus their units across a quarter-width card at the 1440 reference viewport, and it is still
+ * 8px above `DATA_INK_CLASS` — a figure, not a table cell.
+ */
+export const METRIC_COMPACT_CLASS = 'font-mono data-numeral text-[20px] leading-[1.2] text-ink';
+
 /** `METRIC_CLASS` at the hero step — one per screen, the number the page is about. */
 export const HERO_METRIC_CLASS = 'font-mono data-numeral text-[34px] leading-[1.1] text-ink';
 

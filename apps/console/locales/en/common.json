@@ -37,8 +37,7 @@
   "language": {
     "label": "Language",
     "en": "English",
-    "de": "Deutsch",
-    "switch": "Switch language"
+    "de": "Deutsch"
   },
   "dashboard": {
     "unassigned": "Unassigned",

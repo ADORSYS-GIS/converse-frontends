@@ -715,6 +715,71 @@ stateDiagram-v2
     end note
 ```
 
+### `/admin/overview`'s own fan-out, after the 2026-09-03 owner directives
+
+Twelve panels, **five** usage requests. The interesting edge is the one that does NOT share:
+`top-spender-users` (owner: "we miss a 'Top spenders — user'") groups by `user_id`, and no other
+panel on the page does — the account/project family groups by `[account_id, project_id]`, which
+cannot answer a per-user question at all. Folding `user_id` into that grouping would multiply the
+row count (a user is not functionally determined by a project, unlike an account) and truncate the
+five panels already reading that response, so the fifth request is the correct answer rather than a
+missed optimisation.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant R as resolve-dashboard.ts
+    participant H as use-dashboard.ts
+    participant API as usage backend
+    participant L as use-actor-labels.ts
+    participant IDP as authz-idp
+
+    Note over R: dashboards.yaml `/admin/overview` — 12 panels
+    R->>H: q1 ungrouped · q2 = q1's compare twin · q3 [model]<br/>q4 [account_id, project_id] · q5 [user_id]
+    H->>API: POST /usage/v1/usage/query × 5 (deduped on queryKey:359)
+    API-->>H: points (+ truncated flag per response)
+
+    Note over H: q1 → estate-spend, request-volume<br/>q3 → model-mix-share, spend-by-model, latency-by-model<br/>q4 → spend-by-account, top-spender-accounts/-projects,<br/>active-accounts/-projects, adoption-over-time<br/>q5 → top-spender-users ALONE
+    H->>L: resolveActorLabels(kind='user', ids from q5)
+    L->>IDP: batch lookup
+    IDP-->>L: {label, secondary: email} per id
+    L-->>H: labels · an id nothing resolved comes back UNRESOLVED
+    Note over H,L: an unresolved id is never dropped — panel-adapters.tsx<br/>keeps the row under its own raw value (see the state diagram)
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Grouped: a `user_id` group in q5's response
+
+    Grouped --> Unassigned: the backend attributed the spend to no user
+    Grouped --> Resolving: a real id, handed to resolveActorLabels
+    Resolving --> Identified: IdP answered — name over email
+    Resolving --> Unidentified: IdP answered nothing for this id
+    Resolving --> Unidentified: the batch lookup itself failed
+
+    note right of Unidentified
+        The row SURVIVES, labelled with its own raw id, and it
+        still links to /admin/usage/actors/:id?type=user — the
+        drill target is the id, which is exactly what did not
+        resolve, so the destination is unaffected.
+        BLOCKED EDGE: Unidentified --> [*] ("drop the row").
+        A dropped row makes the table disagree with the estate
+        total beside it, which is the failure this page exists
+        to avoid.
+    end note
+
+    note left of Unassigned
+        Also kept, under its own labelled sentinel. "Spend we
+        could not attribute" is a real reading; hiding it makes
+        the visible rows sum to less than the estate spend.
+        It carries NO href — there is no actor page for nobody.
+    end note
+
+    Identified --> [*]: rendered as IdentityLines (name + email), linked
+    Unidentified --> [*]: rendered as the raw id, linked
+    Unassigned --> [*]: rendered as the sentinel, NOT linked
+```
+
 ## Consequences
 
 **Deleted, not deprecated** (hard cutover, owner's standing rule):

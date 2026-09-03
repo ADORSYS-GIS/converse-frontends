@@ -93,8 +93,18 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           "$HOME/.local/bin/typst" --version
 
-      - name: Run tests
-        run: pnpm test
+      # `.ci/test/run.sh`, not a bare `pnpm test`: the recursive runner used to BAIL on the first
+      # failing package, and package order is alphabetical within `apps/*` then `packages/*`. One
+      # broken suite in `apps/lci` (converse-frontends#504's fallout) therefore meant
+      # `apps/console`'s ~1490 tests never executed at all — the check went red for the right
+      # reason and stayed silent about everything it had skipped. The script runs every package
+      # (`--no-bail`, now baked into the root `test` script so local runs match), then ASSERTS each
+      # package that declares a `test` script actually produced a result, and writes the per-package
+      # table to the job summary. It exits non-zero if any package failed OR any expected package
+      # never ran — a gate that silently runs zero suites passes as green as one that runs them all.
+      - name: Run tests (every package, no bail)
+        shell: bash
+        run: bash .ci/test/run.sh
 
   # tsc is not run by Metro/Expo's bundler (see the `build-web` job below) and
   # nothing else on the pull_request path turns a type error into a failed

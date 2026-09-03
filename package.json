@@ -15,7 +15,7 @@
     "build-storybook": "turbo run build-storybook",
     "lint": "eslint \"**/*.{js,jsx,ts,tsx}\" && prettier -c \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "format": "eslint \"**/*.{js,jsx,ts,tsx}\" --fix && prettier \"**/*.{js,jsx,ts,tsx,json,css,md}\" --write",
-    "test": "pnpm -r --if-present run test"
+    "test": "pnpm -r --no-bail --if-present run test"
   },
   "devDependencies": {
     "@types/react": "~19.2.14",

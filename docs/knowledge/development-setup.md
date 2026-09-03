@@ -106,7 +106,9 @@ embedding it).
 ## Quality gates
 
 ```bash
-pnpm test          # every workspace's vitest suite
+pnpm test          # every workspace's vitest suite — `--no-bail`, so one failing package
+                   # never hides the rest (CI adds .ci/test/run.sh on top, which also
+                   # asserts every package that has tests actually ran)
 pnpm build         # turbo run build:web — all three apps
 pnpm lint          # eslint + prettier --check, repo-wide
 pnpm format        # eslint --fix + prettier --write

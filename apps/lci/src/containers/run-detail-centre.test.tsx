@@ -90,6 +90,32 @@ describe('RunDetailCentre', () => {
     expect(screen.getByText(/task-3b9285de/)).toBeInTheDocument();
   });
 
+  // ── The `PageControls` contract (ADR 0015 amendment A2, converse-frontends#504) ──────────────
+  //
+  // `PageHeader.controls` is deleted, so the outcome badge moved to a control row of its own on the
+  // floor. It stays a `StatusText` rather than becoming one more grey fragment of the `·`-joined
+  // subtitle, because the TONE is the point: this is the single fact on the screen that must not
+  // read like the rest of it.
+  it('carries the outcome as a toned badge in the control row, not folded into the subtitle', () => {
+    const { container } = render(
+      <RunDetailCentre
+        taskResult={{ ok: true, data: baseTask() }}
+        reviewResult={{ ok: true, data: null }}
+        now={NOW}
+        grafanaBaseUrl={null}
+      />
+    );
+
+    const outcome = screen.getByRole('group', { name: 'Outcome' });
+    expect(outcome).toContainElement(screen.getByText('Failed'));
+    expect(outcome.closest('.page-controls')).not.toBeNull();
+
+    const header = container.querySelector('.page-header');
+    expect(header).not.toBeNull();
+    expect(header).not.toHaveTextContent('Failed');
+    expect(header?.querySelector('.page-header-action')).toBeNull();
+  });
+
   it('a completed run with no posted review reads as such, not as an empty/broken review', () => {
     render(
       <RunDetailCentre

@@ -287,7 +287,7 @@ decimals.
   | Area                           | Rows, in order                                                                                                                  | Gate                                            |
   | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
   | account (`navGroups`)          | `Workspace`: Overview, API keys (hrefs off the path account) - `Account`: Settings - `Operator`: **Admin** → `adminLandingHref` | Operator group: ANY of `ADMIN_AREA_PERMISSIONS` |
-  | settings (`settingsNavGroups`) | Overview, Accounts, Tier configs, Project policies, Info                                                                        | none — every row is a live `/settings/*` route  |
+  | settings (`settingsNavGroups`) | Overview, Accounts, Tier configs, Project policies, Info                                                                        | Tier configs: `project:update` - the rest: none |
   | admin (`adminNavGroups`)       | see the destination table below                                                                                                 | per row, see below                              |
 
   **The Admin row lives on the MAIN account rail** (owner directive, 2026-09-03: "The Admin button
@@ -297,10 +297,18 @@ decimals.
   and never carries the pending-refill count (that numeral's one home is the admin area's own
   "Refills queue" row). This supersedes the 2026-08-31 placement that had it inside settings; the
   settings rail's Admin and Roles rows are both deleted, so no destination has two nav homes.
-  `settingsNavGroups` takes no permission set at all now.
+  `settingsNavGroups` still takes a permission set, for exactly one row — see below.
 
   The settings and admin areas replace `navGroups`' content in the same mount and carry a
   `← Back to console` row instead of the workspace switcher.
+
+  **Tier configs is gated on a WRITE permission even though the screen is read-only**
+  (owner ruling, 2026-09-03: "users with the role -viewer should not even see tiers"). The gate is
+  `project:update` — what `procedure.setProjectQuota` requires — because a tier catalogue read by
+  someone who can never assign a tier is a menu they may not order from. `lightbridge-editor` holds
+  it through `project:*`; `lightbridge-viewer` holds `project:read` only and loses both the row and
+  the page (`/settings/tiers` answers `notFound()` on the same string). Do not "helpfully" re-gate
+  it on a read permission a viewer holds.
 
   The admin area's seven destinations, in nav order — READINGS first, then ACTIONS, then the two
   rows about the OPERATORS rather than the estate. `ADMIN_DESTINATIONS` declares each row's href

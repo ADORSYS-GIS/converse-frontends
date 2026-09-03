@@ -279,6 +279,29 @@ const DIMENSION_KEYS: Record<string, string[]> = {
   project_id: ['ingest', 'rag-api', 'batch-eval', 'Unassigned'],
 };
 
+/**
+ * Per-page narrowing of `DIMENSION_KEYS` — a page story passes the key set ITS subject would
+ * realistically show for a dimension the estate pages also use.
+ *
+ * `azp` is the case it exists for: `/admin/usage` looks at every OAuth client on the deployment,
+ * while one account's overview typically sees a handful. Reviewing the account page's three
+ * channel rings against the estate's five-client fixture would be reviewing a distribution that
+ * account will never have, and the whole reason the fixtures are top-1-dominant rather than evenly
+ * banded is that a ring only earns its place if the story shows the shape prod actually produces.
+ */
+export type DimensionKeyOverrides = Record<string, string[]>;
+
+/** One panel → the key set its breakdown fixture is re-keyed onto (`undefined` = leave the
+ *  per-type fixture's own keys alone, which is right for `model` and for an ungrouped panel). */
+type DimensionKeyLookup = (panel: SpecPanel) => string[] | undefined;
+
+function dimensionKeyLookup(overrides: DimensionKeyOverrides | undefined): DimensionKeyLookup {
+  return (panel) => {
+    const dimension = panel.dimension ?? '';
+    return overrides?.[dimension] ?? DIMENSION_KEYS[dimension];
+  };
+}
+
 /** Re-keys a ranked/share/donut fixture onto the panel's own dimension, keeping each entry's
  *  measured VALUE (and dropping the tail when the dimension has fewer members than the fixture). */
 function reKey<T extends { key: string; label: string }>(entries: T[], keys: string[] | undefined) {
@@ -323,7 +346,7 @@ const EMPTY_STAT_FIXTURE: Record<string, string> = {
   'derived:chatCount': '0',
 };
 
-function tableFixture(panel: SpecPanel): DashboardPanelView {
+function tableFixture(panel: SpecPanel, keysFor: DimensionKeyLookup): DashboardPanelView {
   const base = panelFixtures.table;
   if (base.kind !== 'table' || !panel.columns) {
     // No `columns` in the YAML — the pre-#448 four-column shape, unchanged.
@@ -341,7 +364,7 @@ function tableFixture(panel: SpecPanel): DashboardPanelView {
   // A CHANNEL table's rows are OAuth clients, not people — the actor identities below would be a
   // straight mislabelling, which is the one thing this story is here to catch. Every non-actor
   // dimension takes its own key set and drops the identity's second line with it.
-  const channelKeys = panel.lens ? undefined : DIMENSION_KEYS[panel.dimension ?? ''];
+  const channelKeys = panel.lens ? undefined : keysFor(panel);
   const rows = channelKeys
     ? TABLE_ROWS.slice(0, channelKeys.length).map((row, index) => ({
         ...row,
@@ -381,7 +404,17 @@ function tableFixture(panel: SpecPanel): DashboardPanelView {
 }
 
 /** The panels of one YAML page, in `DashboardGrid`, drawn by the real renderer registry. */
-export function SpecPanels({ page, state = 'loaded' }: { page: SpecPage; state?: SpecPageState }) {
+export function SpecPanels({
+  page,
+  state = 'loaded',
+  dimensionKeys,
+}: {
+  page: SpecPage;
+  state?: SpecPageState;
+  /** Per-page narrowing of the shared breakdown key sets — see `DimensionKeyOverrides`. */
+  dimensionKeys?: DimensionKeyOverrides;
+}) {
+  const keysFor = useMemo(() => dimensionKeyLookup(dimensionKeys), [dimensionKeys]);
   // PER PANEL, not per page — the console holds one `?<panel-id>-scale=` knob each, and the
   // default is the panel's own YAML `options.scale`. A single shared value would either lose those
   // defaults or force every board onto one transform, which is exactly the drift externalizing the
@@ -419,14 +452,15 @@ export function SpecPanels({ page, state = 'loaded' }: { page: SpecPage; state?:
         continue;
       }
 
-      const fixture = panel.type === 'table' ? tableFixture(panel) : panelFixtures[panel.type];
+      const fixture =
+        panel.type === 'table' ? tableFixture(panel, keysFor) : panelFixtures[panel.type];
       if (fixture.kind === 'table') {
         map.set(panel.id, fixture);
       } else if (fixture.kind === 'series' || fixture.kind === 'latency-series') {
         // A `compare: true` panel's last line is the previous window, DASHED — the console's own
         // adapter appends exactly that (`comparisonSeries`), and it is the whole reading of the
         // panel, so a story that drew four ordinary lines would be reviewing the wrong chart.
-        const keyed = reKey(fixture.series, DIMENSION_KEYS[panel.dimension ?? '']);
+        const keyed = reKey(fixture.series, keysFor(panel));
         const series =
           panel.compare && keyed.length > 1
             ? keyed.map((s, index) =>
@@ -457,20 +491,17 @@ export function SpecPanels({ page, state = 'loaded' }: { page: SpecPage; state?:
           // axis, and the exact thing a reviewer looking at `/admin/usage/channels/<azp>`'s
           // "Requests by operation" would (rightly) flag. The console's own adapter formats by
           // `metric`; so does this.
-          rows: rankedUnit(
-            reKey(fixture.rows, DIMENSION_KEYS[panel.dimension ?? '']),
-            panel.metric
-          ),
+          rows: rankedUnit(reKey(fixture.rows, keysFor(panel)), panel.metric),
         });
       } else if (fixture.kind === 'share') {
         map.set(panel.id, {
           ...fixture,
-          segments: reKey(fixture.segments, DIMENSION_KEYS[panel.dimension ?? '']),
+          segments: reKey(fixture.segments, keysFor(panel)),
         });
       } else if (fixture.kind === 'donut') {
         map.set(panel.id, {
           ...fixture,
-          segments: reKey(fixture.segments, DIMENSION_KEYS[panel.dimension ?? '']),
+          segments: reKey(fixture.segments, keysFor(panel)),
           // The ring's centre states the TOTAL of what the ring measures — a requests ring
           // centred on a dollar figure would be a fabricated unit, the same failure `formatYTick`
           // exists to prevent on a chart axis.
@@ -481,7 +512,7 @@ export function SpecPanels({ page, state = 'loaded' }: { page: SpecPage; state?:
       }
     }
     return map;
-  }, [page, scales, state]);
+  }, [page, scales, state, keysFor]);
 
   return (
     <DashboardGrid>

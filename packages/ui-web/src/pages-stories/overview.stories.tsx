@@ -70,6 +70,20 @@ const STORY_TODAY = new Date(Date.UTC(2026, 7, 29));
 
 const PAGE = specPage('/accounts/[accountId]/overview');
 
+/**
+ * The three channel RINGS (owner request, 2026-09-03) are grouped by `azp` — the OAuth client id
+ * the request arrived on. `DIMENSION_KEYS.azp` is sized for `/admin/usage`, which looks at every
+ * client on the DEPLOYMENT; one account typically talks to a handful, so this narrows the fixture
+ * to three.
+ *
+ * Three is also what makes the rings reviewable. The fixtures are top-1-dominant by measurement
+ * (one key at ~86% of the total here), and that is precisely the case the owner rejected filled
+ * disks over on 2026-08-29 — a reviewer has to see it, not a tidy evenly-banded demo. The values
+ * are printed verbatim, exactly as `labelOf` prints an `azp` key in the console: it is not an
+ * actor dimension and has no closed vocabulary, so there is nothing to humanise it into.
+ */
+const ACCOUNT_DIMENSION_KEYS = { azp: ['console-ui', 'opencode-cli', 'ci-deploy'] };
+
 const BILLING_PERIOD_CAPTION =
   'Spend this period, the remaining budget and the ceiling above are measured over the billing ' +
   'period (2026-08-01 → today), not the range picked above — a ceiling is a fact about this ' +
@@ -176,7 +190,7 @@ function OverviewScreen({
           </Card>
         </DashboardGrid>
 
-        <SpecPanels page={PAGE} />
+        <SpecPanels page={PAGE} dimensionKeys={ACCOUNT_DIMENSION_KEYS} />
       </div>
     </ConsoleShell>
   );
@@ -256,9 +270,9 @@ function OverviewLoadingScreen() {
         </DashboardGrid>
 
         <DashboardGrid>
-          {/* Two half-width stats, a full-width chart, then the breakdowns — the shape this page
-              entry has had since the migration, without claiming to know their titles. */}
-          {[1, 1, 2, 1, 1, 2, 1, 1].map((span, index) => (
+          {/* Two half-width stats, a full-width chart, then the breakdowns and the three channel
+              rings — the shape this page entry has, without claiming to know their titles. */}
+          {[1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1].map((span, index) => (
             <Card key={index} data-span={span === 2 ? '2' : undefined}>
               <div className="skeleton h-4 w-48" />
               <SkeletonMetric />

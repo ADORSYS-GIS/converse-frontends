@@ -371,11 +371,21 @@ const SETTINGS_NAV_ICON: Record<SettingsRoute, React.ReactNode> = {
  *    (Its earlier history — a `disabled` row carrying "no read API exists", made live by
  *    lightbridge-authz#656 — ends here.)
  *
- * The function therefore takes no `permissions` param at all: nothing in this area is gated, so
- * every visitor sees the identical five rows. A gate reappearing here should be a deliberate
- * decision, not a leftover parameter nothing reads.
+ * **One row here IS gated, and it is the only one: "Tier configs", on `project:update`** (owner
+ * ruling, 2026-09-03, verbatim: "users with the role -viewer should not even see tiers"). That is
+ * why this builder still takes a `permissions` set even though both rows that USED to need one are
+ * gone — it is a deliberate decision, not a leftover parameter. `/settings/tiers` is read-only, so
+ * the gate is deliberately the WRITE permission the tier-changing RPC (`procedure.setProjectQuota`)
+ * requires rather than a read a viewer holds; see `PERMISSION.projectUpdate`'s own doc comment.
+ * `lightbridge-editor` holds it through `project:*` and keeps the row; `lightbridge-viewer` holds
+ * `project:read` only and loses both the row and the page, which answers `notFound()` on the same
+ * string. Omitted, never disabled — the same included-or-omitted contract every gated row in this
+ * file follows.
  */
-export function settingsNavGroups(active: SettingsRoute): NavGroup[] {
+export function settingsNavGroups(
+  active: SettingsRoute,
+  permissions: readonly string[]
+): NavGroup[] {
   const items: NavGroup['items'] = [
     {
       key: 'overview',
@@ -391,13 +401,23 @@ export function settingsNavGroups(active: SettingsRoute): NavGroup[] {
       icon: SETTINGS_NAV_ICON.accounts,
       active: active === 'accounts',
     },
-    {
-      key: 'tiers',
-      label: 'Tier configs',
-      href: '/settings/tiers',
-      icon: SETTINGS_NAV_ICON.tiers,
-      active: active === 'tiers',
-    },
+    // Owner ruling, 2026-09-03, verbatim: "users with the role -viewer should not even see tiers."
+    // Gated on `project:update` — the permission `procedure.setProjectQuota` requires, which is
+    // what makes an assigned tier changeable at all — and OMITTED, never disabled, exactly like
+    // Roles above: `/settings/tiers` answers `notFound()` for the same string, so a visible row
+    // would advertise a URL the server denies. See `PERMISSION.projectUpdate`'s own doc comment
+    // for why a read-only screen is gated on a write permission.
+    ...(hasPermission(permissions, PERMISSION.projectUpdate)
+      ? [
+          {
+            key: 'tiers',
+            label: 'Tier configs',
+            href: '/settings/tiers',
+            icon: SETTINGS_NAV_ICON.tiers,
+            active: active === 'tiers',
+          },
+        ]
+      : []),
     {
       key: 'policies',
       label: 'Project policies',
@@ -1010,7 +1030,7 @@ export function ConsoleSidebarContent({ onOpenPalette }: { onOpenPalette: () => 
         showAdminChrome
           ? adminNavGroups(adminRoute, access.permissions, refillCount)
           : area === 'settings'
-            ? settingsNavGroups(settingsRoute)
+            ? settingsNavGroups(settingsRoute, access.permissions)
             : navGroups(route, switcher.accountId, access.permissions)
       }
       linkComponent={Link}

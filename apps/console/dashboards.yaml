@@ -1137,10 +1137,10 @@ pages:
   # `/admin/overview` draws for its budget-pressure zone. They render in their own grid ABOVE this
   # one, with the honesty caption that says which window they are about.
   #
-  # Request count: eight panels resolve to FOUR requests — the ungrouped one (three panels), its
+  # Request count: eleven panels resolve to FIVE requests — the ungrouped one (three panels), its
   # comparison twin, one `[project_id, model]` grouping (four panels, each reading its own
-  # dimension), and one by-API-key grouping. The hand-written page fired four for three boards,
-  # and none of them were shared.
+  # dimension), one by-API-key grouping, and one `[azp]` grouping shared by the three channel
+  # rings. The hand-written page fired four for three boards, and none of them were shared.
   # ═══════════════════════════════════════════════════════════════════════════════════════════
   - route: /accounts/[accountId]/overview
     # `accountId` is the route segment; `project` is the console-wide `?project=` scope, whose
@@ -1306,6 +1306,81 @@ pages:
           scope_id: $accountId
           group_by:
             - api_key_id
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      # ── the three channel RINGS ─────────────────────────────────────────────────────────────
+      # Owner request, 2026-09-03: "/accounts/:id/overview is missing three pie-charts: cost by
+      # channels, tokens by channels, requests by channels." Rings, never filled disks — the same
+      # owner ruling (2026-09-02) that amended ADR 0013 D5 and that `/admin/usage`'s own three
+      # model-distribution rings already follow.
+      #
+      # All three share ONE `[azp]` request: only which column each READS differs, which is the
+      # whole reason they are three panels rather than one with a metric toggle — a toggle would
+      # hide two of the three readings behind a click. Adding them takes this page from four
+      # requests to five.
+      #
+      # **`azp` is a raw OAuth client id and stays one.** It is not an actor dimension, so
+      # `labelOf` finds no `resolveActorLabels` kind and no closed vocabulary for it and prints the
+      # value verbatim — exactly what `/admin/usage`'s `cost-by-channel` ranked panel does. Client
+      # ids are already human-chosen strings (`console-ui`, `opencode-cli`); title-casing them
+      # would invent a name the deployment never configured. Spend the gateway attributed to no
+      # client keeps its labelled `Unassigned` segment rather than being dropped.
+      #
+      # **Rows link to nothing, deliberately.** `/admin/usage/channels/<azp>` is gated on
+      # `usage:read-all`, which the readers of this page do not hold — a segment that opened a 404
+      # would be worse than one that opens nothing.
+      - id: account-cost-by-channel
+        type: donut
+        title: Cost by channel
+        subtitle: Which OAuth client (azp) the spend arrived on. Values are in the tooltip on screen, and in the panel's own table in an exported report.
+        span: 1
+        metric: cost
+        options:
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - azp
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      - id: account-tokens-by-channel
+        type: donut
+        title: Tokens by channel
+        subtitle: Tokens by OAuth client (azp) — the same window and the same request as the cost ring.
+        span: 1
+        metric: tokens
+        options:
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - azp
+          filters:
+            project_id: $project?
+          bucket: auto
+          limit: 2000
+
+      - id: account-requests-by-channel
+        type: donut
+        title: Requests by channel
+        subtitle: Requests by OAuth client (azp) — a channel can be a large share of the calls and a small share of the cost.
+        span: 1
+        metric: requests
+        options:
+          topN: 6
+        query:
+          scope: account
+          scope_id: $accountId
+          group_by:
+            - azp
           filters:
             project_id: $project?
           bucket: auto

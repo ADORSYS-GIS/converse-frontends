@@ -246,12 +246,15 @@ switcher/back-row, `⌘K` trigger, identity) plus the existing bottom navigation
   production minted for every signed-in person; this row says where it goes and is gated on a
   permission the backend enforces. It never carries `active` (reaching `/admin/*` swaps the whole
   rail) and never carries the pending-refill count.
-- **Settings-area nav is a flat, ungrouped, ungated list** (`settingsNavGroups`): Overview,
-  Accounts, Tier configs, Project policies, Info. Two rows left in the 2026-09-03 directive, both
-  because each pointed OUT of the settings area: **Admin** moved to the account rail's Operator
-  group, and **Roles** was removed outright ("The Roles button in Settings' left rail can safely be
-  removed") — `/admin/roles` keeps its one nav home in the admin area's own list. The function
-  takes no permission argument at all now. See §5.5.
+- **Settings-area nav is a flat, ungrouped list** (`settingsNavGroups`): Overview, Accounts,
+  **Tier configs** (gated on `project:update`), Project policies, Info. Two rows left in the
+  2026-09-03 directive, both because each pointed OUT of the settings area: **Admin** moved to the
+  account rail's Operator group, and **Roles** was removed outright ("The Roles button in Settings'
+  left rail can safely be removed") — `/admin/roles` keeps its one nav home in the admin area's own
+  list. The function still takes a permission set, for exactly one row: Tier configs, which the
+  same day's second ruling ("users with the role -viewer should not even see tiers") gates on
+  `project:update`. It is **omitted, never disabled** — the segment answers `notFound()` for the
+  same string. See §5.5.
 - **Admin-area nav is a flat list of seven, filtered per row against the caller's own permission
   set** (`adminNavGroups`, over `ADMIN_DESTINATIONS`). Rows are **omitted, never disabled**: each
   route segment answers `notFound()` for the same permission, so a visible-but-dead row would
@@ -326,7 +329,7 @@ those pages used to be.
 | Admin                        | Operator (the account rail's own last group — an exit door, never `active`)          | any of the seven below   | `adminLandingHref(permissions)` — the first admin row this caller can open        |
 | — Settings: Overview         | Settings area                                                                        | —                        | `/settings/overview` → lens picker (§5.5)                                         |
 | — Settings: Accounts         | Settings area                                                                        | —                        | `/settings/accounts` → `/settings/accounts/<id>`                                  |
-| — Settings: Tier configs     | Settings area                                                                        | —                        | `/settings/tiers`                                                                 |
+| — Settings: Tier configs     | Settings area                                                                        | `project:update`         | `/settings/tiers` (write permission on a read-only screen — §5.5)                 |
 | — Settings: Project policies | Settings area                                                                        | —                        | `/settings/policies`                                                              |
 | — Settings: Info             | Settings area                                                                        | —                        | `/settings/info`                                                                  |
 | — Admin: Overview            | Admin area                                                                           | `usage:read-all`         | `/admin/overview` (§5.9)                                                          |
@@ -470,9 +473,21 @@ The panels that entry declares today, in order — `stat` **Spend in this range*
 this range** (both `compare: true`), `series` **Spend over time** (the account TOTAL with the
 previous period dashed under it), `ranked` **Spend by project**, `share` **Spend by model — share**,
 `series` **Spend by model over time** (log axis), `latency-cards` **Latency by model**, `ranked`
-**Spend by API key**. Eight panels, FOUR usage requests: the ungrouped one (three panels), its
+**Spend by API key**, then three `donut` rings — **Cost by channel**, **Tokens by channel**,
+**Requests by channel**. Eleven panels, FIVE usage requests: the ungrouped one (three panels), its
 comparison twin, one `[project_id, model]` grouping that four panels share by each declaring the
-dimension it reads (`options.dimension`), and one by-API-key grouping.
+dimension it reads (`options.dimension`), one by-API-key grouping, and one `[azp]` grouping the
+three rings share.
+
+- **The three channel rings** (owner request, 2026-09-03) group by `azp` — the OAuth client the
+  request arrived on, one of lane A3's bridge columns. Rings, never filled disks (owner ruling,
+  2026-09-02, amending ADR 0013 D5), and three panels rather than one with a metric toggle: a
+  toggle would hide two of the three readings behind a click. `azp` is a raw client id and is
+  printed **verbatim** — it is not an actor dimension and has no closed value vocabulary, so
+  `labelOf` falls through to the key itself (the same path `/admin/usage`'s `cost-by-channel`
+  ranked panel uses); spend attributed to no client keeps its labelled `Unassigned` segment.
+  Segments link to **nothing**: `/admin/usage/channels/<azp>` is gated on `usage:read-all`, which
+  this page's readers do not hold, so a drill-down would open a 404.
 
 - **The `?group-by=` select is gone**, along with `?bucket=` and `?model=`. It reshaped ONE share
   bar between project / model / user / API key; those are separate panels now, all visible at once
@@ -629,6 +644,21 @@ above) — never for one the caller merely lacks permission for, which is omitte
 **Tier configs** — `/settings/tiers`: two read-only catalogues, no picker. "Billing plans" is a
 `ZoneHeading` directly on the floor above one `Card` _per plan_ (never nested inside a wrapping
 `Card`); "Assigned quota tiers" is the ordinary single-`Card`-of-rows treatment.
+
+**Gated on `project:update` since 2026-09-03** — owner ruling, verbatim: "users with the role
+-viewer should not even see tiers." The row is omitted by `settingsNavGroups` and the route segment
+answers `notFound()`, the same `readSession` + `can()` contract every `/admin/*` segment uses.
+
+A **write** permission on a **read-only** screen, deliberately. The page shows what tiers ARE, and
+the only thing anyone can do with that reading is change one — `procedure.setProjectQuota`, the
+sole write path onto `Project.projectQuota` since lightbridge-authz#379, which
+`lightbridge-authz-rest`'s `rpc_authorize.rs` maps to `project:update`. Gating on a read the viewer
+holds (`project:read`, or the `apikey:create` that `listBillingPlans` itself requires) would leave
+the screen visible to exactly the people the ruling excludes. `project:update` rather than
+`account:update` because `lightbridge-editor` holds `project:*` and **not** `account:update`
+(`default_role_permissions()`, `lightbridge-authz-core/src/authz.rs`), so the account permission
+would hide the screen from editors too — one role too many. Viewers hold `project:read` only, which
+is exactly where the ruling draws the line.
 
 **Project policies** — `/settings/policies` (renamed from "Account / Project policies" this phase
 — ADR 0013 phase E: owner, "there's no sense in having account or project creation" here). Narrowed
@@ -1173,6 +1203,7 @@ diagram cannot: the `file:line` citations, why an edge is blocked, what the fix 
 | [8.3](#83-report-export)                                                                   | Report export (dialog → `/api/reports/page` → Typst)      | here; the wire contract and template lookup are in `apps/console/README.md`                       |
 | [8.4](#84-authoring-a-refill-policy-from-the-example-issue-445)                            | Authoring a refill policy from the example                | here                                                                                              |
 | [8.5](#85-resolving-an-analytics-lens-from-dashboardsyaml-story-c12-converse-frontends455) | Resolving an analytics lens from `dashboards.yaml`        | here                                                                                              |
+| [8.6](#86-reaching-settingstiers-owner-ruling-2026-09-03)                                  | Reaching `/settings/tiers` (the nav row and the gate)     | here                                                                                              |
 | §5.7                                                                                       | A budget reset schedule's lifecycle                       | in its own screen spec                                                                            |
 | §5.8                                                                                       | A session's lifecycle, and where the screen touches it    | in its own screen spec                                                                            |
 | —                                                                                          | YAML → resolve → dedupe → render, and the export branch   | [ADR 0015](../../adr/0015-admin-console-v2-declarative-dashboards-permissions-export.md) Diagrams |
@@ -1621,6 +1652,72 @@ thrown error, never an empty `scope_id`, because an empty scope silently queries
 than what the panel's title says.
 
 ---
+
+### 8.6 Reaching `/settings/tiers` (owner ruling, 2026-09-03)
+
+The first gated destination in the settings area that is not an exit into `/admin`, and the one
+whose gate looks wrong until the write path is drawn next to it: a **read-only** screen behind a
+**write** permission.
+
+```mermaid
+%% Two callers, one document. The permission set is the backend's own answer (getMyAccess),
+%% resolved once at sign-in and again on every refresh — the console never derives it from a role.
+sequenceDiagram
+    autonumber
+    actor V as Viewer (lightbridge-viewer)
+    actor E as Editor (lightbridge-editor)
+    participant CH as ConsoleSidebarContent<br/>settingsNavGroups(active, permissions)
+    participant RT as /settings/tiers segment<br/>readSession + can()
+    participant API as lightbridge-authz
+
+    Note over V,E: getMyAccess already resolved the flat permission set onto the session cookie.<br/>viewer = [account:create, account:read, project:read, apikey:read, session:revoke-own, budget:read-own]<br/>editor = viewer + project:create/update/delete/disable/member + apikey:*
+
+    V->>CH: open /settings
+    CH-->>V: no "Tier configs" row — hasPermission(project:update) is false
+    V->>RT: hand-types /settings/tiers anyway
+    RT-->>V: notFound() — 404, before any markup is generated
+    Note right of RT: Even if the segment rendered, listBillingPlans<br/>is gated on apikey:create, which a viewer<br/>also lacks — the 404 is the FIRST refusal,<br/>not the only one.
+
+    E->>CH: open /settings
+    CH-->>E: "Tier configs" row, live, in its usual slot
+    E->>RT: GET /settings/tiers
+    RT->>API: procedure.listBillingPlans (apikey:create — editor holds it via apikey:*)
+    API-->>RT: BillingPlanInfo[]
+    RT-->>E: plans + the tiers assigned to the scoped account and its projects
+    Note over E,API: The only ACTION on this reading is procedure.setProjectQuota,<br/>which rpc_authorize.rs maps to project:update — the same string<br/>the row and the segment were gated on. That is why it is the gate.
+```
+
+```mermaid
+%% The row and the page are ONE state machine on purpose: a row that outlives its page is the
+%% "shown and then 404s" failure the gate tests exist to prevent.
+stateDiagram-v2
+    [*] --> Unverified: session built, getMyAccess could not be reached
+    [*] --> Verified: getMyAccess answered
+    Unverified --> Hidden: permissions = [] (fail closed)
+    Verified --> Hidden: project:update absent
+    Verified --> Visible: project:update present
+    Hidden --> Refused: caller hand-types /settings/tiers
+    Visible --> Rendered: caller opens the row
+    Refused --> [*]
+    Rendered --> [*]
+    note right of Hidden
+        Row OMITTED, never disabled with a reason.
+        A disabled row would advertise a URL the
+        segment answers 404 for.
+    end note
+    note right of Refused
+        notFound(), not 403: a caller without the
+        permission should not learn the route exists.
+    end note
+```
+
+**States nothing can enter, and why that is correct:** there is no `VisibleButRefused` — the row
+and the segment read the identical `PERMISSION.projectUpdate` string, so the pair cannot drift into
+"shown and then 404s" without a test failing (`settings-tiers-route-gate.test.ts` asserts both
+sides). There is no `ReadOnlyDegraded` either: the owner ruled the screen out entirely for viewers
+rather than into a narrower mode, so a "tiers, but greyed out" state is deliberately unreachable.
+And `Unverified → Visible` does not exist: a session whose permissions could not be resolved holds
+the empty set, which fails closed.
 
 ---
 

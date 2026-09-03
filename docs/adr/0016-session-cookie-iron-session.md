@@ -251,7 +251,7 @@ sequenceDiagram
         KC-->>PX: new token triple
         PX->>AZ: getMyAccess(new accessToken)
         PX->>PX: rotateSession() -> sealSession()
-        PX-->>B: Set-Cookie (rotated; unused tail slots expired)
+        PX-->>B: Set-Cookie (rotated — unused tail slots expired)
     end
 ```
 

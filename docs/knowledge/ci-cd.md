@@ -331,8 +331,8 @@ The Storybook **build** runs unconditionally either way, so a broken story still
 ```mermaid
 stateDiagram-v2
     [*] --> Preflight: push to main touching packages/ui-web/**
-    Preflight --> PagesOn: GET /repos/:owner/:repo/pages -> 200
-    Preflight --> PagesOff: 404 (or any non-200) + ::notice
+    Preflight --> PagesOn: the Pages API answers 200
+    Preflight --> PagesOff: 404 or any non-200, plus a notice
     PagesOn --> BuildAndUpload: build-storybook, configure-pages, upload-pages-artifact
     PagesOff --> BuildOnly: build-storybook only
     BuildAndUpload --> Deploy: deploy job runs

@@ -12,6 +12,77 @@ This document is the definitive source of truth for the working method, architec
 > (`.claude/skills/console-ui/SKILL.md`) — this document stays high-level and defers to it rather
 > than duplicating it.
 
+---
+
+## 0. Start here — skills, agents, and the knowledge base
+
+**This file is the single entry point.** Whatever harness you are running in, everything below is
+reachable from here. `.github/copilot-instructions.md`, `GEMINI.md` and `.cursorrules` are committed
+symlinks to this file; `.agents/skills/*` are committed symlinks to `.claude/skills/*`. Nothing is
+duplicated — see [`docs/knowledge/agent-harnesses.md`](docs/knowledge/agent-harnesses.md) for the
+link map and the Windows `core.symlinks` note.
+
+### Skills — `.claude/skills/<name>/SKILL.md`
+
+Read the one that matches your task **before** starting it. Each carries the exact commands, the
+verification bar, and the pitfalls that have actually cost time here.
+
+| Skill                                                                                            | Read it when                                                                           |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `console-ui`                                                                                     | Building or restyling anything in `packages/ui-web` or `apps/console` — **binding**    |
+| `dashboard-panel`                                                                                | Adding, changing or removing a panel on any `/admin/*` or `/settings/overview/*` board |
+| `console-story-verify`                                                                           | Any UI change that someone needs to SEE before it merges                               |
+| `i18n-copy`                                                                                      | Any user-visible string, translation, or a failing i18n test                           |
+| `report-template`                                                                                | A `.typ` template, a PDF export, or a `422` compile error                              |
+| `authz-schema-sync`                                                                              | A new or changed RPC procedure, `authz.cstack`, or stale `generated/` types            |
+| `console-release-verify`                                                                         | "Is it live?" — the image, the write-back, ArgoCD, the live probes                     |
+| `governance-pr`                                                                                  | Opening, describing or merging a PR                                                    |
+| `ci-cd`, `containerization`, `debugging`, `documentation`, `pr-review`, `refactoring`, `testing` | Generic workflows                                                                      |
+
+### Agents — `.claude/agents/<name>.md`
+
+| Agent                | Use for                                                                     |
+| -------------------- | --------------------------------------------------------------------------- |
+| `console-ui-builder` | Implementing `packages/ui-web` components and `apps/console` screens        |
+| `dashboard-author`   | `dashboards.yaml` entries and panels — YAML, not components                 |
+| `console-verifier`   | **Read-only** verification of a change or a claim of "done"                 |
+| `docs-curator`       | Writing or repairing docs with verified citations and parsing mermaid pairs |
+
+### Knowledge base — `docs/knowledge/`
+
+Contracts and how-tos. **Decisions and their alternatives live in `docs/adr/`** — these pages link
+the ADRs rather than restating them.
+
+| Page                                                             | Covers                                                              |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `architecture.md`                                                | What this repository is, the apps, the dependency graph             |
+| `dashboards.md`                                                  | The `dashboards.yaml` contract, the engine, dedupe, panel types     |
+| `export-pipeline.md`                                             | `/api/reports/page`, Typst templates, the sidecar, CSV              |
+| `admin-area.md`                                                  | Every `/admin/*` screen and its permission, and the honest captions |
+| `sessions-and-access.md`                                         | The session seal, TTL, rotation, chunks, and the `can()` gate       |
+| `authorization-and-permissions.md`                               | The full gate table and the server-side boundary                    |
+| `i18n.md`                                                        | Adding a string, adding a language, the ratchets                    |
+| `budget-schedules.md`                                            | Reset schedules, and ceiling vs reset period                        |
+| `comparison-windows.md`                                          | What `compare: true` adds, and why the picked window never moves    |
+| `console-configuration.md`                                       | `config.yaml`, every key, the config volume, secret rotation        |
+| `observability.md`                                               | OpenTelemetry traces and the build stamp                            |
+| `release-and-rollout.md`                                         | Merge → image → image-updater → ArgoCD → live, and how to check     |
+| `ci-cd.md`, `infrastructure.md`, `runbooks.md`                   | The pipelines, the cluster, the incident procedures                 |
+| `rpc-and-codegen.md`, `api-reference.md`, `api-usage-backend.md` | The backends and their clients                                      |
+| `agent-harnesses.md`                                             | How every harness reaches these files                               |
+
+### The commands, once
+
+```sh
+pnpm install                                        # postinstall runs codegen
+pnpm -r typecheck
+pnpm -r test
+pnpm --filter console build:web                     # the REAL Next build (`build` is not a script)
+pnpm --filter @lightbridge/ui-web build-storybook
+pnpm lint                                           # eslint + prettier -c
+pnpm format                                         # write mode
+```
+
 ## 1. Guiding Principles
 
 - **Monorepo-first**: All code lives in `apps/` or `packages/`. Root contains only workspace tooling.
@@ -91,10 +162,15 @@ This document is the definitive source of truth for the working method, architec
    - **`packages/api-rest`**: Generated REST client for the usage backend (Hey API/OpenAPI). **DO NOT HAND-EDIT.**
 6. **Chart math (`packages/chart-core`)**:
    - DOM-free d3 scales/bins/colour-ramp math, consumed by `packages/ui-web`'s SVG chart components.
-7. **i18n layer (`packages/i18n`)**:
-   - Centralized translations and configuration via `react-i18next`. Note: `apps/console` imports
-     it nowhere today, so §1's "No Plain Visible Text" rule currently describes an intent rather
-     than the state of the web surface.
+7. **i18n**: there is **no `packages/i18n`** — it was deleted with the Expo app it served (ADR 0017
+   D7). Copy lives in `apps/console/locales/<locale>/<namespace>.json` and is resolved by
+   `apps/console/src/i18n/` (per-request server instance, synchronously-seeded client provider).
+   `packages/ui-web` owns **no** translations: copy arrives as a prop, or through `useCopy()` with
+   an English default. English and German ship today. See
+   [`docs/knowledge/i18n.md`](docs/knowledge/i18n.md) and the `i18n-copy` skill. §1's "No Plain
+   Visible Text" rule is enforced by a ratchet
+   (`apps/console/src/i18n-hardcoded-copy.test.ts`) that pins the number of remaining hard-coded
+   strings: it may fall freely, and raising it fails the build.
 
 `packages/hooks` and `packages/api-native` still exist but carry React-Native-only surface (auth
 session, Keycloak login, native clipboard/haptics) that predates the console and has no current

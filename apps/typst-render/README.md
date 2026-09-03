@@ -89,7 +89,7 @@ sequenceDiagram
     participant Typst as typst CLI<br/>(pinned 0.15.1)
 
     Console->>HTTP: POST /render {template, data, assets}
-    Note over HTTP: body read with a running byte count;<br/>over the cap -> pause + 413, never buffered whole
+    Note over HTTP: body read with a running byte count —<br/>over the cap it pauses and answers 413, never buffered whole
     HTTP->>Parse: JSON.parse(body)
     Parse-->>HTTP: 400 bad_request (unsafe asset name, bad base64, no template)
     Parse->>Render: RenderRequest {template, data, assets: Map}

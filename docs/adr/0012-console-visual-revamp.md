@@ -263,15 +263,15 @@ sequenceDiagram
         A->>DS: Approve +$X
         DS->>API: decide(approve, tier)
         API-->>DS: ok
-        DS->>Q: close; row moves Pending → Decided
+        DS->>Q: close — row moves Pending → Decided
     else decline
         A->>DS: Decline (+ note)
         DS->>API: decide(decline)
         API-->>DS: ok
-        DS->>Q: close; row moves Pending → Decided
+        DS->>Q: close — row moves Pending → Decided
     else request fails
         API-->>DS: error
-        DS-->>A: stays open, error inline; nothing changed
+        DS-->>A: stays open, error inline — nothing changed
     end
 ```
 

@@ -14,19 +14,21 @@ describe('RefineAdminBudgetReviewScreen', () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [40, 80] }}>
         <RefineAdminBudgetReviewScreen />
-      </RefineMockRoot>,
+      </RefineMockRoot>
     );
 
     expect(screen.queryByText('gateway-prod')).not.toBeInTheDocument();
 
-    await waitFor(() => expect(screen.getByText('gateway-prod')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(screen.getByText('gateway-prod')).toBeInTheDocument(), {
+      timeout: 3000,
+    });
   });
 
   it('approving the selected request (useOne detail + useCustomMutation decide) removes it from the pending queue', async () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [5, 10] }}>
         <RefineAdminBudgetReviewScreen />
-      </RefineMockRoot>,
+      </RefineMockRoot>
     );
 
     await waitFor(() => expect(screen.getByText('gateway-prod')).toBeInTheDocument());
@@ -37,19 +39,28 @@ describe('RefineAdminBudgetReviewScreen', () => {
     const approveButton = await screen.findByRole('button', { name: /Approve/ });
     fireEvent.click(approveButton);
 
-    await waitFor(() => expect(screen.queryByRole('button', { name: /Approve/ })).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Approve/ })).not.toBeInTheDocument()
+    );
     await waitFor(() => expect(screen.queryByText('gateway-prod')).not.toBeInTheDocument());
   });
 
   it('adapts a getList failure into the Admin sections’ error props (ErrorLine + Retry)', async () => {
     render(
-      <RefineMockRoot providerConfig={{ latencyMs: [10, 20], errorResources: { 'refill-requests': 'Failed to load the review queue.' } }}>
+      <RefineMockRoot
+        providerConfig={{
+          latencyMs: [10, 20],
+          errorResources: { 'refill-requests': 'Failed to load the review queue.' },
+        }}>
         <RefineAdminBudgetReviewScreen />
-      </RefineMockRoot>,
+      </RefineMockRoot>
     );
 
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Failed to load the review queue.'), {
-      timeout: 3000,
-    });
+    await waitFor(
+      () => expect(screen.getByRole('alert')).toHaveTextContent('Failed to load the review queue.'),
+      {
+        timeout: 3000,
+      }
+    );
   });
 });

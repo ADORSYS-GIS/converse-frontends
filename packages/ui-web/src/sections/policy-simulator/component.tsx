@@ -64,7 +64,11 @@ export function PolicySimulator({
           />
           {error ? <ErrorLine message={error} /> : null}
           <div>
-            <Button type="button" variant="primary" disabled={!canSubmit || submitting} onClick={onSubmit}>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={!canSubmit || submitting}
+              onClick={onSubmit}>
               {submitting ? 'Simulating…' : 'Simulate'}
             </Button>
           </div>

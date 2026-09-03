@@ -59,9 +59,7 @@ describe('ProjectsLedger', () => {
 
   it('renders a resolved spend figure once wired, formatted as currency', () => {
     render(
-      <ProjectsLedger
-        {...makeProps({ projects: [{ ...projectsFixture[0], spendMtd: 128.4 }] })}
-      />
+      <ProjectsLedger {...makeProps({ projects: [{ ...projectsFixture[0], spendMtd: 128.4 }] })} />
     );
 
     expect(screen.getByText('$128.40')).toBeInTheDocument();
@@ -79,10 +77,7 @@ describe('ProjectsLedger', () => {
   it('renders Name and Spend MTD as sortable columns', () => {
     render(<ProjectsLedger {...makeProps()} />);
 
-    expect(screen.getByRole('columnheader', { name: 'Name' })).toHaveAttribute(
-      'aria-sort',
-      'none'
-    );
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toHaveAttribute('aria-sort', 'none');
     expect(screen.getByRole('columnheader', { name: 'Spend MTD' })).toHaveAttribute(
       'aria-sort',
       'none'

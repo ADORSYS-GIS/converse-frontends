@@ -34,9 +34,9 @@ export const WithDisabledAction: Story = {
 
 export const RevealedOnRowHover: Story = {
   render: () => (
-    <div className="group flex h-11 w-[400px] items-center justify-between border-b border-raised bg-surface px-3 hover:bg-chrome">
-      <span className="font-mono text-xs text-ink">ci-deploy</span>
-      <div className="opacity-0 transition-opacity duration-150 ease-out group-hover:opacity-100 group-focus-within:opacity-100">
+    <div className="group border-raised bg-surface hover:bg-chrome flex h-11 w-[400px] items-center justify-between border-b px-3">
+      <span className="text-ink font-mono text-xs">ci-deploy</span>
+      <div className="opacity-0 transition-opacity duration-150 ease-out group-focus-within:opacity-100 group-hover:opacity-100">
         <RowActionGroup
           actions={[
             { key: 'rotate', label: 'Rotate', onClick: () => {}, emphasis: 'default' },

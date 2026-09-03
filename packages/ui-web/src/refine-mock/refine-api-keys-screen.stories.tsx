@@ -25,7 +25,9 @@ export const Populated: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText('ci-deploy')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(canvas.getByText('ci-deploy')).toBeInTheDocument(), {
+      timeout: 3000,
+    });
   },
 };
 
@@ -41,7 +43,9 @@ export const RevokeFlow: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText('ci-deploy')).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(canvas.getByText('ci-deploy')).toBeInTheDocument(), {
+      timeout: 3000,
+    });
 
     const rows = canvas.getAllByRole('row').slice(1);
     const ciDeployRow = rows[0];
@@ -50,13 +54,17 @@ export const RevokeFlow: Story = {
 
     const dialog = await canvas.findByRole('alertdialog');
     await userEvent.type(within(dialog).getByLabelText('Type "ci-deploy" to confirm'), 'ci-deploy');
-    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Revoke' })).toBeEnabled());
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Revoke' })).toBeEnabled()
+    );
     await userEvent.click(within(dialog).getByRole('button', { name: 'Revoke' }));
 
-    await waitFor(() => expect(canvas.queryByRole('alertdialog')).not.toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(canvas.queryByRole('alertdialog')).not.toBeInTheDocument(), {
+      timeout: 3000,
+    });
     await waitFor(
       () => expect(within(canvas.getAllByRole('row')[1]).getByText('revoked')).toBeInTheDocument(),
-      { timeout: 3000 },
+      { timeout: 3000 }
     );
   },
 };
@@ -64,7 +72,12 @@ export const RevokeFlow: Story = {
 // The `api-keys` resource rejects every `getList` call — `ErrorLine` + Retry renders in place of
 // the ledger, matching the fixture-driven `Pages/ApiKeys`'s `ErrorState` story.
 export const ErrorMode: Story = {
-  decorators: [withRefineMock({ latencyMs: [10, 20], errorResources: { 'api-keys': 'Failed to load keys for this project.' } })],
+  decorators: [
+    withRefineMock({
+      latencyMs: [10, 20],
+      errorResources: { 'api-keys': 'Failed to load keys for this project.' },
+    }),
+  ],
   render: () => (
     <div className="w-full">
       <RefineApiKeysScreen />
@@ -72,8 +85,14 @@ export const ErrorMode: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByRole('alert')).toHaveTextContent('Failed to load keys for this project.'), {
-      timeout: 3000,
-    });
+    await waitFor(
+      () =>
+        expect(canvas.getByRole('alert')).toHaveTextContent(
+          'Failed to load keys for this project.'
+        ),
+      {
+        timeout: 3000,
+      }
+    );
   },
 };

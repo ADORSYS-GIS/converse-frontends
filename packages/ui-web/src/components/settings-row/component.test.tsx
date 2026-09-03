@@ -31,7 +31,9 @@ describe('SettingsRow', () => {
   });
 
   it('renders the trailing action', () => {
-    render(<SettingsRow label="Account name" value="Widgets Ltd" action={<button>Rename</button>} />);
+    render(
+      <SettingsRow label="Account name" value="Widgets Ltd" action={<button>Rename</button>} />
+    );
 
     expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
   });
@@ -57,9 +59,7 @@ describe('SettingsRow', () => {
   });
 
   it('shows a trailing chevron only on a row that opens something', () => {
-    const { container: clickable } = render(
-      <SettingsRow label="gateway-prod" onClick={vi.fn()} />
-    );
+    const { container: clickable } = render(<SettingsRow label="gateway-prod" onClick={vi.fn()} />);
     expect(clickable.querySelector('.settings-row-value svg.chevron-right')).toBeInTheDocument();
 
     // A plain value row (`/settings/account`'s Status/Default quota tier rows) has nothing to

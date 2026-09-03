@@ -54,11 +54,7 @@ export function Meter({
       <BaseMeter.Track className="meter-track">
         <BaseMeter.Indicator />
       </BaseMeter.Track>
-      {showCaption ? (
-        <BaseMeter.Value render={<p />}>
-          {() => caption}
-        </BaseMeter.Value>
-      ) : null}
+      {showCaption ? <BaseMeter.Value render={<p />}>{() => caption}</BaseMeter.Value> : null}
     </BaseMeter.Root>
   );
 }

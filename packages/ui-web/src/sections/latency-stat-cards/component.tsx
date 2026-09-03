@@ -54,7 +54,8 @@ function LatencyCard({ row }: { row: LatencyStatRow }) {
       </div>
       <p className={`${META_CLASS} mt-1`}>
         p95 {formatMs(row.p95Ms)}
-        {showP99 ? ` · p99 ${formatMs(row.p99Ms as number)}` : ''} · n={row.samples.toLocaleString()}
+        {showP99 ? ` · p99 ${formatMs(row.p99Ms as number)}` : ''} · n=
+        {row.samples.toLocaleString()}
       </p>
     </div>
   );

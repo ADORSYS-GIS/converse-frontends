@@ -30,7 +30,9 @@ export function OverviewControls({
   // it stays the field's real accessible name (`hideLabel` only hides it visually), which is why
   // `OverviewControlsField`/`DateRangeFieldProps` keep requiring one.
   return (
-    <section aria-label="View and filters" className={cn('flex flex-wrap items-end gap-3', className)}>
+    <section
+      aria-label="View and filters"
+      className={cn('flex flex-wrap items-end gap-3', className)}>
       <DateRangeField {...rangeField} layout="inline" hideLabel />
       <SelectField {...bucketField} layout="inline" hideLabel />
       <SelectField {...groupByField} layout="inline" hideLabel />

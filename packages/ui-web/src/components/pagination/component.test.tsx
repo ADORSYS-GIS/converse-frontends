@@ -29,9 +29,7 @@ describe('Pagination', () => {
   });
 
   it('falls back to "X unit" when the total is unknown', () => {
-    render(
-      <Pagination shown={12} unit="keys" hasPrev={false} hasNext={true} onNext={vi.fn()} />
-    );
+    render(<Pagination shown={12} unit="keys" hasPrev={false} hasNext={true} onNext={vi.fn()} />);
 
     expect(screen.getByText('12 keys')).toBeInTheDocument();
     expect(screen.queryByText(/of/)).not.toBeInTheDocument();

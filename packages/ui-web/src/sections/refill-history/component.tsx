@@ -17,7 +17,13 @@ import type { RefillHistoryProps, RefillHistoryRow } from './types';
  */
 export function RefillHistory({ state, className }: RefillHistoryProps) {
   const columns: LedgerColumn<RefillHistoryRow>[] = [
-    { key: 'submitted', header: 'Submitted', width: '140px', kind: 'data', accessor: (row) => row.submittedAgo },
+    {
+      key: 'submitted',
+      header: 'Submitted',
+      width: '140px',
+      kind: 'data',
+      accessor: (row) => row.submittedAgo,
+    },
     {
       key: 'amount',
       header: 'Amount',
@@ -41,7 +47,13 @@ export function RefillHistory({ state, className }: RefillHistoryProps) {
             onRetry={state.onRetry}
           />
         ) : state.status === 'loading' ? (
-          <LedgerTable columns={columns} data={[]} rowKey={(row) => row.id} loading loadingRowCount={3} />
+          <LedgerTable
+            columns={columns}
+            data={[]}
+            rowKey={(row) => row.id}
+            loading
+            loadingRowCount={3}
+          />
         ) : state.rows.length === 0 ? (
           <EmptyState
             headline="No refill requests yet"

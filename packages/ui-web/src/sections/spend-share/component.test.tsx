@@ -34,7 +34,9 @@ describe('SpendShareSection', () => {
   // account overview's time-series chart and onto this SHARE component (the same contract
   // `SpendDashboard`'s own `degenerateMessage` prop already implements).
   it('renders degenerateMessage in place of the bar when ready, keeping the heading', () => {
-    render(<SpendShareSection {...base} degenerateMessage="Only one project in this window (proj-a)." />);
+    render(
+      <SpendShareSection {...base} degenerateMessage="Only one project in this window (proj-a)." />
+    );
 
     expect(screen.getByText('Spend — share by project')).toBeInTheDocument();
     expect(screen.getByText('Only one project in this window (proj-a).')).toBeInTheDocument();
@@ -62,7 +64,7 @@ describe('SpendShareSection', () => {
         status="error"
         errorMessage="Failed to load spend share."
         onRetry={onRetry}
-      />,
+      />
     );
 
     const alert = screen.getByRole('alert');
@@ -75,7 +77,7 @@ describe('SpendShareSection', () => {
   it('is controlled: selectedKey drives which row is pressed', () => {
     const key = overviewSpendShareSegments[0].key;
     const { rerender } = render(
-      <SpendShareSection {...base} selectedKey={null} onSelectSegment={() => {}} />,
+      <SpendShareSection {...base} selectedKey={null} onSelectSegment={() => {}} />
     );
     expect(screen.queryByRole('button', { pressed: true })).not.toBeInTheDocument();
 
@@ -93,7 +95,7 @@ describe('SpendShareSection', () => {
         onSelectSegment={(next) => {
           selected = next;
         }}
-      />,
+      />
     );
 
     fireEvent.click(screen.getAllByRole('button')[0]);
@@ -106,7 +108,7 @@ describe('SpendShareSection', () => {
         onSelectSegment={(next) => {
           selected = next;
         }}
-      />,
+      />
     );
     fireEvent.click(screen.getAllByRole('button')[0]);
     expect(selected).toBeNull();

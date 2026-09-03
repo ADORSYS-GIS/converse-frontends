@@ -23,7 +23,7 @@ export type UseQueryStateResult = [string | undefined, (next: string | null) => 
  */
 export function useQueryState(
   key: string,
-  options: UseQueryStateOptions = {},
+  options: UseQueryStateOptions = {}
 ): UseQueryStateResult {
   const params = useLocalSearchParams();
   const router = useRouter();
@@ -38,7 +38,7 @@ export function useQueryState(
       // merges into the existing params, so other keys are preserved.
       router.setParams({ [key]: next ?? undefined });
     },
-    [key, router],
+    [key, router]
   );
 
   return [value, setValue];

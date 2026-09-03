@@ -5,7 +5,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { presetRange } from '../../components/date-range-field';
 import { OverviewControls } from './component';
 import type { OverviewControlsField } from './types';
-import { BUCKET_OPTIONS, GROUP_BY_OPTIONS, PROJECT_FILTER_OPTIONS, RANGE_PRESETS } from './fixtures';
+import {
+  BUCKET_OPTIONS,
+  GROUP_BY_OPTIONS,
+  PROJECT_FILTER_OPTIONS,
+  RANGE_PRESETS,
+} from './fixtures';
 
 function field(
   label: string,
@@ -79,7 +84,10 @@ describe('OverviewControls', () => {
   it('changing a select calls that field own onChange with the new value', async () => {
     const onChange = vi.fn();
     render(
-      <OverviewControls {...base} bucketField={field('Bucket', 'daily', BUCKET_OPTIONS, onChange)} />
+      <OverviewControls
+        {...base}
+        bucketField={field('Bucket', 'daily', BUCKET_OPTIONS, onChange)}
+      />
     );
 
     fireEvent.click(screen.getByLabelText('Bucket'));

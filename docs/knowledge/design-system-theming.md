@@ -6,23 +6,23 @@ How colour, layout, and light/dark work in the self-service console, and how to 
 
 The palette is defined **twice** and the two copies **must stay identical**:
 
-| Source | File | Consumed by |
-| --- | --- | --- |
-| CSS variables (`--color-*`) | `packages/ui/tailwind-preset.js` | NativeWind className tokens — `bg-surface`, `text-ink`, `border-border`, `bg-primary/10`, … |
-| Inline JS palette | `apps/self-service/src/theme/theme-colors.ts` | `useThemeColors()` → `style={{ color: colors.x }}`, Ionicons `color={…}` |
+| Source                      | File                                          | Consumed by                                                                                 |
+| --------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| CSS variables (`--color-*`) | `packages/ui/tailwind-preset.js`              | NativeWind className tokens — `bg-surface`, `text-ink`, `border-border`, `bg-primary/10`, … |
+| Inline JS palette           | `apps/self-service/src/theme/theme-colors.ts` | `useThemeColors()` → `style={{ color: colors.x }}`, Ionicons `color={…}`                    |
 
 > ⚠️ **When you change a colour, change it in both files.** They drifted once (the inline copy kept the old accent after the CSS side was recalibrated), which is what produced the "dark island" bug. `theme-colors.ts` carries a sync comment; the theme tests assert values don't leak across themes.
 
 Tokens (light / dark):
 
-| Token | Light | Dark | Use |
-| --- | --- | --- | --- |
-| `primary` | `#3E63DD` | `#7DA0FF` | Actions, links, active state — **never** as a full-bleed fill |
-| `accent` | `#6B4FD6` | `#A48BF0` | Secondary emphasis |
-| `secondary` | `#DB7A34` | `#E0975A` | Warm accent |
-| `success` / `error` | `#2F9E6B` / `#DD4B4B` | `#46C58B` / `#F0736F` | Semantic only (kept separate from the accent) |
-| `ink` / `soft` / `subtle` | `#151A21` / `#5B6472` / `#9AA2AF` | `#E8EAED` / `#A2ABB8` / `#6B7280` | Text hierarchy |
-| `muted` / `surface` / `border` | `#F5F6F8` / `#FFFFFF` / `#E6E8EC` | `#0F1216` / `#181C22` / `#2A2F37` | Page ground / cards / hairlines |
+| Token                          | Light                             | Dark                              | Use                                                           |
+| ------------------------------ | --------------------------------- | --------------------------------- | ------------------------------------------------------------- |
+| `primary`                      | `#3E63DD`                         | `#7DA0FF`                         | Actions, links, active state — **never** as a full-bleed fill |
+| `accent`                       | `#6B4FD6`                         | `#A48BF0`                         | Secondary emphasis                                            |
+| `secondary`                    | `#DB7A34`                         | `#E0975A`                         | Warm accent                                                   |
+| `success` / `error`            | `#2F9E6B` / `#DD4B4B`             | `#46C58B` / `#F0736F`             | Semantic only (kept separate from the accent)                 |
+| `ink` / `soft` / `subtle`      | `#151A21` / `#5B6472` / `#9AA2AF` | `#E8EAED` / `#A2ABB8` / `#6B7280` | Text hierarchy                                                |
+| `muted` / `surface` / `border` | `#F5F6F8` / `#FFFFFF` / `#E6E8EC` | `#0F1216` / `#181C22` / `#2A2F37` | Page ground / cards / hairlines                               |
 
 Soft tints (`brandSoft`, `accentSoft`, `successSoft`, …) are `bg-<token>/10` — they cascade automatically, so recalibrating a base token updates its tints.
 
@@ -56,6 +56,7 @@ One provider owns everything:
 Users pick the theme via the **Appearance** control in Settings (`components/theme-toggle.tsx`, Light / Dark / System).
 
 ### Verifying dark mode
+
 Dark is class-driven, not `prefers-color-scheme` directly. In the browser preview, `colorScheme: 'dark'` + reload flips the app (the provider effect reads `matchMedia`); confirm with `document.documentElement.classList.contains('dark')`.
 
 ## Do / don't

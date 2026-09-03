@@ -51,20 +51,22 @@ with your actual project details, architecture decisions, and domain knowledge.
 After setup, verify that everything is working:
 
 1. **Check project rules exist:**
+
    ```bash
    ls CLAUDE.md .cursorrules .windsurfrules .github/copilot-instructions.md .codex/instructions.md 2>/dev/null
    ```
 
 2. **Check skills are in place:**
+
    ```bash
    ls -la .claude/skills/
    ```
 
 3. **Check MCP configuration:**
+
    ```bash
    cat .claude/settings.json
    ```
 
 4. **Test with your AI assistant:**
    Open your configured AI coding tool and verify it picks up the project instructions.
-

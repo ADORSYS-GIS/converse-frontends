@@ -61,8 +61,8 @@ export function ScenarioForm({ value, onChange, errors, className }: ScenarioFor
             />
           ) : (
             <p className={META_CLASS}>
-              Treated as unavailable — a policy referencing this fact fails closed to manual
-              review, never to $0 spent.
+              Treated as unavailable — a policy referencing this fact fails closed to manual review,
+              never to $0 spent.
             </p>
           )}
         </div>
@@ -85,8 +85,8 @@ export function ScenarioForm({ value, onChange, errors, className }: ScenarioFor
             />
           ) : (
             <p className={META_CLASS}>
-              Treated as unavailable — a policy referencing this fact fails closed to manual
-              review, never to $0 spent.
+              Treated as unavailable — a policy referencing this fact fails closed to manual review,
+              never to $0 spent.
             </p>
           )}
         </div>

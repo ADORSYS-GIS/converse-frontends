@@ -6,6 +6,7 @@ import {
   monthRange,
   type ConsumptionRow,
 } from '../consumption-csv';
+import type { ReportBranding } from './report-branding';
 import type { ReportDocument } from './report-data';
 
 /**
@@ -63,6 +64,9 @@ export interface ConsumptionReportInput {
   projectId?: string;
   templateOrigin: string;
   generatedAt: Date;
+  /** The configured brand (`resolveReportBranding`). The consumption report shares `_lib/report.typ`'s
+   *  header with every dashboard report, so it gets the letterhead on the same terms. */
+  branding?: ReportBranding;
 }
 
 const COLUMNS = [
@@ -81,6 +85,7 @@ export function buildConsumptionReport(input: ConsumptionReportInput): ReportDoc
 
   return {
     title: 'Consumption report',
+    ...(input.branding ? { branding: input.branding } : {}),
     route: CONSUMPTION_TEMPLATE_ROUTE,
     rangeLabel: input.month,
     window: { start: startTime, end: endTime },

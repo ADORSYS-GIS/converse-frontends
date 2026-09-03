@@ -3,13 +3,15 @@ import type { UsageQueryResponse } from '@lightbridge/api-rest';
 
 import { serverEnv } from '../../../../server/env';
 import { assemblePageReport, resolvePageReport } from '../../../../server/reports/page-report';
+import { resolveReportBranding } from '../../../../server/reports/report-branding';
 import { reportCsv } from '../../../../server/reports/report-csv';
 import { reportHtml } from '../../../../server/reports/report-html';
+import { collectTemplateAssets } from '../../../../server/reports/template-assets';
 import {
   readTemplateLibrary,
   resolveReportTemplate,
 } from '../../../../server/reports/template-resolver';
-import { renderPdf } from '../../../../server/reports/typst-client';
+import { renderPdf, type RenderAsset } from '../../../../server/reports/typst-client';
 import { fetchUsageQueries } from '../../../../server/reports/usage-fetch';
 import { clearSession, writeSession } from '../../../../server/session-store';
 
@@ -145,6 +147,18 @@ export async function GET(request: NextRequest) {
     return fail(500, 'template_missing', (error as Error).message);
   }
 
+  // Everything that travels WITH the template: the operator's own files sitting beside the
+  // resolved `report.typ` (a customer logo, a watermark), override directory first. Refused as a
+  // 413 rather than shipped, so an oversized mount is named here instead of coming back from the
+  // renderer as an anonymous `payload_too_large`.
+  const templateAssets = collectTemplateAssets(context.route);
+  if (!templateAssets.ok) {
+    console.error(`[console] Template assets for ${context.route} over budget:`, templateAssets);
+    return fail(413, 'template_assets_too_large', templateAssets.message);
+  }
+
+  const branding = resolveReportBranding(serverEnv().branding);
+
   const built = assemblePageReport({
     resolved,
     context,
@@ -152,7 +166,16 @@ export async function GET(request: NextRequest) {
     templateOrigin: template.origin,
     includeTables,
     generatedAt: new Date(),
+    branding: branding.branding,
   });
+
+  // Precedence, least specific first: the template's own sibling files, then the configured
+  // brand, then this report's own panel SVGs. A file dropped into a template directory can give a
+  // template its own artwork; it cannot shadow the data the report is OF.
+  const assets: Record<string, RenderAsset> = {};
+  for (const file of templateAssets.files) assets[file.path] = file.bytes;
+  if (branding.asset) assets[branding.asset.path] = branding.asset.bytes;
+  Object.assign(assets, built.assets);
 
   const filename = `${context.slug}-${params.get('range') ?? 'mtd'}.${format === 'html' ? 'html' : format}`;
 
@@ -162,13 +185,7 @@ export async function GET(request: NextRequest) {
 
   if (format === 'html') {
     // Inline, not an attachment: this format exists to be LOOKED at in a new tab.
-    return finish(
-      usage.rotated,
-      reportHtml(built.document, built.assets),
-      'html',
-      filename,
-      'inline'
-    );
+    return finish(usage.rotated, reportHtml(built.document, assets), 'html', filename, 'inline');
   }
 
   const renderUrl = serverEnv().typstRenderUrl;
@@ -187,7 +204,7 @@ export async function GET(request: NextRequest) {
     {
       template: template.source,
       data: built.document,
-      assets: { ...built.assets, [library.path]: library.source },
+      assets: { ...assets, [library.path]: library.source },
     },
     request.signal
   );
@@ -214,6 +231,19 @@ export async function GET(request: NextRequest) {
       );
     }
     console.error(`[console] typst-render answered ${outcome.status}:`, outcome.detail);
+    if (outcome.status === 413) {
+      // Passed through as a 413, not folded into the 502: the renderer's request cap is on the
+      // BASE64 body, so a payload this console's own raw-bytes budget let through can still be
+      // refused there. Answering 502 would tell the reader the renderer is broken when the real
+      // answer is "this report's assets are too big", which is actionable.
+      return fail(
+        413,
+        'render_payload_too_large',
+        'The report is too large for the renderer to accept in one request. Shrink the images ' +
+          'in the template directory or the configured branding logo.',
+        outcome.detail
+      );
+    }
     return fail(
       502,
       'renderer_error',

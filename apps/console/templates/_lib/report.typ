@@ -24,6 +24,12 @@
 // overridable — an override of it would restyle every report at once, which is not a per-route
 // decision.
 //
+// SHIPPING ARTWORK WITH AN OVERRIDE: every non-`.typ` file beside that `report.typ` arrives as an
+// asset keyed by its path relative to that directory, so a custom template draws its own logo with
+// `#image("logo.png")` — NO leading slash, because a per-route template compiles as `main.typ` AT
+// the render root, unlike this library. The deployment-wide letterhead is a different thing and
+// needs no template at all: see `brand-mark` below.
+//
 // SELF-CONTAINED, ALWAYS: no `@preview` imports. The sidecar's package path is an empty
 // per-request directory and it is expected to run with no egress, so an import would surface as a
 // compile error naming the package. Everything below is stdlib Typst.
@@ -40,6 +46,43 @@
   let parts = iso.split("T")
   if parts.len() < 2 { return iso }
   parts.at(0) + " " + parts.at(1).slice(0, 5) + " UTC"
+}
+
+// ── Branding ──────────────────────────────────────────────────────────────────────────────────
+// `report.branding` is `{logo?, name?}`, absent entirely when the deployment configured no brand
+// (apps/console/src/server/reports/report-branding.ts). `logo` is an asset path inside the render
+// root, written there from the SAME file the console header serves — a report cannot fetch a URL,
+// so the bytes travel with the job.
+//
+// Root-absolute (`"/" + logo`) for exactly the reason `panel-chart` is: Typst resolves a relative
+// `image()` against the file that CALLS it, and this library lives in `_lib/`, so `image("branding/
+// logo.png")` here would look for `_lib/branding/logo.png` and fail. A CUSTOMER's own template
+// sits at the render root as `main.typ`, which is why ITS `image("logo.png")` — a sibling asset,
+// see `template-assets.ts` — needs no leading slash.
+//
+// Three rungs, and the last one is today's header exactly: the logo when there is one, the brand
+// name when there is not, and nothing at all when neither is configured. A missing logo is never
+// a missing report.
+#let brand-logo-height = 28pt
+
+#let brand-mark(report) = {
+  if "branding" not in report or report.branding == none { return }
+  let brand = report.branding
+  if "logo" in brand and brand.logo != none {
+    image("/" + brand.logo, height: brand-logo-height, fit: "contain")
+  } else if "name" in brand and brand.name != none {
+    text(size: 8.5pt, fill: subtle, tracking: 0.08em)[#upper(brand.name)]
+  }
+}
+
+// Is there anything to put left of the title? Asked separately from drawing it so the header can
+// choose between a one-column and a two-column grid — an empty first column would leave a gap
+// that reads as a missing image.
+#let has-brand-mark(report) = {
+  "branding" in report and report.branding != none and (
+    ("logo" in report.branding and report.branding.logo != none)
+      or ("name" in report.branding and report.branding.name != none)
+  )
 }
 
 // The document shell: page geometry, type, and the header every report opens with.
@@ -62,19 +105,36 @@
   set par(justify: false, leading: 0.6em)
 
   // ── Header ────────────────────────────────────────────────────────────────────────────────
-  text(size: 17pt, weight: "bold")[#report.title]
-  v(2pt)
-  text(size: 8.5pt, fill: subtle)[
-    #report.rangeLabel · #utc-stamp(report.window.start) – #utc-stamp(report.window.end)
-  ]
-  if report.filters.len() > 0 {
-    linebreak()
+  // The brand mark sits LEFT of the title in a two-column grid, and the grid only exists when
+  // there is a mark: a one-column layout with an empty first cell would leave a gap that reads
+  // as a logo that failed to load.
+  let title-block = {
+    text(size: 17pt, weight: "bold")[#report.title]
+    v(2pt)
     text(size: 8.5pt, fill: subtle)[
-      #report.filters.map(f => f.label + ": " + f.value).join(" · ")
+      #report.rangeLabel · #utc-stamp(report.window.start) – #utc-stamp(report.window.end)
     ]
+    if report.filters.len() > 0 {
+      linebreak()
+      text(size: 8.5pt, fill: subtle)[
+        #report.filters.map(f => f.label + ": " + f.value).join(" · ")
+      ]
+    }
+    linebreak()
+    text(size: 8.5pt, fill: subtle)[Generated #utc-stamp(report.generatedAt)]
   }
-  linebreak()
-  text(size: 8.5pt, fill: subtle)[Generated #utc-stamp(report.generatedAt)]
+
+  if has-brand-mark(report) {
+    grid(
+      columns: (auto, 1fr),
+      column-gutter: 12pt,
+      align: (left + horizon, left + top),
+      brand-mark(report),
+      title-block,
+    )
+  } else {
+    title-block
+  }
   v(4pt)
   line(length: 100%, stroke: 0.6pt + rule-colour)
   v(8pt)

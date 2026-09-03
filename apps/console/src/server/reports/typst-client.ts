@@ -34,12 +34,19 @@ export type TypstRenderOutcome =
   | { ok: false; kind: 'compile_error'; detail: string }
   | { ok: false; kind: 'service_error'; status: number; detail: string };
 
+/**
+ * One asset's content: UTF-8 text (an SVG, the shared `_lib/report.typ`) or raw bytes (a branding
+ * PNG, a customer template's own logo or typeface). Both end up base64 on the wire, which is why
+ * the distinction stops here and never reaches a caller.
+ */
+export type RenderAsset = string | Uint8Array;
+
 export interface TypstRenderRequest {
   template: string;
   data: unknown;
-  /** Relative path → UTF-8 text (SVGs, the shared `_lib/report.typ`). Encoded to base64 here so a
-   *  caller never has to think about the wire format. */
-  assets: Record<string, string>;
+  /** Relative path → its content. Encoded to base64 here so a caller never has to think about the
+   *  wire format. */
+  assets: Record<string, RenderAsset>;
 }
 
 /** How long the console waits on a render before giving up. Deliberately LONGER than the
@@ -48,8 +55,10 @@ export interface TypstRenderRequest {
  *  indistinguishable "unreachable". */
 export const TYPST_RENDER_TIMEOUT_MS = 45_000;
 
-function toBase64(text: string): string {
-  return Buffer.from(text, 'utf8').toString('base64');
+function toBase64(asset: RenderAsset): string {
+  return (typeof asset === 'string' ? Buffer.from(asset, 'utf8') : Buffer.from(asset)).toString(
+    'base64'
+  );
 }
 
 export async function renderPdf(
@@ -61,7 +70,7 @@ export async function renderPdf(
     template: request.template,
     data: request.data,
     assets: Object.fromEntries(
-      Object.entries(request.assets).map(([path, text]) => [path, toBase64(text)])
+      Object.entries(request.assets).map(([path, asset]) => [path, toBase64(asset)])
     ),
   });
 

@@ -9,6 +9,7 @@ import { loadDashboards } from '../../dashboards/load-dashboards';
 import { FAMILY_SCOPE, findPage, type DashboardPageSpec } from '../../dashboards/dashboard-spec';
 import { resolveDashboard, type ResolvedDashboard } from '../../dashboards/resolve-dashboard';
 import { assertSafeRouteSegments } from './template-resolver';
+import type { ReportBranding } from './report-branding';
 import { buildReport, type BuiltReport } from './report-data';
 
 /**
@@ -212,6 +213,8 @@ export interface AssemblePageReportInput {
   templateOrigin: string;
   includeTables: boolean;
   generatedAt: Date;
+  /** The configured brand (`resolveReportBranding`), threaded through unchanged. */
+  branding?: ReportBranding;
 }
 
 /** The last step both `format=pdf` and `format=html` share: the resolved dashboard plus its
@@ -227,5 +230,6 @@ export function assemblePageReport(input: AssemblePageReportInput): BuiltReport 
     template: { route: input.context.route, origin: input.templateOrigin },
     includeTables: input.includeTables,
     generatedAt: input.generatedAt,
+    branding: input.branding,
   });
 }

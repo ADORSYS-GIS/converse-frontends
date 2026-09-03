@@ -56,6 +56,8 @@ export type ConsoleEnv = {
    * REAL deployment state, not a misconfiguration: `format=csv`/`format=html` keep working and
    * `format=pdf` answers a 502 naming the missing configuration. It never degrades to a chartless
    * PDF — the story lists that as a failure mode by name.
+   *
+   * Resolved YAML-first, then from `TYPST_RENDER_URL` directly — see `resolveTypstRenderUrl`.
    */
   typstRenderUrl?: string;
   /** Absolute origin the browser reaches this app on. Falls back to the request's own origin. */
@@ -82,6 +84,13 @@ export type ConsoleEnv = {
     logoLightContentType?: string;
     /** Host-absolute path to a CSS file holding daisyUI custom-property overrides only. */
     stylePath?: string;
+    /**
+     * The brand's own name, printed in an exported report's header — beside the logo when there
+     * is one, INSTEAD of it when there is not (owner feedback 2026-09-03: "the PDF has no custom
+     * logo"). Independently optional and NOT a path, so it carries none of the host-absolute /
+     * extension validation the two logo keys do.
+     */
+    name?: string;
   };
 };
 
@@ -105,7 +114,7 @@ type RawConsoleConfig = {
   usageClientCert?: { certPath?: unknown; keyPath?: unknown };
   reports?: { typstRenderUrl?: unknown };
   publicBaseUrl?: unknown;
-  branding?: { logo?: unknown; logoLight?: unknown; style?: unknown };
+  branding?: { logo?: unknown; logoLight?: unknown; style?: unknown; name?: unknown };
   // `permissions` is intentionally not read here — config.yaml carries an empty-but-shaped seam
   // for the future authz-style permission model (see config.yaml's comment); wiring it up before
   // there's an engine to consume it would be dormant code.
@@ -232,14 +241,15 @@ function validateBrandingLogoPath(
  * the host-absolute-path/extension checks above.
  */
 function buildBrandingConfig(
-  raw: { logo?: unknown; logoLight?: unknown; style?: unknown } | undefined,
+  raw: { logo?: unknown; logoLight?: unknown; style?: unknown; name?: unknown } | undefined,
   parsed: ParsedConfigFile
 ): ConsoleEnv['branding'] {
   const logoPath = asOptionalString(raw?.logo)?.trim() || undefined;
   const logoLightPath = asOptionalString(raw?.logoLight)?.trim() || undefined;
   const stylePath = asOptionalString(raw?.style)?.trim() || undefined;
+  const name = asOptionalString(raw?.name)?.trim() || undefined;
 
-  if (!logoPath && !logoLightPath && !stylePath) return undefined;
+  if (!logoPath && !logoLightPath && !stylePath && !name) return undefined;
 
   if (logoLightPath && !logoPath) {
     throw new Error(
@@ -267,7 +277,40 @@ function buildBrandingConfig(
     ...(logoPath ? { logoPath, logoContentType } : {}),
     ...(logoLightPath ? { logoLightPath, logoLightContentType } : {}),
     ...(stylePath ? { stylePath } : {}),
+    ...(name ? { name } : {}),
   };
+}
+
+/**
+ * `reports.typstRenderUrl`, YAML-first with a `TYPST_RENDER_URL` fallback.
+ *
+ * **Why the fallback exists at all** (owner feedback 2026-09-03). `charts/converse-console` runs
+ * the renderer as a loopback-only sidecar and sets `TYPST_RENDER_URL` on the console container
+ * unconditionally — but a deployment supplies its OWN `config.yaml` text
+ * (`configMaps.console-config.data`), and prod's document predates the export story and carries no
+ * `reports:` block at all. The placeholder that would have read that variable
+ * (`reports.typstRenderUrl: '{env:TYPST_RENDER_URL}'`) is only in the config.yaml shipped in this
+ * repo, so a correctly-deployed sidecar was refused with "PDF export needs the typst-render
+ * service" — a config-document gap presenting as a missing service.
+ *
+ * The environment variable is therefore read DIRECTLY here, not through a `{env:…}` placeholder,
+ * because the placeholder lives in a document the deployment owns and the variable lives on the
+ * container the chart owns. YAML still wins when the key is present, so a document that names a
+ * different renderer is not overridden by a stale variable; and when neither is set the value stays
+ * `undefined` and `format=pdf` gives the same honest 502 it always did. There is no third state.
+ */
+export function resolveTypstRenderUrl(
+  configured: unknown,
+  environment: Record<string, string | undefined> = process.env
+): string | undefined {
+  // Trimmed like the cert paths above and for the same reason: a `{env:TYPST_RENDER_URL}` that
+  // resolves to whitespace is a realistic config accident, and "configured with a blank URL" has
+  // no honest meaning — it is simply unconfigured, and the PDF path says so.
+  const fromYaml = asOptionalString(configured)?.trim();
+  if (fromYaml) return trimTrailingSlash(fromYaml);
+
+  const fromEnvironment = environment.TYPST_RENDER_URL?.trim();
+  return fromEnvironment ? trimTrailingSlash(fromEnvironment) : undefined;
 }
 
 /** Strips a single trailing slash so `${base}${path}` never doubles up. */
@@ -328,12 +371,7 @@ export function buildConsoleEnv(parsed: ParsedConfigFile): ConsoleEnv {
     usageUrl: usageUrl ? trimTrailingSlash(usageUrl) : undefined,
     usageClientCert,
     sessionSecret,
-    // Trimmed like the cert paths above and for the same reason: a `{env:TYPST_RENDER_URL}` that
-    // resolves to whitespace is a realistic config accident, and "configured with a blank URL" has
-    // no honest meaning — it is simply unconfigured, and the PDF path says so.
-    typstRenderUrl: asOptionalString(raw.reports?.typstRenderUrl)?.trim()
-      ? trimTrailingSlash((raw.reports?.typstRenderUrl as string).trim())
-      : undefined,
+    typstRenderUrl: resolveTypstRenderUrl(raw.reports?.typstRenderUrl),
     publicBaseUrl: asOptionalString(raw.publicBaseUrl)
       ? trimTrailingSlash(raw.publicBaseUrl as string)
       : undefined,

@@ -42,7 +42,7 @@ export const Selected: Story = {
 export const Breached: Story = {
   args: {
     segments: overviewSpendShareSegments.map((segment, index) =>
-      index === 0 ? { ...segment, breached: true } : segment,
+      index === 0 ? { ...segment, breached: true } : segment
     ),
   },
 };

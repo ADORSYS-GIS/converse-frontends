@@ -103,14 +103,24 @@ export interface MockDataProviderConfig {
   latencyMs?: [number, number];
   /** Resource name (or custom `url`) → error message. That call rejects instead of resolving —
    * the error-mode story wiring named in the task. */
-  errorResources?: Partial<Record<MockResourceName | 'overview' | 'refill-requests/decide', string>>;
+  errorResources?: Partial<
+    Record<MockResourceName | 'overview' | 'refill-requests/decide', string>
+  >;
 }
 
 function isStoreResource(resource: string): resource is MockResourceName {
-  return resource === 'projects' || resource === 'accounts' || resource === 'api-keys' || resource === 'refill-requests';
+  return (
+    resource === 'projects' ||
+    resource === 'accounts' ||
+    resource === 'api-keys' ||
+    resource === 'refill-requests'
+  );
 }
 
-function applyLogicalFilter(row: BaseRecord, filter: Extract<CrudFilter, { field: string }>): boolean {
+function applyLogicalFilter(
+  row: BaseRecord,
+  filter: Extract<CrudFilter, { field: string }>
+): boolean {
   const rowValue = (row as Record<string, unknown>)[filter.field];
   switch (filter.operator) {
     case 'eq':
@@ -133,7 +143,7 @@ function applyLogicalFilter(row: BaseRecord, filter: Extract<CrudFilter, { field
 function applyFilters<T extends BaseRecord>(data: T[], filters: CrudFilter[] | undefined): T[] {
   if (!filters || filters.length === 0) return data;
   return data.filter((row) =>
-    filters.every((filter) => ('field' in filter ? applyLogicalFilter(row, filter) : true)),
+    filters.every((filter) => ('field' in filter ? applyLogicalFilter(row, filter) : true))
   );
 }
 
@@ -165,7 +175,8 @@ export function createMockDataProvider(config: MockDataProviderConfig = {}): Dat
   }
 
   function maybeFail(key: string): void {
-    const message = config.errorResources?.[key as keyof NonNullable<MockDataProviderConfig['errorResources']>];
+    const message =
+      config.errorResources?.[key as keyof NonNullable<MockDataProviderConfig['errorResources']>];
     if (message) throw new Error(message);
   }
 
@@ -183,7 +194,12 @@ export function createMockDataProvider(config: MockDataProviderConfig = {}): Dat
   return {
     getApiUrl: () => 'mock://refine-ui-web',
 
-    async getList<TData extends BaseRecord = BaseRecord>({ resource, pagination, filters, sorters }: Parameters<DataProvider['getList']>[0]) {
+    async getList<TData extends BaseRecord = BaseRecord>({
+      resource,
+      pagination,
+      filters,
+      sorters,
+    }: Parameters<DataProvider['getList']>[0]) {
       await delay();
       maybeFail(resource);
 
@@ -200,7 +216,10 @@ export function createMockDataProvider(config: MockDataProviderConfig = {}): Dat
       return { data, total } as GetListResponse<TData>;
     },
 
-    async getOne<TData extends BaseRecord = BaseRecord>({ resource, id }: Parameters<DataProvider['getOne']>[0]) {
+    async getOne<TData extends BaseRecord = BaseRecord>({
+      resource,
+      id,
+    }: Parameters<DataProvider['getOne']>[0]) {
       await delay();
       maybeFail(resource);
 
@@ -209,20 +228,32 @@ export function createMockDataProvider(config: MockDataProviderConfig = {}): Dat
       return { data: structuredClone(row) } as GetOneResponse<TData>;
     },
 
-    async create<TData extends BaseRecord = BaseRecord>({ resource, variables }: Parameters<DataProvider['create']>[0]) {
+    async create<TData extends BaseRecord = BaseRecord>({
+      resource,
+      variables,
+    }: Parameters<DataProvider['create']>[0]) {
       await delay();
       maybeFail(resource);
-      if (!isStoreResource(resource)) throw new Error(`Mock data provider: unknown resource "${resource}".`);
+      if (!isStoreResource(resource))
+        throw new Error(`Mock data provider: unknown resource "${resource}".`);
 
-      const row = { id: `${resource}-${Date.now()}-${Math.round(Math.random() * 1000)}`, ...(variables as object) } as BaseRecord;
+      const row = {
+        id: `${resource}-${Date.now()}-${Math.round(Math.random() * 1000)}`,
+        ...(variables as object),
+      } as BaseRecord;
       setResourceStore(resource, [row, ...resourceStore(resource)]);
       return { data: row } as CreateResponse<TData>;
     },
 
-    async update<TData extends BaseRecord = BaseRecord>({ resource, id, variables }: Parameters<DataProvider['update']>[0]) {
+    async update<TData extends BaseRecord = BaseRecord>({
+      resource,
+      id,
+      variables,
+    }: Parameters<DataProvider['update']>[0]) {
       await delay();
       maybeFail(resource);
-      if (!isStoreResource(resource)) throw new Error(`Mock data provider: unknown resource "${resource}".`);
+      if (!isStoreResource(resource))
+        throw new Error(`Mock data provider: unknown resource "${resource}".`);
 
       const rows = resourceStore(resource);
       const index = rows.findIndex((candidate) => String(candidate.id) === String(id));
@@ -235,10 +266,14 @@ export function createMockDataProvider(config: MockDataProviderConfig = {}): Dat
       return { data: updated } as UpdateResponse<TData>;
     },
 
-    async deleteOne<TData extends BaseRecord = BaseRecord>({ resource, id }: Parameters<DataProvider['deleteOne']>[0]) {
+    async deleteOne<TData extends BaseRecord = BaseRecord>({
+      resource,
+      id,
+    }: Parameters<DataProvider['deleteOne']>[0]) {
       await delay();
       maybeFail(resource);
-      if (!isStoreResource(resource)) throw new Error(`Mock data provider: unknown resource "${resource}".`);
+      if (!isStoreResource(resource))
+        throw new Error(`Mock data provider: unknown resource "${resource}".`);
 
       const rows = resourceStore(resource);
       const index = rows.findIndex((candidate) => String(candidate.id) === String(id));
@@ -249,7 +284,11 @@ export function createMockDataProvider(config: MockDataProviderConfig = {}): Dat
       return { data: removed } as DeleteOneResponse<TData>;
     },
 
-    async custom<TData extends BaseRecord = BaseRecord>({ url, method, payload }: Parameters<NonNullable<DataProvider['custom']>>[0]) {
+    async custom<TData extends BaseRecord = BaseRecord>({
+      url,
+      method,
+      payload,
+    }: Parameters<NonNullable<DataProvider['custom']>>[0]) {
       await delay();
 
       if (url === 'overview' && method === 'get') {

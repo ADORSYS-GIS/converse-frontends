@@ -45,14 +45,14 @@ conversefrontend:
       containers:
         frontend:
           env:
-            EXPO_PUBLIC_BACKEND_URL: "https://your-backend.example.com/"
+            EXPO_PUBLIC_BACKEND_URL: 'https://your-backend.example.com/'
             # Optional (supported by newer UI builds)
-            EXPO_PUBLIC_USAGE_URL: "https://your-backend.example.com/usage"
-            EXPO_PUBLIC_GATEWAY_URL: "https://your-backend.example.com/gateway"
-            EXPO_PUBLIC_ANALYTICS_URL: "https://your-backend.example.com/analytics"
-            EXPO_PUBLIC_KEYCLOAK_ISSUER: "https://keycloak.example.com/realms/your-realm"
-            EXPO_PUBLIC_KEYCLOAK_CLIENT_ID: "converse-ui"
-            EXPO_PUBLIC_KEYCLOAK_SCHEME: "https"
+            EXPO_PUBLIC_USAGE_URL: 'https://your-backend.example.com/usage'
+            EXPO_PUBLIC_GATEWAY_URL: 'https://your-backend.example.com/gateway'
+            EXPO_PUBLIC_ANALYTICS_URL: 'https://your-backend.example.com/analytics'
+            EXPO_PUBLIC_KEYCLOAK_ISSUER: 'https://keycloak.example.com/realms/your-realm'
+            EXPO_PUBLIC_KEYCLOAK_CLIENT_ID: 'converse-ui'
+            EXPO_PUBLIC_KEYCLOAK_SCHEME: 'https'
 ```
 
 Install/upgrade:
@@ -62,10 +62,10 @@ Install/upgrade:
 ### Option B: --set flags
 
 - `helm upgrade --install -n ai converse-frontend ./charts/converse-frontend \
-  --set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_BACKEND_URL=https://your-backend.example.com/ \
-  --set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_USAGE_URL=https://your-backend.example.com/usage \
-  --set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_GATEWAY_URL=https://your-backend.example.com/gateway \
-  --set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_ANALYTICS_URL=https://your-backend.example.com/analytics \
-  --set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_KEYCLOAK_ISSUER=https://keycloak.example.com/realms/your-realm \
-  --set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_KEYCLOAK_CLIENT_ID=converse-ui \
-  --set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_KEYCLOAK_SCHEME=https`
+--set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_BACKEND_URL=https://your-backend.example.com/ \
+--set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_USAGE_URL=https://your-backend.example.com/usage \
+--set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_GATEWAY_URL=https://your-backend.example.com/gateway \
+--set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_ANALYTICS_URL=https://your-backend.example.com/analytics \
+--set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_KEYCLOAK_ISSUER=https://keycloak.example.com/realms/your-realm \
+--set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_KEYCLOAK_CLIENT_ID=converse-ui \
+--set conversefrontend.controllers.main.containers.frontend.env.EXPO_PUBLIC_KEYCLOAK_SCHEME=https`

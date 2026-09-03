@@ -11,10 +11,10 @@ Usage stays plain REST/OpenAPI.
 
 ## Overview
 
-| API                   | Base URL (runtime config) | Transport                 | Content-Type                                             |
-| --------------------- | ------------------------- | ------------------------- | -------------------------------------------------------- |
+| API                   | Base URL (runtime config) | Transport                 | Content-Type                                                                                                                                                                                                                 |
+| --------------------- | ------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | LightBridge AuthZ API | `EXPO_PUBLIC_BACKEND_URL` | RPC (`POST /rpc/{op_id}`) | `application/cbor`, always (ADR-0013 in `lightbridge-authz` / converse-frontends#256 — the earlier dev/CI-JSON, prod-CBOR split is dead: the backend deleted its JSON variant, so a JSON `Accept`/body now gets `406`/`415`) |
-| LightBridge Usage API | `EXPO_PUBLIC_USAGE_URL`   | REST                      | `application/json`                                       |
+| LightBridge Usage API | `EXPO_PUBLIC_USAGE_URL`   | REST                      | `application/json`                                                                                                                                                                                                           |
 
 **Character encoding:** UTF-8
 

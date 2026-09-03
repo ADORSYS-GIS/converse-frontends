@@ -25,18 +25,23 @@ export const Populated: Story = {
 };
 
 export const EmptyList: Story = {
-  render: () => <InlineStatus>No keys in this project yet. Create one from the right.</InlineStatus>,
+  render: () => (
+    <InlineStatus>No keys in this project yet. Create one from the right.</InlineStatus>
+  ),
 };
 
 export const NoPendingReviews: Story = {
-  render: () => (
-    <InlineStatus>Nothing awaiting a decision. 26 decided this month.</InlineStatus>
-  ),
+  render: () => <InlineStatus>Nothing awaiting a decision. 26 decided this month.</InlineStatus>,
 };
 
 export const FilterReturnsNothing: Story = {
   render: () => (
-    <InlineStatus action={<Button variant="ghost" size="sm">Reset filters</Button>}>
+    <InlineStatus
+      action={
+        <Button variant="ghost" size="sm">
+          Reset filters
+        </Button>
+      }>
       No keys match the current filters.
     </InlineStatus>
   ),

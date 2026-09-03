@@ -19,7 +19,7 @@ export const overviewSpendShareSegments: ShareBarSegment[] = overviewSpendSeries
 
 export const overviewSpendShareTotal = overviewSpendShareSegments.reduce(
   (sum, segment) => sum + segment.value,
-  0,
+  0
 );
 
 export function formatOverviewSpendShareTotal(): string {
@@ -54,5 +54,5 @@ export const overviewSpendShareByModelSegments: ShareBarSegment[] = [
 
 export const overviewSpendShareByModelTotal = overviewSpendShareByModelSegments.reduce(
   (sum, segment) => sum + segment.value,
-  0,
+  0
 );

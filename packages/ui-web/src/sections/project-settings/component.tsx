@@ -132,7 +132,9 @@ export function ProjectSettings({
           ))}
         </div>
       ) : isEmpty ? (
-        <InlineStatus>{search ? (filteredEmptyMessage ?? emptyMessage) : emptyMessage}</InlineStatus>
+        <InlineStatus>
+          {search ? (filteredEmptyMessage ?? emptyMessage) : emptyMessage}
+        </InlineStatus>
       ) : (
         <>
           <div className="settings-list">

@@ -20,8 +20,14 @@ import type { RefillPolicyManualProps } from './types';
 const STAGES: Array<{ name: string; caption: string }> = [
   { name: 'Author', caption: 'Draft a rule set. Validated on write, not yet live.' },
   { name: 'Activate', caption: 'Swap it in atomically — the old revision stays on record.' },
-  { name: 'Evaluate', caption: 'Every refill request is checked against the revision that is active now.' },
-  { name: 'Approve / Queue', caption: 'Granted instantly, or sent to the refills queue for a human.' },
+  {
+    name: 'Evaluate',
+    caption: 'Every refill request is checked against the revision that is active now.',
+  },
+  {
+    name: 'Approve / Queue',
+    caption: 'Granted instantly, or sent to the refills queue for a human.',
+  },
 ];
 
 export function RefillPolicyManual({ open, onOpenChange, className }: RefillPolicyManualProps) {
@@ -36,24 +42,24 @@ export function RefillPolicyManual({ open, onOpenChange, className }: RefillPoli
         <p className={BODY_CLASS}>
           A refill policy is versioned rule data, not a single live setting. Authoring a new
           revision (below) never changes what is active — it only adds a candidate, validated the
-          moment it is written but inert until someone separately activates it. Activating swaps
-          the whole rule set in one atomic step; the previous revision stays on record, so a bad
+          moment it is written but inert until someone separately activates it. Activating swaps the
+          whole rule set in one atomic step; the previous revision stays on record, so a bad
           activation can be rolled back to a known-good revision id rather than re-typed from
           memory.
         </p>
         <p className={BODY_CLASS}>
-          Every refill request an account makes is evaluated against whichever revision is
-          currently active — never the one most recently authored, and never one still in draft.
-          The engine walks the active rule set&rsquo;s rules in order and stops at the first one
-          whose conditions match; nothing that matches falls through to that revision&rsquo;s own
-          default effect.
+          Every refill request an account makes is evaluated against whichever revision is currently
+          active — never the one most recently authored, and never one still in draft. The engine
+          walks the active rule set&rsquo;s rules in order and stops at the first one whose
+          conditions match; nothing that matches falls through to that revision&rsquo;s own default
+          effect.
         </p>
         <p className={BODY_CLASS}>
-          &ldquo;Auto-approve&rdquo; means the request is granted immediately, no human involved,
-          up to whatever the matching rule allows — capped, if the rule caps it. Anything the
-          rules route to &ldquo;manual review&rdquo; instead lands in the refill queue, where an
-          operator sees the requested amount, the account&rsquo;s consumption, and the policy&rsquo;s
-          own reason code, and approves or declines it by hand. &ldquo;Deny&rdquo; and &ldquo;no
+          &ldquo;Auto-approve&rdquo; means the request is granted immediately, no human involved, up
+          to whatever the matching rule allows — capped, if the rule caps it. Anything the rules
+          route to &ldquo;manual review&rdquo; instead lands in the refill queue, where an operator
+          sees the requested amount, the account&rsquo;s consumption, and the policy&rsquo;s own
+          reason code, and approves or declines it by hand. &ldquo;Deny&rdquo; and &ldquo;no
           action&rdquo; both refuse the request outright.
         </p>
 

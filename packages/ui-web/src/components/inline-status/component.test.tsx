@@ -21,7 +21,7 @@ describe('InlineStatus', () => {
     render(
       <InlineStatus action={<button type="button">Reset filters</button>}>
         No keys match the current filters.
-      </InlineStatus>,
+      </InlineStatus>
     );
 
     expect(screen.getByRole('button', { name: 'Reset filters' })).toBeInTheDocument();

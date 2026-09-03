@@ -16,3 +16,12 @@ apps/console/public/swe-worker-*.js
 # lint` run against a working tree that already has a local `pnpm --filter authz-ui build:web` in
 # it would otherwise report false regressions on files nobody wrote by hand.
 apps/authz-ui/dist/
+
+# Other build/codegen output that isn't hand-authored, so Prettier has no business reformatting
+# it (and shouldn't be a source of `pnpm lint` noise the moment it's produced or regenerated
+# locally): the typst-render sidecar's compiled output, the authz-rpc cratestack-generated client,
+# the api-rest openapi-ts-generated client, and any Storybook static build anywhere in the repo.
+apps/typst-render/dist/
+packages/authz-rpc/generated/
+packages/api-rest/src/client/
+**/storybook-static/

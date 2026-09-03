@@ -63,18 +63,18 @@ hover tooltip instead of the (incorrect) box-resizing it originally depicted. No
 
 ### Routes (10)
 
-| Route | File(s) | Confirmed purpose |
-| --- | --- | --- |
-| `/sign-in` | `app/sign-in/page.tsx` | Auth |
-| `/dashboard` | `app/dashboard/page.tsx` + `layout.tsx` | Overview — KPI row, runs-over-time sparkline, breakdown-by-repo/outcome |
-| `/dashboard/repositories` | `app/dashboard/repositories/page.tsx` | Repo list — cards, search, cursor pagination |
-| `/dashboard/repositories/[id]` | `.../[id]/page.tsx` + `layout.tsx` | Repo overview tab |
-| `/dashboard/repositories/[id]/graph` | `.../graph/page.tsx` | Code graph |
-| `/dashboard/repositories/[id]/settings` | `.../settings/page.tsx` + `actions.ts` | Per-repo review config, with a 3-layer default/file/DB-override provenance model |
-| `/dashboard/runs` | `app/dashboard/runs/page.tsx` | Run list — status/repo filters, search, timeline/table view toggle |
-| `/dashboard/runs/[id]` | `.../[id]/page.tsx` + `actions.ts` | Run detail — review output, logs embed |
-| `/dashboard/admin` | `app/dashboard/admin/page.tsx` + `actions.ts` | **Repository approvals queue** — corrected below |
-| `/dashboard/settings` | `app/dashboard/settings/page.tsx` | Account info (read-only, from OIDC claims) + GitHub App link |
+| Route                                   | File(s)                                       | Confirmed purpose                                                                |
+| --------------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------- |
+| `/sign-in`                              | `app/sign-in/page.tsx`                        | Auth                                                                             |
+| `/dashboard`                            | `app/dashboard/page.tsx` + `layout.tsx`       | Overview — KPI row, runs-over-time sparkline, breakdown-by-repo/outcome          |
+| `/dashboard/repositories`               | `app/dashboard/repositories/page.tsx`         | Repo list — cards, search, cursor pagination                                     |
+| `/dashboard/repositories/[id]`          | `.../[id]/page.tsx` + `layout.tsx`            | Repo overview tab                                                                |
+| `/dashboard/repositories/[id]/graph`    | `.../graph/page.tsx`                          | Code graph                                                                       |
+| `/dashboard/repositories/[id]/settings` | `.../settings/page.tsx` + `actions.ts`        | Per-repo review config, with a 3-layer default/file/DB-override provenance model |
+| `/dashboard/runs`                       | `app/dashboard/runs/page.tsx`                 | Run list — status/repo filters, search, timeline/table view toggle               |
+| `/dashboard/runs/[id]`                  | `.../[id]/page.tsx` + `actions.ts`            | Run detail — review output, logs embed                                           |
+| `/dashboard/admin`                      | `app/dashboard/admin/page.tsx` + `actions.ts` | **Repository approvals queue** — corrected below                                 |
+| `/dashboard/settings`                   | `app/dashboard/settings/page.tsx`             | Account info (read-only, from OIDC claims) + GitHub App link                     |
 
 **Correction to the epic's own summary and this design pass's earlier `README.md`**: `/dashboard/admin`
 is not generic "agent status." Reading `app/dashboard/admin/page.tsx` directly: it is a
@@ -87,22 +87,22 @@ without reading its actual implementation.
 
 ### Components (26, across 6 directories)
 
-| Directory | Files |
-| --- | --- |
-| `components/ui/` | `button`, `card`, `command-snippet`, `pagination`, `search-input`, `select`, `settings-section`, `source-badge`, `states`, `status-pill`, `toggle` — 11 files |
-| `components/shell/` | `command-palette`, `console-shell`, `nav-link` — 3 files |
-| `components/overview/` | `insights` — 1 file |
-| `components/repos/` | `preset-picker`, `repo-analytics-embed`, `repo-list`, `repo-tabs` — 4 files |
-| `components/repos/graph/` | `code-graph-canvas`, `code-graph-panel`, `layout`, `node-inspector`, `use-code-graph` — 5 files |
-| `components/runs/` | `review-output`, `run-list`, `run-logs-embed`, `run-row`, `run-table`, `run-timeline` — 6 files (previous count missed `run-list.tsx`, the filter/search/view-toggle container `RunTable`/`RunTimeline` render inside) |
+| Directory                 | Files                                                                                                                                                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `components/ui/`          | `button`, `card`, `command-snippet`, `pagination`, `search-input`, `select`, `settings-section`, `source-badge`, `states`, `status-pill`, `toggle` — 11 files                                                          |
+| `components/shell/`       | `command-palette`, `console-shell`, `nav-link` — 3 files                                                                                                                                                               |
+| `components/overview/`    | `insights` — 1 file                                                                                                                                                                                                    |
+| `components/repos/`       | `preset-picker`, `repo-analytics-embed`, `repo-list`, `repo-tabs` — 4 files                                                                                                                                            |
+| `components/repos/graph/` | `code-graph-canvas`, `code-graph-panel`, `layout`, `node-inspector`, `use-code-graph` — 5 files                                                                                                                        |
+| `components/runs/`        | `review-output`, `run-list`, `run-logs-embed`, `run-row`, `run-table`, `run-timeline` — 6 files (previous count missed `run-list.tsx`, the filter/search/view-toggle container `RunTable`/`RunTimeline` render inside) |
 
 ### Hooks (3) — not previously catalogued at all
 
-| Hook | What it does | `ui-web` status |
-| --- | --- | --- |
-| `lib/hooks/use-copy.ts` (`useCopyToClipboard`) | Clipboard write + transient "copied" flag, auto-reset on a timer | **Not shared in `ui-web`** — `SecretReveal` and the new `CommandSnippet` each hand-roll the identical logic inline. Real, if minor, gap: extract a shared hook. |
-| `lib/hooks/use-cursor-pagination.ts` (`useCursorPagination`) | Keyset (cursor) pagination as URL state via `nuqs`, mapped to a numbered "N / M" display | **App logic, correctly not a `ui-web` concern** (`ui-web` primitives take no fetching/URL dependencies) — but real complexity `apps/lci` must reimplement against its own data layer; the presentational `Pagination` component built for `ui-web` is agnostic to cursor-vs-offset and needs no change. |
-| `lib/hooks/use-local-storage-state.ts` (`useLocalStorageState`) | SSR-safe `useState` persisted to `localStorage`, with a type-guarded fallback | **Not in `ui-web`**, but `ui-web`'s barrel already has a precedent "foundations" region for exactly this kind of shared hook (`useResizeObserver`, `useIsBelowLg`/`useIsBelowMd`, `useCommandPaletteShortcut`). Small, generic, low-risk addition candidate — used here to persist the runs list's timeline/table view preference. |
+| Hook                                                            | What it does                                                                             | `ui-web` status                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/hooks/use-copy.ts` (`useCopyToClipboard`)                  | Clipboard write + transient "copied" flag, auto-reset on a timer                         | **Not shared in `ui-web`** — `SecretReveal` and the new `CommandSnippet` each hand-roll the identical logic inline. Real, if minor, gap: extract a shared hook.                                                                                                                                                                    |
+| `lib/hooks/use-cursor-pagination.ts` (`useCursorPagination`)    | Keyset (cursor) pagination as URL state via `nuqs`, mapped to a numbered "N / M" display | **App logic, correctly not a `ui-web` concern** (`ui-web` primitives take no fetching/URL dependencies) — but real complexity `apps/lci` must reimplement against its own data layer; the presentational `Pagination` component built for `ui-web` is agnostic to cursor-vs-offset and needs no change.                            |
+| `lib/hooks/use-local-storage-state.ts` (`useLocalStorageState`) | SSR-safe `useState` persisted to `localStorage`, with a type-guarded fallback            | **Not in `ui-web`**, but `ui-web`'s barrel already has a precedent "foundations" region for exactly this kind of shared hook (`useResizeObserver`, `useIsBelowLg`/`useIsBelowMd`, `useCommandPaletteShortcut`). Small, generic, low-risk addition candidate — used here to persist the runs list's timeline/table view preference. |
 
 ### Domain/visual-mapping logic read (for UI-relevant decisions only)
 
@@ -146,19 +146,19 @@ substantially understated the count.
 
 ### 3.2 The badge → `status-text` migration touches at least 9 files, 3 independent patterns
 
-| Pattern | Files | Notes |
-| --- | --- | --- |
-| `StatusPill`/`Pill` (`components/ui/status-pill.tsx`) | `admin/page.tsx`, `runs/[id]/page.tsx`, `repositories/[id]/layout.tsx`, `run-row.tsx`, `repo-list.tsx`, `run-table.tsx` — 6 files | Already known; **includes a pulsing dot on the `active` state** (see §4 — genuinely missing from `status-text`) |
-| `SourceBadge` (`components/ui/source-badge.tsx`) | `repositories/[id]/settings/page.tsx` — 1 file | Already known |
-| Inline `badge-*` classes, independent of either shared component | `repo-list.tsx` ("Override" indicator), `review-output.tsx` (finding priority chip **and** category chip, 2 separate uses in one file) | **Not previously catalogued** — a third badge pattern with no shared component behind it at all |
+| Pattern                                                          | Files                                                                                                                                  | Notes                                                                                                           |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `StatusPill`/`Pill` (`components/ui/status-pill.tsx`)            | `admin/page.tsx`, `runs/[id]/page.tsx`, `repositories/[id]/layout.tsx`, `run-row.tsx`, `repo-list.tsx`, `run-table.tsx` — 6 files      | Already known; **includes a pulsing dot on the `active` state** (see §4 — genuinely missing from `status-text`) |
+| `SourceBadge` (`components/ui/source-badge.tsx`)                 | `repositories/[id]/settings/page.tsx` — 1 file                                                                                         | Already known                                                                                                   |
+| Inline `badge-*` classes, independent of either shared component | `repo-list.tsx` ("Override" indicator), `review-output.tsx` (finding priority chip **and** category chip, 2 separate uses in one file) | **Not previously catalogued** — a third badge pattern with no shared component behind it at all                 |
 
 ### 3.3 A genuinely new, previously-missed row: `progress` → `Meter`
 
 `components/overview/insights.tsx`'s `BreakdownCard` renders native `<progress
 className="progress progress-primary h-2 flex-1">` bars for the "by repository"/"by outcome"
 breakdowns. `ui-web`'s own rules explicitly reject this exact daisy class
-(`console-redesign/PRIMITIVES.md` §"not adopted": *"`progress`/`radial-progress` — Rounded,
-animated; `Meter` is a 4px square track."*). `ui-web` already has `Meter` built for precisely this
+(`console-redesign/PRIMITIVES.md` §"not adopted": _"`progress`/`radial-progress` — Rounded,
+animated; `Meter` is a 4px square track."_). `ui-web` already has `Meter` built for precisely this
 — it's a clean class swap, **zero new build work**, but it was absent from `PRIMITIVES.md`
 entirely. It is the Overview screen's only chart-adjacent element besides the hand-rolled SVG
 sparkline (see §5).
@@ -203,35 +203,35 @@ test/Storybook coverage, `ReportExportPanel` refactored to consume `Toggle`.
 
 ### Already covered by an existing `ui-web` primitive — confirmed by this audit, no new build
 
-| LCI pattern | `ui-web` primitive | Confirmed via |
-| --- | --- | --- |
-| `console-shell`, `command-palette` (cmdk), `nav-link` | `console-shell`, `command-palette`, `nav-spine` | Full read of `components/shell/*` — structurally near-identical to `ui-web`'s versions |
-| `repo-tabs.tsx` (daisy `tabs`) | `sub-nav` (Base UI Tabs) | Confirmed exact daisy-class match to what `sub-nav` already migrates away from |
-| `repo-list`/`run-list`/`run-table` row lists | `ledger-table` | Confirmed generic columns API fits; `RunTable`'s client-side column sort is **app logic** (`ledger-table` deliberately owns no sorting — "stays the consumer's job," per its own docstring) |
-| `preset-picker.tsx` | `rail-select`/`scope-select` family | Confirmed — fixed option set + free-text escape hatch |
-| `states.tsx`'s `StatusLine`/`ApiErrorLine` | `inline-status`/`error-line` | Confirmed 1:1 shape match |
-| `insights.tsx`'s `progress` bars | `Meter` | **New finding this audit** — see §3.3 |
-| `/dashboard/admin`'s approval queue | `ReviewQueue`/`DecisionsLedger`/`review-detail-panel` | **New finding this audit** — see §2, corrects the epic's "agent status" assumption |
-| `run-timeline.tsx` | composition of existing/new primitives, no new component | **Resolved this audit** — see §4.4 |
+| LCI pattern                                           | `ui-web` primitive                                       | Confirmed via                                                                                                                                                                               |
+| ----------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `console-shell`, `command-palette` (cmdk), `nav-link` | `console-shell`, `command-palette`, `nav-spine`          | Full read of `components/shell/*` — structurally near-identical to `ui-web`'s versions                                                                                                      |
+| `repo-tabs.tsx` (daisy `tabs`)                        | `sub-nav` (Base UI Tabs)                                 | Confirmed exact daisy-class match to what `sub-nav` already migrates away from                                                                                                              |
+| `repo-list`/`run-list`/`run-table` row lists          | `ledger-table`                                           | Confirmed generic columns API fits; `RunTable`'s client-side column sort is **app logic** (`ledger-table` deliberately owns no sorting — "stays the consumer's job," per its own docstring) |
+| `preset-picker.tsx`                                   | `rail-select`/`scope-select` family                      | Confirmed — fixed option set + free-text escape hatch                                                                                                                                       |
+| `states.tsx`'s `StatusLine`/`ApiErrorLine`            | `inline-status`/`error-line`                             | Confirmed 1:1 shape match                                                                                                                                                                   |
+| `insights.tsx`'s `progress` bars                      | `Meter`                                                  | **New finding this audit** — see §3.3                                                                                                                                                       |
+| `/dashboard/admin`'s approval queue                   | `ReviewQueue`/`DecisionsLedger`/`review-detail-panel`    | **New finding this audit** — see §2, corrects the epic's "agent status" assumption                                                                                                          |
+| `run-timeline.tsx`                                    | composition of existing/new primitives, no new component | **Resolved this audit** — see §4.4                                                                                                                                                          |
 
 ### Still blocked, still open
 
-| Item | Why it's still open |
-| --- | --- |
-| `Select` (generic list-filter/form select) | Sharing-vs-separate-from-`scope-select` decision, unresolved |
-| `Card` → floor rebuild | **Now confirmed to touch 14 files**, not a handful — the largest single item in the whole gap list, needs a per-screen call before building |
-| First-run empty state (`EmptyState`) | LCI's ADR-0016 (centered placard) vs. `ui-web`'s no-exception rule — a policy conflict, not resolved |
-| `search-input.tsx` | Still unclear whether it's a `field` variant or a standalone primitive |
+| Item                                       | Why it's still open                                                                                                                         |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Select` (generic list-filter/form select) | Sharing-vs-separate-from-`scope-select` decision, unresolved                                                                                |
+| `Card` → floor rebuild                     | **Now confirmed to touch 14 files**, not a handful — the largest single item in the whole gap list, needs a per-screen call before building |
+| First-run empty state (`EmptyState`)       | LCI's ADR-0016 (centered placard) vs. `ui-web`'s no-exception rule — a policy conflict, not resolved                                        |
+| `search-input.tsx`                         | Still unclear whether it's a `field` variant or a standalone primitive                                                                      |
 
 ### Newly found, not yet triaged into a build decision
 
-| Item | Category |
-| --- | --- |
-| `status-text`'s missing active/pulse capability | Blocks 6 files' badge→status-text migration |
+| Item                                                      | Category                                                                                     |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `status-text`'s missing active/pulse capability           | Blocks 6 files' badge→status-text migration                                                  |
 | Badge migration's true surface area (9 files, 3 patterns) | Broadens `PRIMITIVES.md`'s existing rows, no new decision needed, just more work than stated |
-| Shared `useCopyToClipboard` hook | Quality-of-life extraction, non-blocking |
-| Shared `useLocalStorageState` hook | Small foundational addition, non-blocking |
-| Code-graph `Legend` | Small, likely stays app-local |
+| Shared `useCopyToClipboard` hook                          | Quality-of-life extraction, non-blocking                                                     |
+| Shared `useLocalStorageState` hook                        | Small foundational addition, non-blocking                                                    |
+| Code-graph `Legend`                                       | Small, likely stays app-local                                                                |
 
 ---
 

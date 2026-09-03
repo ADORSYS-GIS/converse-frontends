@@ -9,12 +9,13 @@ const meta: Meta<typeof SecretReveal> = {
   component: SecretReveal,
   args: {
     heading: 'New key created — shown once',
-    description: 'Copy it now. Lightbridge stores only the prefix; this value can never be retrieved again.',
+    description:
+      'Copy it now. Lightbridge stores only the prefix; this value can never be retrieved again.',
     secret: 'sk-lb-Xq7T4mA9vR2nK8sE1wYb6tZ0pL5cJ3dF',
     onDismiss: fn(),
   },
   render: (args) => (
-    <div className="w-[872px] bg-muted p-4">
+    <div className="bg-muted w-[872px] p-4">
       <SecretReveal {...args} />
     </div>
   ),

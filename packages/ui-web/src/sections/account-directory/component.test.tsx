@@ -3,7 +3,11 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AccountDirectory, NO_ACCOUNTS_MESSAGE } from './component';
-import { accountDirectoryFixture, namedAccountRowFixture, unnamedAccountRowFixture } from './fixtures';
+import {
+  accountDirectoryFixture,
+  namedAccountRowFixture,
+  unnamedAccountRowFixture,
+} from './fixtures';
 
 function props(
   overrides: Partial<React.ComponentProps<typeof AccountDirectory>> = {}
@@ -53,7 +57,9 @@ describe('AccountDirectory', () => {
   });
 
   it('distinguishes a failed fetch from zero accounts', () => {
-    render(<AccountDirectory {...props({ accounts: [], error: 'Could not load your accounts.' })} />);
+    render(
+      <AccountDirectory {...props({ accounts: [], error: 'Could not load your accounts.' })} />
+    );
 
     expect(screen.getByRole('alert')).toHaveTextContent('Could not load your accounts.');
     expect(screen.queryByText(NO_ACCOUNTS_MESSAGE)).not.toBeInTheDocument();

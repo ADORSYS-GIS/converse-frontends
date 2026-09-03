@@ -387,7 +387,10 @@ describe('/settings/overview/usage (the account-family fan-out) in dashboards.ya
     // wrong number, not a partial one.
     for (const groupBy of ['account_id', 'project_id,model', 'api_key_id', 'azp']) {
       const shape = current.filter((q) => (q.group_by ?? []).join(',') === groupBy);
-      expect(shape.map((q) => q.scope_id), groupBy).toEqual(accounts);
+      expect(
+        shape.map((q) => q.scope_id),
+        groupBy
+      ).toEqual(accounts);
     }
 
     // The comparison twin is fired for ONE shape only — the `[account_id]` one the two comparing
@@ -437,9 +440,7 @@ describe('/settings/overview/usage (the account-family fan-out) in dashboards.ya
     // relying on `group_by[0]` would make a panel's cost invisible in its own YAML, which is the
     // one thing a fan-out page cannot afford.
     const groupings = new Set(page.panels.map((panel) => (panel.query.group_by ?? []).join(',')));
-    expect(groupings).toEqual(
-      new Set(['account_id', 'project_id,model', 'api_key_id', 'azp'])
-    );
+    expect(groupings).toEqual(new Set(['account_id', 'project_id,model', 'api_key_id', 'azp']));
     for (const panel of page.panels) {
       // The three channel rings are the exception the account page also makes: a single-dimension
       // `[azp]` grouping read by its own `group_by[0]` needs no restatement.

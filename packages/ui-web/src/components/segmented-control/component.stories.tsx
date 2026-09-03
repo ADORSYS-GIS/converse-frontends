@@ -29,7 +29,12 @@ export const Default: Story = {
       const [value, setValue] = useState<'all' | 'active' | 'revoked'>('active');
       return (
         <div className="w-[248px]">
-          <SegmentedControl aria-label="Status filter" options={statusOptions} value={value} onChange={setValue} />
+          <SegmentedControl
+            aria-label="Status filter"
+            options={statusOptions}
+            value={value}
+            onChange={setValue}
+          />
         </div>
       );
     }
@@ -43,7 +48,12 @@ export const TwoOptions: Story = {
       const [value, setValue] = useState<'csv' | 'pdf'>('csv');
       return (
         <div className="w-[248px]">
-          <SegmentedControl aria-label="Export format" options={formatOptions} value={value} onChange={setValue} />
+          <SegmentedControl
+            aria-label="Export format"
+            options={formatOptions}
+            value={value}
+            onChange={setValue}
+          />
         </div>
       );
     }
@@ -54,7 +64,12 @@ export const TwoOptions: Story = {
 export const FirstOptionActive: Story = {
   render: () => (
     <div className="w-[248px]">
-      <SegmentedControl aria-label="Status filter" options={statusOptions} value="all" onChange={() => {}} />
+      <SegmentedControl
+        aria-label="Status filter"
+        options={statusOptions}
+        value="all"
+        onChange={() => {}}
+      />
     </div>
   ),
 };

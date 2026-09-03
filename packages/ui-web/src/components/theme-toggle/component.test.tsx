@@ -43,9 +43,7 @@ describe('ThemeToggle', () => {
   });
 
   it('is controlled -- re-rendering with the next preference updates the accessible name', () => {
-    const { rerender } = render(
-      <ThemeToggle preference="black" onPreferenceChange={vi.fn()} />
-    );
+    const { rerender } = render(<ThemeToggle preference="black" onPreferenceChange={vi.fn()} />);
     expect(screen.getByRole('button', { name: /Theme: dark/ })).toBeInTheDocument();
 
     rerender(<ThemeToggle preference="wireframe" onPreferenceChange={vi.fn()} />);

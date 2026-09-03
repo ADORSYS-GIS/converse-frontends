@@ -13,8 +13,8 @@ Accepted
 > else below — the two-column shell shape itself, sans-first type, cards as the default zone,
 > radius 8/4, the empty-state doctrine, the honesty contract — is unchanged.
 
-Records the owner directive of 2026-08-30 — *"The full UI is shit... Revamp it... keep base-ui
-AND daisyui as base tho"* — and the eight decisions that followed it across epic
+Records the owner directive of 2026-08-30 — _"The full UI is shit... Revamp it... keep base-ui
+AND daisyui as base tho"_ — and the eight decisions that followed it across epic
 [#368](https://github.com/ADORSYS-GIS/converse-frontends/issues/368) and PRs #371–#378 (phases
 1–7.5). Every decision below is **implemented and merged**; this ADR is the record, not the
 proposal.
@@ -32,7 +32,7 @@ for the exhaustive list.
 The Next.js console (ADR 0009) shipped its first cut on ADR 0008's shell: three flush rail
 columns (left nav, centre floor, right params/actions), a `#111` header band, 2px radius
 everywhere, IBM Plex Mono as the primary type family for every structural surface, and a rule that
-the centre column is *never* a card. The owner's review of the built product (2026-08-30) rejected
+the centre column is _never_ a card. The owner's review of the built product (2026-08-30) rejected
 that shape outright: too dense, too mono-heavy, and a right rail that only two of four screens
 (Manage/Projects, Admin) ever needed — Overview and Api-Keys carried a permanent 280px column to
 host five or six controls with no selection behaviour.
@@ -80,19 +80,19 @@ subtitles, section titles, labels, body copy, meta lines, error text. `IBM Plex 
 
 Roles, one definition each in `packages/ui-web/src/lib/type-roles.ts`:
 
-| Role | Class constant | Size / weight | Family |
-| --- | --- | --- | --- |
-| Page title | `PAGE_TITLE_CLASS` | 24px / semibold | sans |
-| Page subtitle | `PAGE_SUBTITLE_CLASS` | 13px | sans |
-| Section title | `SECTION_TITLE_CLASS` | 15px / medium | sans |
-| Label | `LABEL_CLASS` | 12px | sans |
-| Body | `BODY_CLASS` | 13px | sans |
-| Meta | `META_CLASS` | 12px | sans |
-| Error text | `ERROR_TEXT_CLASS` | 13px | sans |
-| Data | `DATA_CLASS` / `DATA_INK_CLASS` | 13px | mono, `data-numeral` |
-| Metric | `METRIC_CLASS` | 28px | mono, `data-numeral` |
-| Hero metric | `HERO_METRIC_CLASS` | 34px | mono, `data-numeral` |
-| Hero ceiling | `HERO_CEILING_CLASS` | 13px | sans |
+| Role          | Class constant                  | Size / weight   | Family               |
+| ------------- | ------------------------------- | --------------- | -------------------- |
+| Page title    | `PAGE_TITLE_CLASS`              | 24px / semibold | sans                 |
+| Page subtitle | `PAGE_SUBTITLE_CLASS`           | 13px            | sans                 |
+| Section title | `SECTION_TITLE_CLASS`           | 15px / medium   | sans                 |
+| Label         | `LABEL_CLASS`                   | 12px            | sans                 |
+| Body          | `BODY_CLASS`                    | 13px            | sans                 |
+| Meta          | `META_CLASS`                    | 12px            | sans                 |
+| Error text    | `ERROR_TEXT_CLASS`              | 13px            | sans                 |
+| Data          | `DATA_CLASS` / `DATA_INK_CLASS` | 13px            | mono, `data-numeral` |
+| Metric        | `METRIC_CLASS`                  | 28px            | mono, `data-numeral` |
+| Hero metric   | `HERO_METRIC_CLASS`             | 34px            | mono, `data-numeral` |
+| Hero ceiling  | `HERO_CEILING_CLASS`            | 13px            | sans                 |
 
 Sentence case everywhere — no all-caps labels survive from ADR 0008's Decision 5 restatement.
 
@@ -149,9 +149,9 @@ Two components, two jobs, never interchanged:
   yet settled/unavailable** state. Table headers and chart axes stay rendered in both of those
   cases — a disappearing frame still reads as broken.
 
-Gate: `EmptyState` renders only once the backing query has *settled* with zero rows — never while
+Gate: `EmptyState` renders only once the backing query has _settled_ with zero rows — never while
 a query is loading or errored (those stay `SkeletonRow`/`ErrorLine`), and never for a result that
-is empty *because a filter said so* (that is `InlineStatus`'s case, with the reset action).
+is empty _because a filter said so_ (that is `InlineStatus`'s case, with the reset action).
 
 ### D7 — Detail is `DetailSheet`; screen parameters are inline; the rail concept is retired
 
@@ -177,7 +177,7 @@ capability does not exist yet, with the gap **filed** rather than hidden —
 `lightbridge-authz#556`–`#562` and `converse-frontends#369`/`#370` track the backend gaps this
 revamp surfaced. Scope labels for an account with no display name use `acct_<first8>` of its id,
 never the raw 36-character UUID and never a fabricated name. Empty states (`EmptyState`,
-`InlineStatus`) gate on a *settled* query, per D6 — a loading state is never presented as "empty."
+`InlineStatus`) gate on a _settled_ query, per D6 — a loading state is never presented as "empty."
 
 This is the same doctrine ADR 0008's Decision-list amendment on `LATENCY` already established for
 one metric (no deriving a figure from a field that cannot honestly produce it); D8 generalises it
@@ -190,12 +190,12 @@ sidebar-plus-cards shell with the sans-first, data-is-mono type split D2/D3 form
 combination the owner's directive pointed at by naming real products rather than a style
 adjective:
 
-| Reference | Refero link | What was taken |
-| --- | --- | --- |
-| **Anthropic Console** — usage & API keys | [cost](https://refero.design/pages/d3ea6f84-6fc4-403d-b9a1-07db45aea912) · [usage](https://refero.design/pages/fae3d79a-d1e6-4074-b9ee-050fa2d7bc27) | Left sidebar + single content column, no right rail; cost summary **card** above a chart card; filters sit inline above the chart they configure, not in a side panel |
-| **fal.ai** — usage-billing | [screen](https://refero.design/pages/44595c95-0b46-4ca4-8378-3f54826b28a8) | KPI **cards** in a row, then a chart card, then a table card — the "toolbar + table + pager inside one card" pattern D3 generalises; sidebar nav, no right column |
-| **Cartesia** — usage | [screen](https://refero.design/pages/bb9d0da9-73fe-4f87-abde-c7fc79153333) | Sidebar + one wide usage-graph card above two side-by-side capability cards — confirms cards-on-a-floor reads correctly for a dashboard with mixed scalar/distribution content, the exact D3 boundary ADR 0008 used to carve out for stat cards only |
-| **Attio** — settings | [integrations](https://refero.design/pages/8629c99f-4ef7-410e-928a-2390b9dd24a2) | Sidebar + a header + a grid of **cards**, no right rail on a settings screen — the pattern `/settings/account` and `/settings/projects`'s sub-nav-plus-cards layout follows |
+| Reference                                | Refero link                                                                                                                                          | What was taken                                                                                                                                                                                                                                       |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Anthropic Console** — usage & API keys | [cost](https://refero.design/pages/d3ea6f84-6fc4-403d-b9a1-07db45aea912) · [usage](https://refero.design/pages/fae3d79a-d1e6-4074-b9ee-050fa2d7bc27) | Left sidebar + single content column, no right rail; cost summary **card** above a chart card; filters sit inline above the chart they configure, not in a side panel                                                                                |
+| **fal.ai** — usage-billing               | [screen](https://refero.design/pages/44595c95-0b46-4ca4-8378-3f54826b28a8)                                                                           | KPI **cards** in a row, then a chart card, then a table card — the "toolbar + table + pager inside one card" pattern D3 generalises; sidebar nav, no right column                                                                                    |
+| **Cartesia** — usage                     | [screen](https://refero.design/pages/bb9d0da9-73fe-4f87-abde-c7fc79153333)                                                                           | Sidebar + one wide usage-graph card above two side-by-side capability cards — confirms cards-on-a-floor reads correctly for a dashboard with mixed scalar/distribution content, the exact D3 boundary ADR 0008 used to carve out for stat cards only |
+| **Attio** — settings                     | [integrations](https://refero.design/pages/8629c99f-4ef7-410e-928a-2390b9dd24a2)                                                                     | Sidebar + a header + a grid of **cards**, no right rail on a settings screen — the pattern `/settings/account` and `/settings/projects`'s sub-nav-plus-cards layout follows                                                                          |
 
 All four are dark-canvas SaaS consoles with a persistent left sidebar and zero right rail — none
 of them run ADR 0008's three-column inversion. None sets structural chrome in a monospace face;
@@ -277,7 +277,7 @@ Unchanged by this ADR, and not to be re-litigated by a future pass reading only 
   Base UI behaviour → CVA only for a real multi-axis variant set), the chart-colour rule
   (monochrome ramp, signal accent at most once per chart), and the "never a card" line specific to
   `stat-card`/`budget-hero` self-panelling (superseded in scope, not in mechanism — those two
-  still panel themselves; every *other* zone now also gets a panel, via `Card`).
+  still panel themselves; every _other_ zone now also gets a panel, via `Card`).
 - **ADR 0011 in full**: URL-first view state via nuqs, `packages/ui-web` staying framework-
   agnostic (no nuqs import), the sanctioned local-state exceptions.
 - **Sections-in-the-library, shell-mounted-once** (console-ui skill "Composition"): the library
@@ -291,7 +291,7 @@ Unchanged by this ADR, and not to be re-litigated by a future pass reading only 
   shipped are deleted rather than updated.
 - **Both ratchet tests**: `class-budget.test.ts` (hand-written Tailwind utilities per component,
   max 3, `BUDGET` empty) and `base-ui-adoption.test.ts` (`KNOWN_GAPS` — entries may only shrink).
-  Neither test's *mechanism* changed in this revamp; both were re-measured and re-pinned against
+  Neither test's _mechanism_ changed in this revamp; both were re-measured and re-pinned against
   the current tree (see `section-class-audit.test.ts`'s updated pins) as part of landing it.
 - The honesty rules' backend-gap tracking (`lightbridge-authz#556`–`#562`,
   `converse-frontends#369`/`#370`) and everything ADR 0009 decided about auth, the RPC/proxy layer,
@@ -319,7 +319,7 @@ Unchanged by this ADR, and not to be re-litigated by a future pass reading only 
 ## Alternatives considered
 
 - **Keep the three-rail shell and only re-skin type/radius.** Rejected — the owner's review named
-  the *shell shape* as the problem ("The full UI is shit... Revamp it"), not the palette; a
+  the _shell shape_ as the problem ("The full UI is shit... Revamp it"), not the palette; a
   re-skin would have left Overview and Api-Keys carrying a 280px column for five controls.
 - **A right rail that appears only on selection-driven screens, kept for Manage/Admin.** This was
   the actual intermediate state after the owner's 2026-08-29 "only selection-driven screens have a

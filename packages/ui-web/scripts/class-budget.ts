@@ -33,8 +33,8 @@ const DAISY = new Set(
    table-pin-rows menu menu-sm menu-title menu-active menu-horizontal tabs tab tab-active toggle
    checkbox radio skeleton join join-item kbd kbd-sm fieldset label badge card alert stat collapse
    dropdown swap indicator mask divider steps timeline status toast validator react-day-picker`.split(
-    /\s+/,
-  ),
+    /\s+/
+  )
 );
 
 /**
@@ -79,7 +79,7 @@ function classTokens(source: string): string[] {
     const parts = match[1].trim().split(/\s+/).filter(Boolean);
     if (!parts.length) continue;
     const classy = parts.filter(
-      (p) => CLASSY.test(p) && !ATTRIBUTE_NAME.test(p) && (/[-:]/.test(p) || DAISY.has(p)),
+      (p) => CLASSY.test(p) && !ATTRIBUTE_NAME.test(p) && (/[-:]/.test(p) || DAISY.has(p))
     );
     // A literal is a class list only if most of it reads as classes — keeps aria strings,
     // locale codes and prop values out.

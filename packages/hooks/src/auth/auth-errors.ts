@@ -27,7 +27,6 @@ export class AuthenticationError extends Error {
     this.name = 'AuthenticationError';
     this.code = code;
     this.details = details;
-    
   }
 
   /**
@@ -37,22 +36,22 @@ export class AuthenticationError extends Error {
     switch (this.code) {
       case 'AUDIENCE_MISMATCH':
         return 'Authentication failed: Your account is not authorized to access this application. Please contact support if this issue persists.';
-      
+
       case 'AUDIENCE_MISSING':
         return 'Authentication failed: The login response was invalid. Please try again.';
-      
+
       case 'TOKEN_EXPIRED':
         return 'Your session has expired. Please log in again.';
-      
+
       case 'TOKEN_INVALID':
         return 'Authentication failed: The login response was invalid. Please try again.';
-      
+
       case 'TOKEN_REFRESH_FAILED':
         return 'Your session could not be refreshed. Please log in again.';
-      
+
       case 'NETWORK_ERROR':
         return 'Unable to connect to the authentication service. Please check your internet connection and try again.';
-      
+
       default:
         return 'An unexpected error occurred during authentication. Please try again.';
     }
@@ -64,8 +63,8 @@ export class AuthenticationError extends Error {
  */
 export function createAudienceError(errors: string[]): AuthenticationError {
   // Check for missing audience vs mismatched audience
-  const hasMissingAudience = errors.some(e => 
-    e.toLowerCase().includes('missing') || e.toLowerCase().includes('no audience')
+  const hasMissingAudience = errors.some(
+    (e) => e.toLowerCase().includes('missing') || e.toLowerCase().includes('no audience')
   );
 
   if (hasMissingAudience) {
@@ -97,22 +96,22 @@ export function getAuthErrorMessage(error: unknown): string {
   if (isAuthenticationError(error)) {
     return error.getUserMessage();
   }
-  
+
   if (error instanceof Error) {
     // Check for common error patterns
     const message = error.message.toLowerCase();
-    
+
     if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
       return 'Unable to connect to the authentication service. Please check your internet connection and try again.';
     }
-    
+
     if (message.includes('expired')) {
       return 'Your session has expired. Please log in again.';
     }
-    
+
     // Return a generic message for security (don't leak internal details)
     return 'An error occurred during authentication. Please try again.';
   }
-  
+
   return 'An unexpected error occurred. Please try again.';
 }

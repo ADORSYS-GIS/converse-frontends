@@ -192,7 +192,10 @@ export const CumulativeBudgetBurnDown: Story = {
       {
         key: 'account',
         label: 'This account',
-        points: [1.2, 0, 2.4, 0, 0, 3.1, 1.8, 0, 4.0, 2.2].map((y, i) => ({ x: febDays(10)[i], y })),
+        points: [1.2, 0, 2.4, 0, 0, 3.1, 1.8, 0, 4.0, 2.2].map((y, i) => ({
+          x: febDays(10)[i],
+          y,
+        })),
       },
     ],
     cumulative: true,

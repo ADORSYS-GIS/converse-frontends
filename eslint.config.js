@@ -22,6 +22,13 @@ module.exports = defineConfig([
       'packages/*/storybook-static/*',
       '.claude/worktrees/**',
       '**/storybook-static/**',
+      // Codegen output, not hand-authored: `cratestack generate-typescript` for authz-rpc and
+      // `openapi-ts` for api-rest. These regenerate on every `pnpm install` (postinstall), so
+      // linting them reports findings against nobody's actual source and drowns out real
+      // warnings — 106 of the 145 problems on a clean baseline came from these two directories
+      // alone.
+      'packages/authz-rpc/generated/**',
+      'packages/api-rest/src/client/**',
     ],
   },
   {

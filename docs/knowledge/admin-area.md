@@ -16,7 +16,7 @@ Declared once, in `ADMIN_DESTINATIONS`
 
 | Destination      | Route                     | Permission               | Also                                                               |
 | ---------------- | ------------------------- | ------------------------ | ------------------------------------------------------------------ |
-| Overview         | `/admin/overview`         | `usage:read-all`         | Eleven `dashboards.yaml` panels, estate-wide                       |
+| Overview         | `/admin/overview`         | `usage:read-all`         | Twelve `dashboards.yaml` panels, estate-wide                       |
 | Usage            | `/admin/usage`            | `usage:read-all`         | Nineteen panels; `?lens=user\|account\|project`; three drill-downs |
 | Refills queue    | `/admin/refills-queue`    | `budget:review`          | Carries the pending count — its only honest home                   |
 | Refill policies  | `/admin/refill-policies`  | `budget:policy-write`    | `+ /create`, `?edit=`, `?simulate=`                                |

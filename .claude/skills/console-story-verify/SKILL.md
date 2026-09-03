@@ -14,13 +14,17 @@ why it is the verification surface.
 
 ## Find the story first
 
-| What changed                  | Story                                                                    |
-| ----------------------------- | ------------------------------------------------------------------------ |
-| A `dashboards.yaml` panel     | `Pages/FromSpec` (`packages/ui-web/src/pages-stories/spec-page.tsx`)     |
-| A whole admin/settings screen | `packages/ui-web/src/pages-stories/<screen>.stories.tsx`                 |
-| One primitive or section      | `packages/ui-web/src/{components,sections}/<name>/component.stories.tsx` |
-| German rendering              | `packages/ui-web/src/pages-stories/i18n-german.stories.tsx`              |
-| Loading / empty / error state | The same story file — every screen story carries those variants          |
+| What changed                               | Story                                                                    |
+| ------------------------------------------ | ------------------------------------------------------------------------ |
+| A `dashboards.yaml` panel                  | `Pages/FromSpec` (`packages/ui-web/src/pages-stories/spec-page.tsx`)     |
+| A whole admin/settings screen              | `packages/ui-web/src/pages-stories/<screen>.stories.tsx`                 |
+| One primitive or section                   | `packages/ui-web/src/{components,sections}/<name>/component.stories.tsx` |
+| German rendering                           | `packages/ui-web/src/pages-stories/i18n-german.stories.tsx`              |
+| The shell itself (rail, footer, switchers) | `shell-fixtures.tsx` and `shell-persistence.stories.tsx`                 |
+| Loading / empty / error state              | The same story file — every screen story carries those variants          |
+
+Every console screen has a page story; if you cannot find one for the screen you changed, look
+again before concluding it has none (`ls packages/ui-web/src/pages-stories/`).
 
 `Pages/FromSpec` reads the **real** `apps/console/dashboards.yaml` and the **real**
 `apps/console/locales/en/dashboards.json`. There is no fixture to update, and a panel showing a raw

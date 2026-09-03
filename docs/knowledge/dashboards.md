@@ -10,7 +10,7 @@ D3) and [ADR 0017](../adr/0017-i18n-app-router-i18next.md) D4. This page is the 
 how-to**: what a page entry may say, what the engine does with it, and what you must run before
 claiming a panel works. Do not re-derive the reasoning here — link it.
 
-**Eleven page entries, 110 panels**, in
+**Eleven page entries, 111 panels**, in
 [`apps/console/dashboards.yaml`](../../apps/console/dashboards.yaml). Both numbers move whenever a
 panel lands; re-derive them rather than trusting them:
 
@@ -201,7 +201,7 @@ The counts are **tests, not claims**:
 | Page                                | Panels | Requests | Test                                   |
 | ----------------------------------- | ------ | -------- | -------------------------------------- |
 | `/admin/usage`                      | 19     | 7        | `admin-usage-page.test.ts:351`         |
-| `/admin/overview`                   | 11     | 4        | `admin-overview-page.test.ts:172`      |
+| `/admin/overview`                   | 12     | 5        | `admin-overview-page.test.ts:224`      |
 | `/admin/usage/actors/[actorId]`     | 9      | 5        | `admin-usage-detail-pages.test.ts:142` |
 | `/admin/usage/channels/[channelId]` | 7      | 6        | `admin-usage-detail-pages.test.ts:258` |
 | `/admin/usage/models/[model]`       | 8      | 6        | `admin-usage-detail-pages.test.ts:357` |

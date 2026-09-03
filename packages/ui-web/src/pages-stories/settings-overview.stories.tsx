@@ -1,7 +1,14 @@
-// Page-level stories for the FOUR `/settings/overview/*` analytics lenses, and the PARITY ORACLE
-// for their migration onto the declarative engine (converse-frontends#455, story C12).
+// Page-level stories for the THREE narrower `/settings/overview/*` analytics lenses —
+// `account`, `project`, `user` — and the PARITY ORACLE for their migration onto the declarative
+// engine (converse-frontends#455, story C12).
 //
-// **What changed, and why this file shrank by ~700 lines.** The four lenses used to be
+// **The fourth lens moved out on 2026-09-03.** `/settings/overview/usage` is
+// `Pages/SettingsOverviewUsage` now (`settings-overview-usage.stories.tsx`): the owner's parity
+// directive took it from seven panels sharing one grouping to the account dashboard's whole set
+// resolved across a family — sixteen panels over five query shapes — and it no longer resembles
+// the three lenses it used to sit under. Its `scope: family` fan-out was always the odd one here.
+//
+// **What changed, and why this file shrank by ~700 lines.** The lenses used to be
 // hand-composed here against a dozen bespoke fixtures — a second implementation of four pages,
 // drifting from the console's own by construction. Each lens is a `dashboards.yaml` entry now, so
 // these stories READ THOSE ENTRIES (`spec-page.tsx`) and draw them through the same
@@ -15,14 +22,11 @@
 //    ceiling that is an RPC) and, for an admin, KEY HYGIENE (a refine listing of API keys);
 //  - project lens → for an admin, BUDGET PRESSURE (the account-wide per-project draw on that same
 //    single ceiling, likewise over the billing period);
-//  - user lens → nothing at all;
-//  - usage lens → nothing but the account-cap caption, which is a fact about the FAN-OUT rather
-//    than about any panel.
+//  - user lens → nothing at all.
 //
 // **The Export action is `apps/console`'s** (`DashboardExportButton`, converse-frontends#453 — it
-// fetches `/api/reports/page`), so it is not drawn here. The three narrower lenses carry it; the
-// `usage` lens deliberately does NOT, because a `scope: family` page needs the caller's own account
-// family and a report route has no session to read one from — see `usage-overview-centre.tsx`.
+// fetches `/api/reports/page`), so it is not drawn here. All three of these lenses carry it; the
+// `usage` lens deliberately does not, for the reason its own story file states.
 //
 // **Divergences from the hand-composed lenses, deliberate and named:**
 //  - Spend over time is a LINE, not bars. The engine has one series shape (with the
@@ -33,8 +37,6 @@
 //  - "Cost / request" is a DASH when the window carried no requests, where the deleted hook
 //    printed `$0.00`.
 //  - Each lens gains a "Models in use" stat, free off the grouped query it already fires.
-//  - The `usage` lens is a `scope: family` FAN-OUT — the accounts this identity can see, capped
-//    and captioned — not `scope: all`, which is the whole deployment and needs `usage:read-all`.
 //
 // Storybook-only. Nothing here is exported from `src/index.ts`.
 
@@ -260,57 +262,6 @@ function SettingsOverviewLensScreen({
   );
 }
 
-// ── the fourth lens: `usage`, the account-family fan-out ─────────────────────────────────────
-
-const FAMILY_PAGE = specPage('/settings/overview/usage');
-
-interface UsageOverviewScreenProps {
-  showAdmin?: boolean;
-  /** Only rendered when the cap actually dropped real accounts — never an apology for a
-   *  truncation that did not happen. */
-  truncationCaption?: string;
-}
-
-function UsageOverviewScreen({ showAdmin = false, truncationCaption }: UsageOverviewScreenProps) {
-  const [rangePreset, setRangePreset] = useState<string | null>('mtd');
-  const [range, setRange] = useState(presetRange('mtd', STORY_TODAY));
-
-  return (
-    <ConsoleShell sidebar={storySidebar('settings', { showAdmin })} topBar={storyTopBar()}>
-      <div className="flex flex-col gap-6">
-        <PageHeader
-          title="Usage overview"
-          subtitle="Your account family · This month · UTC"
-          controls={
-            <DateRangeField
-              label="Range"
-              presets={RANGE_PRESETS}
-              preset={rangePreset}
-              value={range}
-              today={STORY_TODAY}
-              onPresetChange={(next) => {
-                setRangePreset(next);
-                const preset = RANGE_PRESETS.find((p) => p.value === next);
-                if (preset) setRange(presetRange(preset.days, STORY_TODAY));
-              }}
-              onRangeChange={(next) => {
-                setRangePreset(null);
-                setRange(next);
-              }}
-              layout="inline"
-              hideLabel
-            />
-          }
-        />
-
-        {truncationCaption ? <InlineStatus>{truncationCaption}</InlineStatus> : null}
-
-        <SpecPanels page={FAMILY_PAGE} />
-      </div>
-    </ConsoleShell>
-  );
-}
-
 const meta: Meta = {
   title: 'Pages/SettingsOverview',
   parameters: { layout: 'fullscreen' },
@@ -435,36 +386,4 @@ export const UserMobileBaseTierLight: Story = {
   name: 'User — mobile base tier — wireframe (light)',
   globals: { viewport: { value: 'base390' }, theme: 'wireframe' },
   render: () => <SettingsOverviewLensScreen lens="user" />,
-};
-
-// ── usage lens (the account-family fan-out) ──────────────────────────────────────────────────
-
-export const UsageFamilyPopulated: Story = {
-  name: 'Usage — account family (fan-out)',
-  render: () => <UsageOverviewScreen />,
-};
-
-export const UsageFamilyPopulatedLight: Story = {
-  name: 'Usage — account family — wireframe (light)',
-  render: () => <UsageOverviewScreen />,
-  globals: { theme: 'wireframe' },
-};
-
-// The cap this page has always had, stated where it is drawn: the resolver is handed an
-// already-capped account list precisely so it can never silently truncate one.
-export const UsageTruncated: Story = {
-  name: 'Usage — truncated to the top accounts',
-  render: () => <UsageOverviewScreen truncationCaption="Showing the top 25 of 61 accounts." />,
-};
-
-export const UsageMobileBaseTier: Story = {
-  name: 'Usage — mobile base tier',
-  globals: { viewport: { value: 'base390' } },
-  render: () => <UsageOverviewScreen />,
-};
-
-export const UsageMobileBaseTierLight: Story = {
-  name: 'Usage — mobile base tier — wireframe (light)',
-  globals: { viewport: { value: 'base390' }, theme: 'wireframe' },
-  render: () => <UsageOverviewScreen />,
 };

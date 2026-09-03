@@ -551,11 +551,11 @@ The panels that entry declares today, in order — `stat` **Spend in this range*
 this range** (both `compare: true`), `series` **Spend over time** (the account TOTAL with the
 previous period dashed under it), `ranked` **Spend by project**, `share` **Spend by model — share**,
 `series` **Spend by model over time** (log axis), `latency-cards` **Latency by model**, `ranked`
-**Spend by API key**, then three `donut` rings — **Cost by channel**, **Tokens by channel**,
-**Requests by channel**. Eleven panels, FIVE usage requests: the ungrouped one (three panels), its
-comparison twin, one `[project_id, model]` grouping that four panels share by each declaring the
-dimension it reads (`options.dimension`), one by-API-key grouping, and one `[azp]` grouping the
-three rings share.
+**Spend by API key**, then four `donut` rings — **Cost by channel**, **Tokens by channel**,
+**Requests by channel**, **Cost by project**. Twelve panels, FIVE usage requests: the ungrouped one
+(three panels), its comparison twin, one `[project_id, model]` grouping that FIVE panels share by
+each declaring the dimension it reads (`options.dimension`), one by-API-key grouping, and one
+`[azp]` grouping the three channel rings share.
 
 - **The three channel rings** (owner request, 2026-09-03) group by `azp` — the OAuth client the
   request arrived on, one of lane A3's bridge columns. Rings, never filled disks (owner ruling,
@@ -566,6 +566,21 @@ three rings share.
   ranked panel uses); spend attributed to no client keeps its labelled `Unassigned` segment.
   Segments link to **nothing**: `/admin/usage/channels/<azp>` is gated on `usage:read-all`, which
   this page's readers do not hold, so a drill-down would open a 404.
+
+- **The fourth ring, `account-cost-by-project`** (owner correction, 2026-09-03: the ring meant
+  beside those three was "Cost by **project**", not a fourth channel reading). It reads the
+  `[project_id, model]` grouping the breakdown panels already fire (`options.dimension:
+project_id`) rather than a `[project_id]` query of its own, and that is a **correctness** decision
+  before it is a saving: "Spend by project" (the ranked list) and "Cost by project" (this ring) are
+  one reading in two shapes, and two requests would each meet the 2,000-row limit at a different
+  point — a truncated ring beside an untruncated list is two disagreeing answers to one question on
+  one page. So the fourth ring cost **no request at all**. Unlike `azp`, `project_id` **is** an
+  actor dimension: `labelOf` resolves it through the page's own project names first
+  (`useDashboardLabels`, already in memory for the project picker and available to readers who do
+  not hold `user:read`) and `resolveActorLabels` second, so a segment carries the project's name;
+  spend attributed to no project keeps its labelled `Unassigned` segment. Segments link to nothing
+  here too — the only thing a project segment could open is this same page with `?project=` set,
+  which is the picker already in the header.
 
 - **The `?group-by=` select is gone**, along with `?bucket=` and `?model=`. It reshaped ONE share
   bar between project / model / user / API key; those are separate panels now, all visible at once
@@ -650,19 +665,41 @@ which is precisely what a page entry states. `SettingsOverviewCentre` still take
 the spec, because the hand-written zones beside each grid are lens-conditional in a way the spec
 cannot express, and because the "select a project first" gate belongs to one lens only.
 
-- `/settings/overview/usage` (`UsageOverviewCentre`) — the **account-family overview**, the actual
-  landing screen, and the one page in the console whose panels carry **`scope: family`**. That is a
-  resolver extension, not a `UsageScope`: the usage API has no "every account I can see" scope
-  (`lightbridge-authz#578`), and `scope: all` is a different question — the whole deployment, gated
-  on `usage:read-all`. So the resolver expands each panel into one account-scoped query per family
-  account (capped at `MAX_FANNED_OUT_ACCOUNTS = 25`, with the cap stated in the page's own caption)
-  and `use-dashboard.ts` merges the responses before any adapter sees them, stamping each point's
-  `account_id` from the query it came from. Panels: `stat` Accounts / Requests / Cost, `series`
-  Spend over time (the family total — `dimension: none`, with the dashed previous period), `series`
-  Spend by account, `share` Spend by model. Six panels share ONE `[account_id, model]` grouping,
-  because under a fan-out every distinct query shape costs N requests rather than one; the page is
-  the fan-out plus its comparison twin, the same 25 + 25 the hand-written screen fired for three
-  fewer panels.
+- `/settings/overview/usage` (`UsageOverviewCentre`, `settings-overview-usage.stories.tsx`) — the
+  **account-family overview**, the actual landing screen, and the one page in the console whose
+  panels carry **`scope: family`**. That is a resolver extension, not a `UsageScope`: the usage API
+  has no "every account I can see" scope (`lightbridge-authz#578`), and `scope: all` is a different
+  question — the whole deployment, gated on `usage:read-all`. So the resolver expands each panel
+  into one account-scoped query per family account (capped at `MAX_FANNED_OUT_ACCOUNTS = 25`, with
+  the cap stated in the page's own caption) and `use-dashboard.ts` merges the responses before any
+  adapter sees them, stamping each point's `account_id` from the query it came from.
+
+  **Panel-for-panel parity with `/accounts/<id>/overview`** since the owner directive of
+  2026-09-03 — _"it should have the same amount of dashboards as /accounts/:id/overview but cross
+  accounts"_. Every panel §5.1 lists is here, resolved across the family: the comparing stats,
+  Spend over time (the family total, `dimension: none`, previous period dashed), Spend by project,
+  the model share, Spend by model over time, Latency by model, Spend by API key, and all four
+  rings. On top of that, the four readings only a family has rows for: `stat` **Accounts** (with
+  usage — a usage query cannot see an account that drew nothing) and `stat` **Cost / request**,
+  `series` **Spend by account** (one line each), and a fifth ring, `donut` **Cost by account** — a
+  single-account page has exactly one `account_id`, so its version of that ring would be one full
+  circle. **Sixteen panels.**
+
+  **Request count: five query SHAPES × N accounts** (N = `min(family, 25)`) ⇒ at most 125. Under a
+  fan-out a shape costs N requests rather than one, so the shapes are the whole budget and
+  `options.dimension` is what keeps sixteen panels down to the same five the account page fires:
+  `[account_id]` (the four stats, the total chart, Spend by account, the Cost-by-account ring), its
+  comparison twin, `[project_id, model]` (five panels), `[api_key_id]`, `[azp]` (the three channel
+  rings). The entry this replaces was seven panels over two shapes; nine more panels cost three
+  more shapes, not nine.
+
+  **What does not cross over, and why the page says so.** The account overview's Budget card, its
+  API-key expiry reading and its refill CTA are RPCs against a **billing period**, not usage
+  queries over this page's range — and `getMyBudgetBalance` structurally answers for one account.
+  Summing 25 ceilings would invent an allowance nobody granted; showing one would label it as the
+  family's. `ACCOUNT_ONLY_ZONES_CAPTION` states that above the grid and points at the per-account
+  page that does answer it, rather than leaving a reader to notice an absence and guess.
+
 - `/settings/overview/{account,project,user}` (`SettingsOverviewCentre`, one composition, three
   entries) — three narrower lenses: `stat` Requests / Cost / Cost per request / Models in use →
   `series` Spend over time → `ranked` Spend by model → the lens' own secondary breakdown (by

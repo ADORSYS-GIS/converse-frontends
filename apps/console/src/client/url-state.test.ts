@@ -16,9 +16,11 @@ import {
   adminBudgetSchedulesParsers,
   adminRefillPoliciesParsers,
   adminSessionsParsers,
+  CONSOLE_DIALOGS,
   apiKeysParsers,
-  createProjectParsers,
+  dashboardExpandParsers,
   dashboardExportParsers,
+  dialogParsers,
   dashboardScaleKey,
   manageParsers,
   overviewParsers,
@@ -62,22 +64,23 @@ describe('the URL param contract', () => {
       // `/`'s account resolver (`app/(console)/page.tsx`) — which of the three account-scoped
       // screens to land on once an account id is resolved.
       resolver: ['next'],
-      // ADR-0026: "+ New account" opens from the workspace switcher (chrome, every route) AND
-      // `/settings/account`'s own `PageHeader` — the one dialog instance both trigger, so its
-      // open flag is shared rather than owned by either route.
-      createAccount: ['new-account'],
-      // Rail-return round (2026-08-30, owner: "I create account in settings or in a raw
-      // dropdown, but project only in projects?"): the SAME shape `createAccount` above already
-      // solved — `/projects`, `/settings/projects` and the inspector rail's quick-settings row
-      // all have to open the one instance mounted in the layout.
-      createProject: ['new-project'],
-      // converse-frontends#453: the Export dialog on every `dashboards.yaml` page. Cross-route for
-      // the same reason the two above are — the button belongs to the dashboard engine's page
-      // shell, not to any one route, so there is ONE declaration rather than a `?report=`-shaped
-      // flag per YAML page. `export-format`/`export-tables` are named apart from `manage`'s own
+      // The owner's 2026-09-03 directive: EVERY modal in the console, on one param pair. The
+      // per-dialog booleans this replaced (`new-account`, `new-project`, `export`, `create`,
+      // `revoke`, `delete`, `account-name`, `rename`, `grant`, `preview`) are gone from the tables
+      // below — `CONSOLE_DIALOGS` carries the name-for-name migration. It is cross-route by
+      // construction, which is what the create-account/create-project dialogs needed anyway
+      // (mounted once in the layout, opened from chrome AND from routed content).
+      dialog: ['dialog', 'dialog-id'],
+      // The expanded dashboard panel keeps a param of its OWN rather than a `dialog-id`, so that
+      // the panel's existing `?<panel-id>-sort/-dir/-page/-scale` knobs steer the dialog's
+      // contents unchanged — the directive's "pagination inside the modal" half.
+      dashboardExpand: ['expand'],
+      // converse-frontends#453: what the Export dialog PRODUCES. Whether it is open moved to
+      // `?dialog=export` above; these two stayed, because they are the document's own inputs and
+      // a link to an export in progress has to carry them. Named apart from `manage`'s own
       // `format` because they configure a DIFFERENT document (a dashboard report, not the monthly
       // consumption one) and a page could in principle mount both.
-      dashboardExport: ['export', 'export-format', 'export-tables'],
+      dashboardExport: ['export-format', 'export-tables'],
       // The account dashboard's WINDOW, and nothing else. C12 (converse-frontends#455) moved this
       // page's boards into `dashboards.yaml`, which took `bucket` (the engine derives it from the
       // range), `group-by` (the four breakdowns it switched between are four panels now), `model`
@@ -87,7 +90,9 @@ describe('the URL param contract', () => {
       // `DashboardExportButton`, whose knobs are the cross-route `dashboardExport` above. A knob
       // wired to nothing is a defect.
       overview: ['from', 'range', 'to'],
-      apiKeys: ['create', 'delete', 'dir', 'key', 'page', 'q', 'revoke', 'sort', 'status'],
+      // `key` is the row SELECTION (a persistent rail at `lg+`, per the layout contract — not a
+      // modal). The screen's three dialogs moved to `?dialog=` on 2026-09-03.
+      apiKeys: ['dir', 'key', 'page', 'q', 'sort', 'status'],
       manage: [
         'budget-state',
         'dir',
@@ -102,13 +107,11 @@ describe('the URL param contract', () => {
         'sort',
         'status',
       ],
-      // `account-name` moved off `manage` with the panel that opens it: a core account mutation.
       // `q`/`page` (phase 6, admin/settings revamp): `/settings/projects`' own search + pager,
-      // the unbounded N×7 project dump replaced by search + 10/page `Pagination`. `row`/`rename`
-      // (phase 9, Addition C) split what used to be one `rename=<id>` param in two: `row` is the
-      // project `DetailSheet` has open (a selection), `rename` is whether the rename dialog is
-      // stacked on top of it — see `settingsParsers`' own doc comment.
-      settings: ['account-name', 'page', 'q', 'rename', 'row'],
+      // the unbounded N×7 project dump replaced by search + 10/page `Pagination`. `row` is the
+      // project the detail surface has open — a SELECTION, which stays a param of its own; both
+      // dialogs this table used to carry (`account-name`, `rename`) are `?dialog=` names now.
+      settings: ['page', 'q', 'row'],
       // Phase 4: `/admin` is now ONE screen (the budget refill review queue) — its dashboard
       // section and every param it mirrored from `/` moved to `/` itself, gated by role. Phase 6
       // deletes the Pending/Decided `tab` param (the tab itself is gone) and adds the queue's own
@@ -139,11 +142,11 @@ describe('the URL param contract', () => {
       // (`policy-set`) — there is no procedure that lists which policy sets exist, so "which one
       // am I looking at" has to be a URL param, not a component-local search box.
       adminRefillPolicies: ['edit', 'policy-set', 'simulate'],
-      // Story C8 (converse-frontends#451): the same URL-mode shape one route over — list at the
-      // bare path, `create` as its own route segment, and three id-as-open-flag params. `edit`
-      // means the same thing here as on `/admin/refill-policies` (open the form on this id), which
-      // is why the shared-meaning check below is content with both routes owning the key.
-      adminBudgetSchedules: ['delete', 'edit', 'preview'],
+      // Story C8 (converse-frontends#451): `edit` is a MODE — the page swaps its list for a form,
+      // with no overlay to dismiss back to — so it stays here, meaning exactly what it means one
+      // route over on `/admin/refill-policies`. The two real modals it used to carry (`preview`,
+      // `delete`) are `?dialog=` names now.
+      adminBudgetSchedules: ['edit'],
       // `/admin/sessions` (converse-frontends#450, story C7). `q` and `user` are deliberately two
       // params, not one: `q` is the text handed to `searchUsers`, `user` is the exact `subject`
       // (an account id — `sessions.subject` IS the owner's JWT `sub`, lightbridge-authz ADR-0006)
@@ -231,11 +234,21 @@ describe('the URL param contract', () => {
     // opening a project (a selection) does not imply starting to rename it.
     expect(settings({ renameProjectId: 'proj_7' })).toBe('?row=proj_7');
     expect(settings({ renameProjectId: '' })).toBe('');
-    expect(settings({ renameProjectId: 'proj_7', projectNameOpen: true })).toBe(
-      '?row=proj_7&rename=true'
-    );
-    expect(settings({ accountNameOpen: true })).toBe('?account-name=true');
     expect(settings({ search: 'gateway', page: 2 })).toBe('?q=gateway&page=2');
+
+    // Every modal, on one param pair. A dialog with no target writes only `?dialog=`; one with a
+    // target writes both, and closing clears both — a stale `?dialog-id=` can never outlive it.
+    const dialog = createSerializer(dialogParsers, { urlKeys: URL_PARAM_CONTRACT.dialog.urlKeys });
+    expect(dialog({ name: CONSOLE_DIALOGS.createProject })).toBe('?dialog=create-project');
+    expect(dialog({ name: CONSOLE_DIALOGS.revokeApiKey, id: 'key_3' })).toBe(
+      '?dialog=revoke-key&dialog-id=key_3'
+    );
+    expect(dialog({ name: '', id: '' })).toBe('');
+
+    const expand = createSerializer(dashboardExpandParsers, {
+      urlKeys: URL_PARAM_CONTRACT.dashboardExpand.urlKeys,
+    });
+    expect(expand({ panelId: 'actors-table' })).toBe('?expand=actors-table');
 
     const sessions = createSerializer(adminSessionsParsers, {
       urlKeys: URL_PARAM_CONTRACT.adminSessions.urlKeys,
@@ -270,7 +283,6 @@ describe('the URL param contract', () => {
     expect(isParserBijective(apiKeysParsers.page, '3', 3)).toBe(true);
     expect(isParserBijective(apiKeysParsers.status, 'revoked', 'revoked')).toBe(true);
     expect(isParserBijective(apiKeysParsers.search, 'alpha beta', 'alpha beta')).toBe(true);
-    expect(isParserBijective(apiKeysParsers.createOpen, 'true', true)).toBe(true);
     expect(isParserBijective(manageParsers.budgetState, 'no-quota', 'no-quota')).toBe(true);
     expect(isParserBijective(manageParsers.reportOpen, 'true', true)).toBe(true);
     expect(isParserBijective(manageParsers.period, '2026-07', '2026-07')).toBe(true);
@@ -278,9 +290,7 @@ describe('the URL param contract', () => {
     expect(
       isParserBijective(manageParsers.include, 'totals,per-model', ['totals', 'per-model'])
     ).toBe(true);
-    expect(isParserBijective(settingsParsers.accountNameOpen, 'true', true)).toBe(true);
     expect(isParserBijective(settingsParsers.renameProjectId, 'proj_7', 'proj_7')).toBe(true);
-    expect(isParserBijective(settingsParsers.projectNameOpen, 'true', true)).toBe(true);
     expect(isParserBijective(settingsParsers.search, 'alpha', 'alpha')).toBe(true);
     expect(isParserBijective(settingsParsers.page, '3', 3)).toBe(true);
     expect(isParserBijective(adminParsers.sortKey, 'submitted', 'submitted')).toBe(true);
@@ -307,16 +317,14 @@ describe('the URL param contract', () => {
     expect(
       isParserBijective(adminBudgetSchedulesParsers.editScheduleId, 'sched_1', 'sched_1')
     ).toBe(true);
-    expect(
-      isParserBijective(adminBudgetSchedulesParsers.previewScheduleId, 'sched_1', 'sched_1')
-    ).toBe(true);
-    expect(
-      isParserBijective(adminBudgetSchedulesParsers.deleteScheduleId, 'sched_1', 'sched_1')
-    ).toBe(true);
-    // Every dashboard page's Export dialog, cross-route since converse-frontends#453.
-    expect(isParserBijective(dashboardExportParsers.open, 'true', true)).toBe(true);
+    // Every modal in the console, on one pair (owner directive 2026-09-03).
+    expect(isParserBijective(dialogParsers.name, 'revoke-key', 'revoke-key')).toBe(true);
+    expect(isParserBijective(dialogParsers.id, 'key_3', 'key_3')).toBe(true);
+    expect(isParserBijective(dashboardExpandParsers.panelId, 'actors-table', 'actors-table')).toBe(
+      true
+    );
+    // Every dashboard page's Export dialog's own two knobs, cross-route since #453.
     expect(isParserBijective(dashboardExportParsers.format, 'pdf', 'pdf')).toBe(true);
-    expect(isParserBijective(createProjectParsers.open, 'true', true)).toBe(true);
     expect(isParserBijective(settingsOverviewParsers.range, '7d', '7d')).toBe(true);
     expect(isParserBijective(settingsOverviewParsers.from, '2026-08-01', '2026-08-01')).toBe(true);
   });

@@ -106,13 +106,17 @@ export interface UseDashboardInput {
    * carry two tables — `/admin/usage` carries actors and channels — and one sort key steering both
    * would mean sorting one table silently re-sorted the other.
    *
-   * Optional as a pair: a page with no table (or one that does not care to make its order
-   * shareable) omits both and gets the default cost-descending order and page 0.
+   * **Required, as of the owner's 2026-09-03 directive** ("all table panels need pagination").
+   * They used to be optional, and the four pages that omitted them (`/admin/overview`, the account
+   * overview, `/settings/overview/usage`, `/settings/overview/account`) rendered tables with a
+   * dead pager and an unshareable sort — a per-page opt-in nobody opted into. There is no opt-out
+   * left: every YAML-driven page goes through `useDashboardKnobs`, which declares these from the
+   * spec, and a page with no table simply has no knob to declare.
    */
-  sortFor?: (panelId: string) => LedgerSort | undefined;
-  onSortChange?: (panelId: string, sort: LedgerSort) => void;
-  pageFor?: (panelId: string) => number;
-  onPageChange?: (panelId: string, page: number) => void;
+  sortFor: (panelId: string) => LedgerSort | undefined;
+  onSortChange: (panelId: string, sort: LedgerSort) => void;
+  pageFor: (panelId: string) => number;
+  onPageChange: (panelId: string, page: number) => void;
   /** Suspends every request — used while a route param the placeholders need is still resolving. */
   enabled?: boolean;
   /**
@@ -136,6 +140,24 @@ export function truncationCaption(limit: number): string {
     `Showing the most recent ${limit.toLocaleString('en-US')} time buckets — older buckets in ` +
     'this window were dropped to fit the query limit, so totals here are lower than the true ' +
     'period totals. Narrow the range for a complete reading.'
+  );
+}
+
+/**
+ * The same caption for a TABLE panel, plus the sentence a paged ledger owes its reader.
+ *
+ * Every `table` panel pages (owner directive, 2026-09-03), and every one of them pages
+ * CLIENT-SIDE over the rows this one response grouped — the usage query API has no `OFFSET` and no
+ * `ORDER BY` (`tableView`'s own doc comment). That is fine while the response is complete and
+ * quietly wrong the moment it is not: page 4 of a truncated response is page 4 of what came back,
+ * not of what exists. So when — and only when — the backend set `truncated`, the panel says which
+ * of the two it is showing.
+ */
+export function tableTruncationCaption(limit: number): string {
+  return (
+    `${truncationCaption(limit)} Sorting and paging below run over the rows this query returned, ` +
+    'not over the whole period: the usage API has no offset, so the pages you can walk here are ' +
+    'pages of the truncated reading.'
   );
 }
 
@@ -312,8 +334,14 @@ export function useDashboard({
       ...base,
       status: 'ready',
       // Named, not implied: the caption states the panel's OWN limit, which is the number the YAML
-      // author set and the only one that explains what was dropped.
-      truncationCaption: response.truncated && query ? truncationCaption(query.limit) : undefined,
+      // author set and the only one that explains what was dropped. A `table` gets the longer
+      // form, because its pager walks the truncated reading rather than the period.
+      truncationCaption:
+        response.truncated && query
+          ? panel.spec.type === 'table'
+            ? tableTruncationCaption(query.limit)
+            : truncationCaption(query.limit)
+          : undefined,
       view: toPanelView({
         spec: panel.spec,
         response,
@@ -327,10 +355,10 @@ export function useDashboard({
         link: panel.link,
         labelFor: actorLabels.labelFor,
         localLabels,
-        sort: sortFor?.(panel.spec.id),
-        onSortChange: onSortChange ? (next) => onSortChange(panel.spec.id, next) : undefined,
-        page: pageFor?.(panel.spec.id),
-        onPageChange: onPageChange ? (next) => onPageChange(panel.spec.id, next) : undefined,
+        sort: sortFor(panel.spec.id),
+        onSortChange: (next) => onSortChange(panel.spec.id, next),
+        page: pageFor(panel.spec.id),
+        onPageChange: (next) => onPageChange(panel.spec.id, next),
       }),
     };
   });

@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen, within } from '@testing-library/react';
+import { withNuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { DASHBOARD_PANEL_TYPES } from '@lightbridge/ui-web/src/sections/dashboard-panels';
 import type { DashboardPanelView } from '@lightbridge/ui-web/src/sections/dashboard-panels';
@@ -15,6 +16,16 @@ import type { DashboardPanelState, DashboardState } from './use-dashboard';
  * asserted against the console's own zod schema, which is the other half of "an unknown panel type
  * is never a silent skip".
  */
+
+/**
+ * Every render goes through the nuqs testing adapter: `DashboardRenderer` reads `?expand=` to know
+ * which panel is open (owner directive 2026-09-03), so it has no meaningful behaviour without a
+ * URL to read. `searchParams` seeds that URL, which is how the deep-link cases below assert that a
+ * pasted `?expand=` opens the dialog on load.
+ */
+function render(ui: React.ReactElement, searchParams: Record<string, string> = {}) {
+  return rtlRender(ui, { wrapper: withNuqsTestingAdapter({ searchParams }) });
+}
 
 function panel(overrides: Partial<DashboardPanelState> = {}): DashboardPanelState {
   return {
@@ -212,5 +223,71 @@ describe('DashboardRenderer', () => {
     // own doc comment on why the radiogroup roles went with the hand-rolled switch they needed).
     expect(screen.getByRole('group', { name: 'Scale' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Linear' })).toBeInTheDocument();
+  });
+
+  // ── ?expand=<panel-id> (owner directive 2026-09-03) ────────────────────────────────────────
+
+  describe('the expanded panel lives in the URL', () => {
+    const rows = Array.from({ length: 60 }, (_, index) => ({
+      key: `row-${index}`,
+      cells: { label: `Actor ${index}` },
+    }));
+    const tableView: DashboardPanelView = {
+      kind: 'table',
+      columns: [{ key: 'label', header: 'Actor' }],
+      rows,
+      unit: 'actors',
+      total: rows.length,
+    };
+    const tablePanel = panel({
+      id: 'actors-table',
+      type: 'table',
+      title: 'Actors',
+      view: tableView,
+    });
+
+    it('opens the panel expanded from a pasted `?expand=` — a deep link, not a fresh page', () => {
+      render(<DashboardRenderer state={state([tablePanel])} />, { expand: 'actors-table' });
+      expect(screen.getByRole('dialog')).toHaveAccessibleName('Actors');
+    });
+
+    it('opens nothing when `?expand=` names a panel this page does not have', () => {
+      render(<DashboardRenderer state={state([tablePanel])} />, { expand: 'gone' });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('expands only the named panel, never every panel on the page', () => {
+      render(
+        <DashboardRenderer state={state([tablePanel, panel({ id: 'other', title: 'Other' })])} />,
+        { expand: 'other' }
+      );
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
+      expect(screen.getByRole('dialog')).toHaveAccessibleName('Other');
+    });
+
+    /**
+     * The directive's second half: "doing so should help adding e.g. pagination inside the modal,
+     * as well as table sorting filters." The dialog has NO namespace of its own — it reads the
+     * page's `?<panel-id>-page=`, which is why one URL can name both the open panel and the page
+     * of the table inside it.
+     */
+    it("draws the expanded table at the page the panel's own `-page` param names", () => {
+      const paged: DashboardPanelState = {
+        ...tablePanel,
+        view: { ...tableView, page: 1 },
+      };
+      render(<DashboardRenderer state={state([paged])} />, {
+        expand: 'actors-table',
+        'actors-table-page': '1',
+      });
+
+      const dialog = screen.getByRole('dialog');
+      // The dialog pages at ITS OWN density (25 rows), so page 2 there starts at row 25 — while
+      // the panel behind it, at panel density (10 rows), is on its own page 2 starting at row 10.
+      // One `?actors-table-page=1`, two honest readings of it.
+      expect(within(dialog).queryByText('Actor 0')).not.toBeInTheDocument();
+      expect(within(dialog).getByText('Actor 25')).toBeInTheDocument();
+      expect(within(dialog).queryByText('Actor 50')).not.toBeInTheDocument();
+    });
   });
 });

@@ -22,6 +22,20 @@ export {
 } from './arcs';
 export type { DonutArc, DonutDatum, DonutGeometry } from './arcs';
 export {
+  computeStackLayout,
+  STACK_DOMINANT_SHARE,
+  STACK_OTHER_KEY,
+  stackDominanceCaption,
+} from './stacks';
+export type {
+  StackBucket,
+  StackLayout,
+  StackLayoutOptions,
+  StackSegment,
+  StackSeriesInput,
+  StackSeriesRank,
+} from './stacks';
+export {
   DEFAULT_CHART_MARGIN,
   innerHeight,
   innerWidth,

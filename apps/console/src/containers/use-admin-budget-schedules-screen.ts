@@ -16,7 +16,7 @@ import type {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import { useAdminBudgetSchedulesParams } from '../client/url-state';
+import { CONSOLE_DIALOGS, useAdminBudgetSchedulesParams, useUrlDialog } from '../client/url-state';
 import { useConsoleAuthzClient, useConsoleBudgetClient } from '../client/rpc-clients';
 import {
   runResultAccountIds,
@@ -134,6 +134,11 @@ export function useAdminBudgetSchedulesScreen(): AdminBudgetSchedulesScreen {
   const authzClient = useConsoleAuthzClient();
   const queryClient = useQueryClient();
   const [view, setView] = useAdminBudgetSchedulesParams();
+  // The screen's two MODALS on the console's one `?dialog=` contract (owner directive 2026-09-03):
+  // the dry-run sheet and the typed delete confirmation. `?edit=<id>` stays a param of its own — it
+  // is a MODE, not a modal: the page swaps its list for a form, with no overlay to dismiss back to.
+  const previewDialog = useUrlDialog(CONSOLE_DIALOGS.previewSchedule);
+  const deleteDialog = useUrlDialog(CONSOLE_DIALOGS.deleteSchedule);
 
   // SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — ephemeral mutation outcomes only this view
   // renders). The preview RESULT is deliberately not in the query cache: it is the answer to "what
@@ -262,13 +267,13 @@ export function useAdminBudgetSchedulesScreen(): AdminBudgetSchedulesScreen {
     mutationFn: (id: string) => budgetClient.procedures.deleteBudgetResetSchedule({ args: { id } }),
     onSuccess: () => {
       setDeleteErrorMessage(undefined);
-      void setView({ deleteScheduleId: '' });
+      deleteDialog.close();
       void queryClient.invalidateQueries({ queryKey: SCHEDULES_QUERY_KEY });
     },
     onError: (error) => setDeleteErrorMessage(getApiErrorMessage(error)),
   });
 
-  const previewScheduleId = view.previewScheduleId || null;
+  const previewScheduleId = previewDialog.id || null;
   const previewSchedule = schedules.find((schedule) => schedule.id === previewScheduleId);
   const previewRow = rows.find((row) => row.id === previewScheduleId);
 
@@ -283,7 +288,7 @@ export function useAdminBudgetSchedulesScreen(): AdminBudgetSchedulesScreen {
   const runPreview = (id: string) => runMutation.mutate({ id, dryRun: true });
 
   const deleteTargetSchedule = schedules.find(
-    (schedule) => schedule.id === (view.deleteScheduleId || null)
+    (schedule) => schedule.id === (deleteDialog.id || null)
   );
 
   return {
@@ -297,7 +302,7 @@ export function useAdminBudgetSchedulesScreen(): AdminBudgetSchedulesScreen {
 
     onEdit: (id) => void setView({ editScheduleId: id }),
     onPreview: (id) => {
-      void setView({ previewScheduleId: id });
+      previewDialog.openDialog(id);
       runPreview(id);
     },
     onToggleEnabled: (id, enabled) => toggleMutation.mutate({ id, enabled }),
@@ -325,7 +330,7 @@ export function useAdminBudgetSchedulesScreen(): AdminBudgetSchedulesScreen {
         if (previewScheduleId) runPreview(previewScheduleId);
       },
       onClose: () => {
-        void setView({ previewScheduleId: '' });
+        previewDialog.close();
         setRunResult(null);
         setRunErrorMessage(undefined);
       },
@@ -348,14 +353,14 @@ export function useAdminBudgetSchedulesScreen(): AdminBudgetSchedulesScreen {
     deleting: deleteMutation.isPending,
     onRequestDelete: (id) => {
       setDeleteErrorMessage(undefined);
-      void setView({ deleteScheduleId: id });
+      deleteDialog.openDialog(id);
     },
     onConfirmDelete: () => {
-      if (view.deleteScheduleId) deleteMutation.mutate(view.deleteScheduleId);
+      if (deleteDialog.id) deleteMutation.mutate(deleteDialog.id);
     },
     onCancelDelete: () => {
       setDeleteErrorMessage(undefined);
-      void setView({ deleteScheduleId: '' });
+      deleteDialog.close();
     },
   };
 }

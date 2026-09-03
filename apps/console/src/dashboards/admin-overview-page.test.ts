@@ -79,11 +79,25 @@ describe('/admin/overview in dashboards.yaml', () => {
       adminOverview().panels.find((panel) => panel.id === id)?.options?.scale;
     // Request COUNT shares an axis with nothing; `indexed` is the honest shape reading.
     expect(scaleOf('request-volume')).toBe('indexed');
-    // One model at ~95% share flattens every other line on a linear axis.
-    expect(scaleOf('spend-by-model')).toBe('log');
     expect(scaleOf('estate-spend')).toBe('linear');
     expect(scaleOf('spend-by-account')).toBe('linear');
     expect(scaleOf('adoption-over-time')).toBe('linear');
+  });
+
+  /**
+   * Owner ruling 2026-09-03, amending ADR 0015 D5: "Spend by model over time" is a STACK. It
+   * carries NO `scale`, and that is the assertion — a stacked board has no axis transform (a log
+   * or indexed stack does not sum, so its bar height would stop being the day's total), and the
+   * panel renders no scale toggle for one.
+   */
+  it('draws spend-by-model as a stack, with no axis transform to steer', () => {
+    const panel = adminOverview().panels.find((entry) => entry.id === 'spend-by-model');
+    expect(panel?.type).toBe('series');
+    expect(panel?.options?.style).toBe('stacked-bars');
+    expect(panel?.options?.scale).toBeUndefined();
+    // The tail is folded into one summed `Other (N)` SEGMENT rather than dropped — a stack whose
+    // bars were short by the tail would contradict the total beside them.
+    expect(panel?.options?.topN).toBe(5);
   });
 
   it('links top-spender rows at the FINAL /admin/usage URLs, by actor type', () => {

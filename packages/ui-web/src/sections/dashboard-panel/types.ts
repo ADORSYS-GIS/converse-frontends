@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
  *
  * `'panel'` — inside the grid: the chart height a two-column board affords, fewer axis ticks, a
  * short table page.
- * `'expanded'` — the zoom dialog: a much taller chart, more ticks, a 50-row table page.
+ * `'expanded'` — the zoom dialog: a much taller chart, more ticks, a 25-row table page.
  *
  * Passed to the body render-prop rather than inferred from a media query, because the two
  * renderings differ in DATA density (how many rows are fetched into the page, how many ticks are

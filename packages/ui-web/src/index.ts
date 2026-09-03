@@ -122,6 +122,11 @@ export type {
   MultiSeriesSpendScale,
   MultiSeriesSpendSeries,
 } from './components/multi-series-spend-chart';
+// Daily spend × model as a stack — the ONE mark ADR 0013/0015 D5's stacked-bar ban is lifted for
+// (owner ruling 2026-09-03). The 95%-top-1 caveat travels with it as a caption; see the
+// component's own doc comment.
+export { StackedBarChart, stackedBarCaption } from './components/stacked-bar-chart';
+export type { StackedBarChartProps, StackedBarSeries } from './components/stacked-bar-chart';
 
 // ── forms & actions
 export { Button } from './components/button';

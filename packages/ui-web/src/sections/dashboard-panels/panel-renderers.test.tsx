@@ -1,8 +1,15 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { emptyPanelFixtures, panelFixtures } from './fixtures';
+import {
+  dominatedStackedSeriesFixture,
+  emptyPanelFixtures,
+  panelFixtures,
+  stackedSeriesFixture,
+} from './fixtures';
+import { PANEL_TABLE_PAGE_SIZE } from './sizes';
+import type { PanelViewOf } from './types';
 import {
   panelActionRenderers,
   panelRenderers,
@@ -153,5 +160,97 @@ describe('size changes DENSITY, not just pixels', () => {
     const heightOf = (root: HTMLElement) =>
       Number(root.querySelector('svg')?.getAttribute('height') ?? 0);
     expect(heightOf(expanded)).toBeGreaterThan(heightOf(panel));
+  });
+});
+
+/**
+ * Pagination is a property of the `table` TYPE, not a per-page opt-in (owner directive
+ * 2026-09-03: "all table panels in /admin/overview need pagination"). These pin the two things
+ * that makes true — a default every table gets, and a per-panel override that still scales.
+ */
+describe('table pagination is the engine default', () => {
+  const rows = Array.from({ length: 40 }, (_, index) => ({
+    key: `row-${index}`,
+    cells: { label: `Actor ${index}` },
+  }));
+  const table: PanelViewOf<'table'> = {
+    kind: 'table',
+    columns: [{ key: 'label', header: 'Actor' }],
+    rows,
+    unit: 'actors',
+    total: rows.length,
+  };
+  const bodyRows = (root: HTMLElement) => root.querySelectorAll('tbody tr').length;
+
+  it('pages at 10 rows in the panel and 25 in the dialog, with no opt-in', () => {
+    const { container } = render(<>{renderPanelBody(table, 'panel')}</>);
+    expect(bodyRows(container)).toBe(PANEL_TABLE_PAGE_SIZE.panel);
+
+    const { container: expanded } = render(<>{renderPanelBody(table, 'expanded')}</>);
+    expect(bodyRows(expanded)).toBe(PANEL_TABLE_PAGE_SIZE.expanded);
+  });
+
+  /**
+   * `hasNext` is derived from the panel's OWN row count and page size — the caller never computes
+   * it — so a table only has to hand over the page index and a handler. (`Pagination` still draws
+   * nothing without a handler, by its own contract: "a ledger with no more pages to reach has no
+   * pagination row, not a row of two disabled buttons". In the console that handler is no longer
+   * optional — `UseDashboardInput` requires the page knobs since 2026-09-03.)
+   */
+  it('derives hasNext from its own row count once a handler is wired', () => {
+    const { container: first } = render(
+      <>{renderPanelBody({ ...table, onNext: () => {} }, 'panel')}</>
+    );
+    expect(within(first).getByRole('button', { name: /Next/i })).toBeInTheDocument();
+
+    // Last page (40 rows at 10/page): the row stays — there is still a Previous to press — but
+    // Next is disabled, because the panel's own arithmetic says there is nothing after row 39.
+    const { container: last } = render(
+      <>{renderPanelBody({ ...table, page: 3, onPrev: () => {}, onNext: () => {} }, 'panel')}</>
+    );
+    expect(within(last).getByRole('button', { name: /Next/i })).toBeDisabled();
+    expect(within(last).getByRole('button', { name: /Previous/i })).toBeEnabled();
+  });
+
+  it('takes a panel’s own `pageSize`, and still scales it for the dialog', () => {
+    const { container } = render(<>{renderPanelBody({ ...table, pageSize: 4 }, 'panel')}</>);
+    expect(bodyRows(container)).toBe(4);
+
+    const { container: expanded } = render(
+      <>{renderPanelBody({ ...table, pageSize: 4 }, 'expanded')}</>
+    );
+    // 4 × the default ratio (25/10) — one YAML number, two honest densities.
+    expect(bodyRows(expanded)).toBe(10);
+  });
+
+  it('clamps a deep-linked page past the end onto the last real page', () => {
+    const { container } = render(<>{renderPanelBody({ ...table, page: 99 }, 'panel')}</>);
+    // 40 rows at 10/page → last page is index 3, rows 30–39.
+    expect(container.textContent).toContain('Actor 39');
+    expect(container.textContent).not.toContain('Actor 0\n');
+  });
+});
+
+/**
+ * `options.style: stacked-bars` — the owner's 2026-09-03 exception to ADR 0013/0015 D5, drawn by
+ * the SAME `series` panel rather than a tenth panel type.
+ */
+describe('series → stacked bars', () => {
+  it('draws the stacked mark instead of the line board', () => {
+    const { container } = render(<>{renderPanelBody(stackedSeriesFixture, 'panel')}</>);
+    // Bars, not paths: the line board draws `<path>` per series and no `<rect>` marks.
+    expect(container.querySelectorAll('svg rect').length).toBeGreaterThan(0);
+  });
+
+  it('renders NO scale toggle — a log stack does not sum, so there is no axis to steer', () => {
+    expect(renderPanelActions(stackedSeriesFixture, 'panel')).toBeNull();
+    // …while the same panel drawn as lines still has one.
+    render(<>{renderPanelActions(panelFixtures.series, 'panel')}</>);
+    expect(screen.getByRole('group', { name: 'Scale' })).toBeInTheDocument();
+  });
+
+  it('states the 95%-top-1 caveat when one series dominates the period', () => {
+    render(<>{renderPanelBody(dominatedStackedSeriesFixture, 'panel')}</>);
+    expect(screen.getByText(/gpt-4o is \d+% of this period's total/)).toBeInTheDocument();
   });
 });

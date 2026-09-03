@@ -24,7 +24,7 @@ Owner directive (2026-08-26): avoid `useState`; use **nuqs** instead.
 
 ## Decision
 
-1. **All view state is URL state.** Anything that describes *what the user is looking at* lives
+1. **All view state is URL state.** Anything that describes _what the user is looking at_ lives
    in the URL via nuqs (`useQueryState`/`useQueryStates` with typed parsers + defaults):
    scope (account/project), dashboard view params (range, bucket, group-by), filters, selected
    series/row/request, active sub-nav tab, and which section sheet is open. Every console view
@@ -66,3 +66,112 @@ Owner directive (2026-08-26): avoid `useState`; use **nuqs** instead.
 - **Roll our own searchParams plumbing.** Rejected: nuqs is the established, typed, SSR-aware
   implementation of exactly this pattern; hand-rolling it is the kind of code this project
   exists to not write.
+
+---
+
+## Amendment — one modal contract, `?dialog=` (owner directive, 2026-09-03)
+
+**Status: accepted.** Verbatim: _"Egal which page, opening a modal should add the state into query
+params. And doing so should help adding e.g. pagination inside the modal, as well as table sorting
+filters."_
+
+Decision 1 above already said "which section sheet is open" is URL state, and the console honoured
+it — every dialog was URL-driven. What it never said was **how**, so twelve dialogs invented eight
+dialects: `?new-account=true`, `?new-project=true`, `?export=true`, `?create=true`, `?revoke=<id>`,
+`?delete=<id>`, `?account-name=true`, `?rename=true`, `?grant=true`, `?preview=<id>`. This
+amendment makes it one shape.
+
+### D7 — every modal is `?dialog=<name>`, with an optional `?dialog-id=<id>`
+
+`client/url-state.ts` owns the pair and the name registry (`CONSOLE_DIALOGS`); every opener goes
+through `useUrlDialog(name)`. Two properties fall out that the old booleans could not give:
+
+- **One modal at a time, by construction.** `?new-project=true&new-account=true` was a reachable
+  URL that stacked two dialogs; `?dialog=` holds one name. Call sites that used to clear a sibling
+  flag by hand (`use-api-keys-screen.ts`'s revoke-vs-delete) no longer can get it wrong.
+- **The modal's own view state keeps ordinary names.** Because "which modal" is one param, anything
+  _inside_ a modal uses the page's normal knob namespace — no `dialog-`-prefixed duplicates. That
+  is the directive's second sentence, and it is what makes `?expand=actors-table&actors-table-sort=
+cost&actors-table-page=1` work: the expanded dashboard panel sorts and pages through the _same_
+  `?<panel-id>-sort/-dir/-page` params the panel behind it reads (`useDashboardTableParams`).
+
+### D8 — `?expand=<panel-id>` for the expanded dashboard panel
+
+Its own param rather than a `dialog-id`, for the reason above: the expanded panel is the one modal
+whose contents are steered by the page's per-panel knobs, and `?expand=<panel-id>` beside
+`?<panel-id>-page=1` reads as one URL about one panel. `history: 'push'` — `v`/Expand pushes, Esc
+and the close button pop.
+
+### What is deliberately NOT a `?dialog=`
+
+- **Selections.** `/admin`'s `?request=`, `/admin/sessions`' `?selected=`, `/api-keys`' `?key=`,
+  `/settings/projects`' `?row=`. The console layout contract (LOCKED) renders that content in a
+  persistent, drag-resizable right rail at `lg+` and only collapses it to a bottom sheet below.
+  Nothing is modal about it on the majority breakpoint, and the rail is never empty — calling it
+  `?dialog=` would be a lie about what the URL renders.
+- **Modes.** `/admin/refill-policies`' `?edit=`/`?simulate=` and `/admin/budget-schedules`'
+  `?edit=` swap the page's own content for a form. No overlay, nothing to dismiss back to; both
+  vocabularies were also specified by the owner verbatim in an earlier ruling.
+- **Three local `open` flags**, named in `url-state-discipline.test.ts`: the command palette (a
+  launcher, not a view — a shared link must not pop open the recipient's palette), the refill
+  policies "how does this work" disclosure (an inline expander), and the "start from example
+  policy" confirmation (its entire subject is an unsent local draft, so a link carrying it would
+  offer its recipient the chance to overwrite a draft they do not have — Decision 3's own carve-out
+  applied to the dialog _about_ a draft).
+
+### The flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Reader
+    participant T as Trigger (button / `v` hotkey)
+    participant H as useUrlDialog(name)
+    participant N as nuqs → address bar
+    participant M as Modal (Base UI dialog)
+
+    U->>T: press "Revoke"
+    T->>H: openDialog("key_3")
+    H->>N: setQueryStates({dialog:"revoke-key", dialog-id:"key_3"}, history:"push")
+    N-->>H: ?dialog=revoke-key&dialog-id=key_3
+    H-->>M: open=true, id="key_3"
+    M->>M: render, focus-trap, look the row up by id
+
+    Note over U,N: A pasted URL enters here — no trigger, same render.
+
+    U->>M: Esc / Cancel
+    M->>H: close()
+    H->>N: setQueryStates({dialog:"", dialog-id:""})
+    N-->>M: open=false
+    Note over U,N: Back is the same transition: the push is popped.
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> NoModal: page load, no ?dialog=
+
+    NoModal --> Open: openDialog(name, id?) — push
+    Open --> NoModal: close() / Esc / Back — clears BOTH params
+    Open --> Open: openDialog(other) — replaces, never stacks
+
+    NoModal --> Open: deep link / reload with ?dialog=<known name>
+    NoModal --> NoModal: reload with ?dialog=<unknown name><br/>(no modal matches; the page renders normally)
+
+    state Open {
+        [*] --> Body
+        Body --> Body: the modal's own knobs write ordinary params<br/>(?&lt;panel-id&gt;-sort / -dir / -page, ?export-format)
+    }
+
+    note right of Open
+        Unreachable by construction: two modals open at once.
+        ?dialog= holds ONE name — the state a bag of
+        per-dialog booleans allowed and nothing prevented.
+    end note
+```
+
+### Enforcement
+
+`client/url-state-discipline.test.ts` grew two guards beside the three it already had: no `useState`
+named like an open flag survives outside the three sites listed above, and no file but
+`url-state.ts` names `dialog-id`. `url-state.test.ts` pins the wire names off `CONSOLE_DIALOGS`, so
+a rename is a visible diff on a test rather than a silently broken bookmark.

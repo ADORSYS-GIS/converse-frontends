@@ -4,9 +4,10 @@ import { withNuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testi
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  useCreateAccountDialogParams,
+  CONSOLE_DIALOGS,
   useOverviewParams,
   useProjectScopeParams,
+  useUrlDialog,
 } from './url-state';
 
 /**
@@ -183,21 +184,35 @@ describe('project scope', () => {
  * same shape `scope` above already proves out. `Switcher`/`Screen` below stand in for those two.
  */
 function Switcher() {
-  const [, setParams] = useCreateAccountDialogParams();
+  const dialog = useUrlDialog(CONSOLE_DIALOGS.createAccount);
   return (
-    <button type="button" onClick={() => void setParams({ open: true })}>
+    <button type="button" onClick={() => dialog.openDialog()}>
       switcher: + New account
     </button>
   );
 }
 
 function Screen() {
-  const [params, setParams] = useCreateAccountDialogParams();
+  const dialog = useUrlDialog(CONSOLE_DIALOGS.createAccount);
   return (
     <div>
-      <output data-testid="create-account-open">{String(params.open)}</output>
-      <button type="button" onClick={() => void setParams({ open: false })}>
+      <output data-testid="create-account-open">{String(dialog.open)}</output>
+      <button type="button" onClick={() => dialog.close()}>
         screen: cancel
+      </button>
+    </div>
+  );
+}
+
+/** A DIFFERENT modal, reading the same shared param — the property `?dialog=` buys that a bag of
+ *  per-dialog booleans could not: two modals can never be open at once. */
+function OtherModalTrigger() {
+  const dialog = useUrlDialog(CONSOLE_DIALOGS.createProject);
+  return (
+    <div>
+      <output data-testid="create-project-open">{String(dialog.open)}</output>
+      <button type="button" onClick={() => dialog.openDialog()}>
+        rail: + New project
       </button>
     </div>
   );
@@ -220,7 +235,7 @@ describe('createAccount dialog', () => {
     await user.click(screen.getByRole('button', { name: 'switcher: + New account' }));
 
     expect(screen.getByTestId('create-account-open')).toHaveTextContent('true');
-    expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('?new-account=true');
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('?dialog=create-account');
     // Real view state: Back closes it, same as every other dialog flag in this module.
     expect(onUrlUpdate.mock.calls.at(-1)?.[0].options.history).toBe('push');
 
@@ -228,5 +243,29 @@ describe('createAccount dialog', () => {
 
     expect(screen.getByTestId('create-account-open')).toHaveTextContent('false');
     expect(onUrlUpdate.mock.calls.at(-1)?.[0].queryString).toBe('');
+  });
+
+  /**
+   * The structural property the 2026-09-03 migration added, and the reason it is ONE param rather
+   * than a naming convention over many: `?new-account=true&new-project=true` used to be a
+   * reachable URL that stacked two dialogs on each other. It is now unrepresentable.
+   */
+  it('replaces whatever modal was open rather than stacking a second one', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Switcher />
+        <Screen />
+        <OtherModalTrigger />
+      </>,
+      { wrapper: withNuqsTestingAdapter({ hasMemory: true }) }
+    );
+
+    await user.click(screen.getByRole('button', { name: 'switcher: + New account' }));
+    expect(screen.getByTestId('create-account-open')).toHaveTextContent('true');
+
+    await user.click(screen.getByRole('button', { name: 'rail: + New project' }));
+    expect(screen.getByTestId('create-project-open')).toHaveTextContent('true');
+    expect(screen.getByTestId('create-account-open')).toHaveTextContent('false');
   });
 });

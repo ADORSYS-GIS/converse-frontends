@@ -109,6 +109,28 @@ describe('buildReport', () => {
     expect(built.document.panels.find((panel) => panel.type === 'table')?.chart).toBeUndefined();
   });
 
+  /**
+   * The stacked board (`options.style: stacked-bars`, owner ruling 2026-09-03) goes through the
+   * SAME prebundled SSR renderer every other chart does. Worth pinning explicitly rather than
+   * assuming: `render-charts.tsx` is the one module Next never compiles, so a panel type it does
+   * not switch on produces no asset at all and the report silently loses a board.
+   */
+  it('renders the stacked board through the same prebundled renderer, as real bars', () => {
+    const { built } = build(WITH_DATA);
+
+    const stacked = built.document.panels.find((panel) => panel.id === 'cost-by-model');
+    expect(stacked?.chart).toBeDefined();
+    const svg = built.assets[stacked?.chart as string];
+    expect(svg).toMatch(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
+    // Bars, not the line board's paths — and no CSS variable left for Typst to fail to resolve.
+    expect(svg).toContain('<rect');
+    expect(svg).not.toContain('var(--');
+    // `static` mode drops every DOM caption, so a dominated stack's caveat has to reach the
+    // document's own chrome instead. This fixture is ~80/20, so there is nothing to caveat — the
+    // assertion is that the field exists to carry one, not that this window triggers it.
+    expect(stacked?.caption ?? '').not.toContain('$');
+  });
+
   it('gives every chart panel its values as a table — paper has no hover', () => {
     const { built } = build(WITH_DATA);
 

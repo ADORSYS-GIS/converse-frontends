@@ -16,6 +16,10 @@ import { describe, expect, it } from 'vitest';
  *     inspectable and renames stop being reviewable.
  *  3. **`packages/ui-web` never imports nuqs** (Decision 4) — the package stays presentational and
  *     framework-agnostic, controlled through props so the app can own its state in the URL.
+ *  4. **Every modal is `?dialog=<name>`** (the owner's 2026-09-03 amendment to this ADR — "egal
+ *     which page, opening a modal should add the state into query params"). Two guards: no
+ *     `useState` named like an open flag survives outside three named, non-modal sites, and no
+ *     file but `url-state.ts` names the param itself.
  *
  * Source-shape assertions, not render tests, because all three properties are about the *tree*
  * rather than about any one component's output. The behavioural half of the ADR is checked in
@@ -33,6 +37,22 @@ const JUSTIFICATION = 'SANCTIONED LOCAL STATE';
 const JUSTIFICATION_WINDOW = 12;
 
 const LOCAL_STATE_CALL = /\buse(State|Reducer)\s*[<(]/;
+
+/**
+ * A `useState` whose VARIABLE is named like a modal's open flag — `open`, `isOpen`, `dialogOpen`,
+ * `showFoo`, `setSheetOpen`, … — anywhere in `apps/console/src`.
+ *
+ * Added by the owner's 2026-09-03 directive ("egal which page, opening a modal should add the
+ * state into query params"). The justification comment the rule above accepts is deliberately not
+ * enough here: every modal in this console now goes through `useUrlDialog` (`?dialog=<name>`), so
+ * there is no remaining case where "is this modal open" is honestly local, and a one-line comment
+ * saying otherwise would be exactly the drift the directive closed. This is a hard zero.
+ *
+ * It does NOT match a draft, a status, a cursor stack or a result — the sanctioned kinds of local
+ * state ADR 0011 Decision 3 names — because none of those is spelled `open`/`show`.
+ */
+const MODAL_OPEN_STATE =
+  /\b(?:const|let)\s*\[\s*(\w*[oO]pen\w*|show\w+)\s*,[^\]]*\]\s*=\s*useState/;
 
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {
@@ -87,8 +107,9 @@ describe('ADR 0011 discipline', () => {
     //  - the Settings screens' two unsent name drafts, now split across `/settings/account`
     //    (account rename) and `/settings/projects` (project rename) — phase 6 (admin/settings
     //    revamp) split `use-settings-screen.ts` into one hook per real route. Same shape as
-    //    ever: `?account-name=true` and `?rename=<project id>` ARE in the URL, the half-typed
-    //    names going into either dialog are not,
+    //    ever: `?dialog=account-name` and `?dialog=rename-project` ARE in the URL (they were
+    //    `?account-name=true`/`?rename=true` before the 2026-09-03 modal migration), the
+    //    half-typed names going into either dialog are not,
     //  - `use-refills-queue-screen.ts`'s page-cursor stack (phase 6) — the trail of cursors a `Previous`
     //    press needs is a browser-history-shaped concept, not itself "what am I looking at" the
     //    way its own `?after=` param is, so it stays local rather than a second, redundant URL
@@ -184,6 +205,63 @@ describe('ADR 0011 discipline', () => {
       join('containers', 'use-rename-account-dialog.ts'),
       join('dashboards', 'dashboard-export-button.tsx'),
     ]);
+  });
+
+  /**
+   * Owner directive, 2026-09-03: modal state belongs in the URL, on every page. `url-state.ts`'s
+   * `useUrlDialog` (`?dialog=<name>` + `?dialog-id=`) is the one shape, and this is the guard that
+   * a new screen cannot quietly reintroduce a local `const [open, setOpen] = useState(false)`
+   * beside it — the failure this directive was issued about, and one no reviewer catches reliably
+   * by eye on a 300-line container.
+   *
+   * `packages/ui-web` is deliberately NOT covered: a presentational dialog primitive holding its
+   * own uncontrolled `open` is correct there (it takes `open`/`onOpenChange` props and the app
+   * owns the state), which is the same boundary the nuqs rule below draws.
+   */
+  it('keeps modal open/closed state out of apps/console — it lives in ?dialog=', () => {
+    const offenders = consoleFiles
+      .filter((file) =>
+        readFileSync(file, 'utf8')
+          .split('\n')
+          .some((line) => MODAL_OPEN_STATE.test(line))
+      )
+      .map((file) => file.slice(CONSOLE_SRC.length + 1))
+      .sort();
+
+    // Three survivors, and NONE of them is a modal describing "what am I looking at" — which is
+    // the whole test. Each is named here so adding a fourth is a visible diff on this file rather
+    // than a `const [open, setOpen] = useState(false)` nobody notices in a 300-line container.
+    //
+    //  - `client/console-chrome.tsx` — the command palette's open flag. A launcher, not a view: a
+    //    shared link that pops open the recipient's palette over their own screen is the failure,
+    //    not the fix. ADR 0011 Decision 3 already sanctions this one by name.
+    //  - `containers/use-refill-policies-screen.ts` — `manualOpen`, the "how does this work"
+    //    explainer's disclosure. An inline expander on the page, with no overlay and nothing to
+    //    dismiss back to; it is not a modal at all.
+    //  - `containers/use-refill-policy-create-screen.ts` — `exampleConfirmOpen`, the confirmation
+    //    before "Start from example policy" overwrites the form. Its entire SUBJECT is the local,
+    //    unsent draft (ADR 0011 Decision 3's own carve-out): a link carrying it would open, for
+    //    its recipient, a confirmation to overwrite a draft they do not have. The dialog about a
+    //    draft is as unshareable as the draft.
+    expect(offenders).toEqual([
+      join('client', 'console-chrome.tsx'),
+      join('containers', 'use-refill-policies-screen.ts'),
+      join('containers', 'use-refill-policy-create-screen.ts'),
+    ]);
+  });
+
+  it('routes every modal through the one ?dialog= contract', () => {
+    const source = readFileSync(URL_STATE_MODULE, 'utf8');
+    // The pair itself, declared once.
+    expect(source).toContain("name: 'dialog'");
+    expect(source).toContain("id: 'dialog-id'");
+
+    // And every opener in the app reaches it through `useUrlDialog` rather than by naming the
+    // param — the same "one writer" property the nuqs rule below enforces, one level up.
+    const namers = consoleFiles.filter(
+      (file) => file !== URL_STATE_MODULE && /['"]dialog-id['"]/.test(readFileSync(file, 'utf8'))
+    );
+    expect(namers).toEqual([]);
   });
 
   it('declares query params in exactly one module', () => {

@@ -10,7 +10,7 @@ import { useConsoleScope } from '../client/use-console-scope';
 import { DashboardRenderer } from '../dashboards/dashboard-renderer';
 import type { DashboardPageSpec } from '../dashboards/dashboard-spec';
 import { useDashboard } from '../dashboards/use-dashboard';
-import { useDashboardScales } from '../dashboards/use-dashboard-scales';
+import { useDashboardKnobs } from '../dashboards/use-dashboard-knobs';
 import { familyAccountIds, familyTruncationCaption } from './account-family';
 import { RANGE_LABELS, RANGE_PRESETS } from './overview-range';
 import { resolveOverviewWindow, toUrlDate } from './overview-usage';
@@ -91,14 +91,13 @@ export function UsageOverviewCentre({ page }: UsageOverviewCentreProps) {
   const includedIds = useMemo(() => familyAccountIds(allAccountIds), [allAccountIds]);
   const truncationCaption = familyTruncationCaption(allAccountIds.length);
 
-  const { scaleFor, onScaleChange } = useDashboardScales(page);
+  const knobs = useDashboardKnobs(page);
 
   const dashboard = useDashboard({
     page,
     window,
     familyAccountIds: includedIds,
-    scaleFor,
-    onScaleChange,
+    ...knobs,
     localLabels,
   });
 

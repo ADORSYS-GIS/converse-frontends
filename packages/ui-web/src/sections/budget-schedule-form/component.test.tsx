@@ -6,6 +6,7 @@ import { BudgetScheduleForm } from './component';
 import {
   budgetScheduleBillingPlans,
   budgetScheduleFormDailyGlobal,
+  budgetScheduleFormForcedWindow,
   budgetScheduleFormInvalid,
   budgetScheduleFormInvalidErrors,
   budgetScheduleFormMonthlyAccount,
@@ -15,8 +16,10 @@ import {
   anchorFieldExample,
   budgetScheduleFieldExample,
   CREATED_DISABLED_NOTICE,
+  currentNextRunExample,
   ENABLED_EXPLANATION,
   MODE_EXPLANATIONS,
+  NEXT_RUN_AT_EXPLANATION,
 } from './field-examples';
 import type { BudgetScheduleFormValue } from './types';
 
@@ -147,5 +150,49 @@ describe('BudgetScheduleForm — validation errors', () => {
     for (const message of Object.values(budgetScheduleFormInvalidErrors)) {
       expect(screen.getByText(message as string)).toBeInTheDocument();
     }
+  });
+});
+
+describe('BudgetScheduleForm — the forced next execution', () => {
+  it('renders a UTC datetime control that is empty in the ordinary case', () => {
+    renderForm(budgetScheduleFormDailyGlobal);
+    const control = screen.getByLabelText('Next execution (UTC)');
+    expect(control).toHaveAttribute('type', 'datetime-local');
+    expect(control).toHaveValue('');
+  });
+
+  // The one thing a date picker cannot say for itself: this is a ONE-OFF override, not a move to a
+  // new cadence.
+  it('states that the override applies once and the cadence then resumes', () => {
+    renderForm(budgetScheduleFormDailyGlobal);
+    expect(screen.getByText(NEXT_RUN_AT_EXPLANATION)).toBeInTheDocument();
+    expect(screen.getByText(budgetScheduleFieldExample('nextRunAt') as string)).toBeInTheDocument();
+  });
+
+  it('edits through onChange like every other field', () => {
+    const { onChange } = renderForm(budgetScheduleFormDailyGlobal);
+    fireEvent.change(screen.getByLabelText('Next execution (UTC)'), {
+      target: { value: '2026-09-15T09:30' },
+    });
+    expect(onChange).toHaveBeenCalledWith({
+      ...budgetScheduleFormDailyGlobal,
+      nextRunAt: '2026-09-15T09:30',
+    });
+  });
+
+  it('shows a forced value when one is set', () => {
+    renderForm(budgetScheduleFormForcedWindow, { formMode: 'edit' });
+    expect(screen.getByLabelText('Next execution (UTC)')).toHaveValue('2026-09-15T09:30');
+  });
+
+  // On edit the control opens EMPTY, because omitting `nextRunAt` is what leaves the stored window
+  // alone. The stored value is stated beside it so that is not a blind choice.
+  it('states the stored window on the edit route, in place of the generic example', () => {
+    renderForm(budgetScheduleFormDailyGlobal, {
+      formMode: 'edit',
+      currentNextRunAt: '2026-09-15 09:30 UTC',
+    });
+    expect(screen.getByText(currentNextRunExample('2026-09-15 09:30 UTC'))).toBeInTheDocument();
+    expect(screen.queryByText(budgetScheduleFieldExample('nextRunAt') as string)).toBeNull();
   });
 });

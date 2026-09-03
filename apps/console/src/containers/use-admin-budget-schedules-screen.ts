@@ -2,7 +2,11 @@
 
 import { getApiErrorMessage } from '@lightbridge/hooks/api-error';
 import { PREVIEW_ENTRY_LIMIT } from '@lightbridge/ui-web';
-import type { BudgetSchedulePreviewEntry, BudgetSchedulePreviewStatus } from '@lightbridge/ui-web';
+import type {
+  BudgetSchedulePreviewEntry,
+  BudgetSchedulePreviewStatus,
+  BudgetScheduleTiming,
+} from '@lightbridge/ui-web';
 import type {
   ActorAccountLabel,
   BillingPlanInfo,
@@ -16,6 +20,7 @@ import { useAdminBudgetSchedulesParams } from '../client/url-state';
 import { useConsoleAuthzClient, useConsoleBudgetClient } from '../client/rpc-clients';
 import {
   runResultAccountIds,
+  scheduleTiming,
   toBudgetScheduleRow,
   toPreviewEntries,
   type BudgetScheduleRow,
@@ -75,6 +80,9 @@ export interface BudgetSchedulePreviewScreen {
   title: string;
   subtitle: string;
   status: BudgetSchedulePreviewStatus;
+  /** The schedule's own next/last run, absolute — and whether an operator forced the next window.
+   *  Undefined only while the list has not answered, so the sheet has no schedule in hand. */
+  timing?: BudgetScheduleTiming;
   dryRun: boolean;
   windowLabel?: string;
   entries: BudgetSchedulePreviewEntry[];
@@ -299,6 +307,9 @@ export function useAdminBudgetSchedulesScreen(): AdminBudgetSchedulesScreen {
       scheduleId: previewScheduleId,
       title: previewRow ? `Preview — ${previewRow.name}` : 'Preview',
       subtitle: previewRow?.cadence ?? '',
+      // Absolute here, relative in the list: this sheet is the last screen before an estate-wide
+      // grant, and "in 6 h" is not the same answer as the instant it will actually fire on.
+      timing: previewSchedule ? scheduleTiming(previewSchedule, now) : undefined,
       status: previewStatus,
       // The result's own flag, never the button that was pressed: a sheet showing a real run's
       // outcome must say so even if it was opened as a preview.

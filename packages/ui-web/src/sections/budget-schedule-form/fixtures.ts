@@ -25,6 +25,7 @@ export const budgetScheduleFormDailyGlobal: BudgetScheduleFormValue = {
   runAtUtc: '00:00',
   amount: '2',
   mode: 'reset',
+  nextRunAt: '',
   enabled: false,
 };
 
@@ -38,6 +39,7 @@ export const budgetScheduleFormWeeklyTopUp: BudgetScheduleFormValue = {
   runAtUtc: '06:00',
   amount: '15',
   mode: 'top_up',
+  nextRunAt: '',
   enabled: true,
 };
 
@@ -52,6 +54,7 @@ export const budgetScheduleFormMonthlyAccount: BudgetScheduleFormValue = {
   runAtUtc: '00:00',
   amount: '250',
   mode: 'reset',
+  nextRunAt: '',
   enabled: true,
 };
 
@@ -66,8 +69,15 @@ export const budgetScheduleFormInvalid: BudgetScheduleFormValue = {
   runAtUtc: '7:3',
   amount: '0',
   mode: 'reset',
+  // In the past relative to `BUDGET_SCHEDULE_INVALID_NOW` below — a backdated window is the one
+  // forced-execution mistake the backend refuses outright.
+  nextRunAt: '2020-01-01T00:00',
   enabled: false,
 };
+
+/** The instant `budgetScheduleFormInvalidErrors` was computed against. Pinned, because "is this
+ *  date in the future" is the one rule on this form that depends on a clock. */
+export const BUDGET_SCHEDULE_INVALID_NOW = Date.parse('2026-09-03T12:00:00.000Z');
 
 /** The errors `validateBudgetSchedule(budgetScheduleFormInvalid)` actually produces — asserted in
  *  `schedule-validation.test.ts` so the story can never show a message the validator would not. */
@@ -78,4 +88,17 @@ export const budgetScheduleFormInvalidErrors: BudgetScheduleFormErrors = {
     'Choose a day of the month between 1 and 28 — later days are refused so the schedule never skips February.',
   runAtUtc: 'Enter a 24-hour UTC time as HH:MM, e.g. 00:00.',
   amount: 'Enter an amount greater than $0.00.',
+  nextRunAt: 'Choose a time in the future — a past window would fire immediately.',
+};
+
+/**
+ * A schedule whose next window an operator FORCED onto a date, on the edit route — the field is
+ * filled here only because that is what the story has to show; the real edit route opens it empty
+ * (an omitted `nextRunAt` is what leaves the stored window alone).
+ */
+export const budgetScheduleFormForcedWindow: BudgetScheduleFormValue = {
+  ...budgetScheduleFormDailyGlobal,
+  name: 'estate-daily-reset',
+  nextRunAt: '2026-09-15T09:30',
+  enabled: true,
 };

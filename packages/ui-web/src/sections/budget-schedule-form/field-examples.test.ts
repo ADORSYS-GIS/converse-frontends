@@ -4,7 +4,9 @@ import {
   anchorFieldExample,
   BUDGET_SCHEDULE_FIELD_EXAMPLES,
   budgetScheduleFieldExample,
+  currentNextRunExample,
   MODE_EXPLANATIONS,
+  NEXT_RUN_AT_EXPLANATION,
 } from './field-examples';
 import type { BudgetScheduleFieldName } from './field-examples';
 
@@ -36,6 +38,7 @@ describe('BUDGET_SCHEDULE_FIELD_EXAMPLES', () => {
         'anchor',
         'runAtUtc',
         'amount',
+        'nextRunAt',
         'mode',
         'enabled',
       ])
@@ -51,6 +54,14 @@ describe('BUDGET_SCHEDULE_FIELD_EXAMPLES', () => {
   // author a schedule that fires hours from where they think.
   it('says UTC on the run-time example', () => {
     expect(budgetScheduleFieldExample('runAtUtc')).toContain('UTC');
+  });
+
+  // Same reason, and one more: the forced window is refused by the backend unless it is in the
+  // future, so the example has to say that before the operator submits.
+  it('says UTC and "future" on the forced-window example', () => {
+    const example = budgetScheduleFieldExample('nextRunAt');
+    expect(example).toContain('UTC');
+    expect(example).toContain('future');
   });
 });
 
@@ -73,5 +84,21 @@ describe('MODE_EXPLANATIONS', () => {
 
   it('states that a top up never lowers a balance', () => {
     expect(MODE_EXPLANATIONS.top_up).toMatch(/never lowers/i);
+  });
+});
+
+describe('the forced-window copy', () => {
+  // The one thing the control itself cannot say: forcing a date is a ONE-OFF, not a permanent move
+  // to a new grid. If this sentence goes, an operator forcing a Tuesday reasonably expects every
+  // following window on a Tuesday — which is not what the scheduler does.
+  it('states that a forced window applies once and then the cadence resumes', () => {
+    expect(NEXT_RUN_AT_EXPLANATION).toMatch(/once/i);
+    expect(NEXT_RUN_AT_EXPLANATION).toMatch(/back to its normal cadence/i);
+  });
+
+  it('tells the edit route what is stored today and that blank keeps it', () => {
+    const line = currentNextRunExample('2026-09-15 09:30 UTC');
+    expect(line).toContain('2026-09-15 09:30 UTC');
+    expect(line).toMatch(/leave blank to keep it/i);
   });
 });

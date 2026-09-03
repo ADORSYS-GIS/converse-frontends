@@ -53,6 +53,7 @@ export function BudgetScheduleFormView({ form }: { form: BudgetScheduleFormScree
               errors={form.errors}
               formMode={form.mode}
               billingPlans={form.billingPlans}
+              currentNextRunAt={form.currentNextRunAt}
             />
 
             {form.submitError ? <ErrorLine message={form.submitError} className="mt-4" /> : null}

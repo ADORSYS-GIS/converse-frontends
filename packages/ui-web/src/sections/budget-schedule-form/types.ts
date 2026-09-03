@@ -36,6 +36,20 @@ export interface BudgetScheduleFormValue {
   /** Typed USD, e.g. `'2'` / `'15.50'` — never micro-USD, never a number. */
   amount: string;
   mode: ResetScheduleMode;
+  /**
+   * The operator FORCING the next execution onto a specific instant, in the
+   * `<input type="datetime-local">` value shape (`YYYY-MM-DDTHH:MM`), read and written as **UTC**.
+   *
+   * `''` — the ordinary case — means "let the cadence decide", and the wire builder sends `null`.
+   * A value must be in the future; `validateBudgetSchedule` checks it against a `now` the caller
+   * supplies, and the backend refuses a past one independently (ADR-0032's 2026-09-03 amendment).
+   *
+   * On the EDIT route this starts empty even for a schedule that already carries a forced window:
+   * omitting it on `updateBudgetResetSchedule` leaves the stored column alone, so an empty field is
+   * "keep whatever is there" rather than "clear it". `BudgetScheduleFormProps.currentNextRunAt`
+   * is what tells the operator what is there today.
+   */
+  nextRunAt: string;
   /** Edit-only; ignored on the create route (see the interface doc comment). */
   enabled: boolean;
 }
@@ -49,6 +63,7 @@ export interface BudgetScheduleFormErrors {
   anchor?: string;
   runAtUtc?: string;
   amount?: string;
+  nextRunAt?: string;
 }
 
 /** One selectable billing plan, from `listBillingPlans`. */
@@ -72,5 +87,12 @@ export interface BudgetScheduleFormProps {
    * `CreateApiKeyDialog`/`CreateProjectDialog` already use for the same catalogue.
    */
   billingPlans?: BillingPlanChoice[];
+  /**
+   * The schedule's stored next window, already rendered (`formatUtcInstant`), on the edit route.
+   * Shown as the "Next execution" field's example line, because that field starts EMPTY there and
+   * an empty field means "keep it" — without this the operator would be deciding whether to
+   * override a value they cannot see.
+   */
+  currentNextRunAt?: string;
   className?: string;
 }

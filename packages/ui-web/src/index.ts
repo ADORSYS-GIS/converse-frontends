@@ -332,7 +332,12 @@ export type {
 // a second wording of "Reset remaining to $2.00 every day at 00:00 UTC" anywhere would be a second
 // claim about what the scheduler does.
 export {
+  datetimeLocalUtcToIso,
   DAY_OF_MONTH_OPTIONS,
+  FORCED_WINDOW_MARKER,
+  formatUtcInstant,
+  isoToDatetimeLocalUtc,
+  isOnResetScheduleGrid,
   MAX_DAY_OF_MONTH,
   MIN_DAY_OF_MONTH,
   NO_RESET_SCHEDULED_LINE,
@@ -347,6 +352,7 @@ export {
   resetScheduleCadenceSentence,
   resetScheduleModePhrase,
   resetScheduleModeWord,
+  resetScheduleNextRunCell,
   resetScheduleNextRunLabel,
   resetScheduleScopeSentence,
   WEEKDAY_OPTIONS,
@@ -354,6 +360,7 @@ export {
 export type {
   ResetScheduleCadence,
   ResetScheduleFacts,
+  ResetScheduleGrid,
   ResetScheduleMode,
   ResetScheduleNextRun,
   ResetScheduleScope,
@@ -381,10 +388,12 @@ export {
   cadenceUsesAnchor,
   createBlankBudgetSchedule,
   CREATED_DISABLED_NOTICE,
+  currentNextRunExample,
   DEFAULT_RUN_AT_UTC,
   ENABLED_EXPLANATION,
   fromStoredBudgetSchedule,
   MODE_EXPLANATIONS,
+  NEXT_RUN_AT_EXPLANATION,
   scopeKindUsesScopeId,
   toBudgetScheduleWire,
   validateBudgetSchedule,
@@ -404,6 +413,7 @@ export type {
   BudgetSchedulePreviewEntry,
   BudgetSchedulePreviewProps,
   BudgetSchedulePreviewStatus,
+  BudgetScheduleTiming,
 } from './sections/budget-schedule-preview';
 
 // Phase 4 — `/` now renders this section too (admin-only "Budget pressure" card), so it earns its

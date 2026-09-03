@@ -239,3 +239,128 @@ export const NO_RESET_SCHEDULED_LINE = 'No reset scheduled';
 export const RESET_SCHEDULE_ENFORCEMENT_CAPTION =
   'Schedules change the ledger balance and the minted budget tier; gateway rate limits still ' +
   'follow the plan buckets until lightbridge-authz Phase 6a lands.';
+
+// ── Forcing the next execution onto a date (backend ADR-0032's 2026-09-03 amendment) ──────────
+//
+// `nextRunAt` is now an optional input on `createBudgetResetSchedule`/`updateBudgetResetSchedule`.
+// Set it and the backend stores that instant VERBATIM instead of computing one from the cadence,
+// which means a stored `nextRunAt` can legitimately sit OFF the cadence grid. That is the whole
+// reason these three helpers exist: a console that rendered a forced 2026-09-15T09:30Z window
+// beside the sentence "every day at 00:00 UTC" would be stating two facts that contradict each
+// other, and the reader has no way to tell which one the scheduler will honour.
+//
+// A forced window is also a ONE-OFF — once it fires the schedule returns to its own grid at its own
+// `runAtUtc` — so "forced" is a marker on THIS row's next run, never a property of the schedule.
+
+/** `HH:MM`, UTC, from an instant. */
+function utcHourMinute(when: Date): string {
+  const hours = String(when.getUTCHours()).padStart(2, '0');
+  const minutes = String(when.getUTCMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+/** ISO weekday, 1 = Monday … 7 = Sunday — the numbering the backend's weekly `anchor` uses. */
+function isoWeekday(when: Date): number {
+  return ((when.getUTCDay() + 6) % 7) + 1;
+}
+
+/** The cadence half of a schedule — what decides where its windows land. */
+export interface ResetScheduleGrid {
+  cadence: string;
+  anchor?: number | null;
+  /** `HH:MM`, always UTC. */
+  runAtUtc: string;
+}
+
+/**
+ * Whether `nextRunAt` is a window the schedule's OWN cadence would have produced.
+ *
+ * `false` means an operator forced this one window onto a date of their choosing. The console says
+ * so rather than letting the reader infer a cadence that does not exist.
+ *
+ * Every ambiguous case answers `true` — an unparseable instant, a cadence this console does not
+ * know, a weekly/monthly schedule with no anchor. Claiming "forced" is a claim about what an
+ * operator did, and this function only makes it when it can actually tell.
+ */
+export function isOnResetScheduleGrid(grid: ResetScheduleGrid, nextRunAt: string): boolean {
+  const when = new Date(nextRunAt);
+  if (Number.isNaN(when.getTime())) return true;
+  if (!isResetScheduleCadence(grid.cadence)) return true;
+  // A grid window is minute-granular: the backend's `run_at_utc` is a `TIME` the console renders
+  // as `HH:MM`, and every window it computes lands exactly on it.
+  if (when.getUTCSeconds() !== 0 || when.getUTCMilliseconds() !== 0) return false;
+  if (utcHourMinute(when) !== grid.runAtUtc.trim().slice(0, 5)) return false;
+  if (grid.cadence === 'daily') return true;
+  if (grid.anchor == null) return true;
+  return grid.cadence === 'weekly'
+    ? isoWeekday(when) === grid.anchor
+    : when.getUTCDate() === grid.anchor;
+}
+
+/** The one word a next-run cell adds when its window is not on the cadence grid. */
+export const FORCED_WINDOW_MARKER = 'forced';
+
+/**
+ * The next-run cell for one schedule: `"in 6 h"`, `"in 12 days · forced"`, or `"paused"`.
+ *
+ * A DISABLED schedule has a stored `nextRunAt` the scheduler will never reach, so it reads
+ * "paused" — rendering "in 6 h" would promise a run that is not going to happen, forced or not.
+ */
+export function resetScheduleNextRunCell(
+  schedule: ResetScheduleGrid & { nextRunAt: string; enabled: boolean },
+  now: number
+): string {
+  if (!schedule.enabled) return 'paused';
+  const when = relativeWhen(schedule.nextRunAt, now);
+  return isOnResetScheduleGrid(schedule, schedule.nextRunAt)
+    ? when
+    : `${when} · ${FORCED_WINDOW_MARKER}`;
+}
+
+/**
+ * `2026-09-15T09:30:00Z` → `"2026-09-15 09:30 UTC"` — the absolute instant, spelled out.
+ *
+ * Used where a reader needs the DATE rather than a distance from now: the form's "currently …"
+ * line, and the preview sheet's timing row. A table cell keeps `relativeWhen`, because a column of
+ * absolute UTC timestamps is a subtraction the reader has to do for every row.
+ */
+export function formatUtcInstant(iso: string): string {
+  const when = new Date(iso);
+  if (Number.isNaN(when.getTime())) return iso;
+  const date = when.toISOString().slice(0, 10);
+  return `${date} ${utcHourMinute(when)} UTC`;
+}
+
+/**
+ * `2026-09-15T09:30:00Z` → `"2026-09-15T09:30"`, the value shape an `<input type="datetime-local">`
+ * holds.
+ *
+ * The control has no time zone of its own — its value is a NAIVE local date-time string, and the
+ * browser renders it in the viewer's zone. This console reads and writes it as UTC and labels the
+ * field so, which is the only honest option here: the backend stores UTC, `runAtUtc` beside it is
+ * UTC, and a form mixing the operator's local zone into one of two adjacent time fields would be
+ * the worst of both.
+ */
+export function isoToDatetimeLocalUtc(iso: string): string {
+  const when = new Date(iso);
+  if (Number.isNaN(when.getTime())) return '';
+  return `${when.toISOString().slice(0, 10)}T${utcHourMinute(when)}`;
+}
+
+/** The value shape `<input type="datetime-local">` holds — seconds optional. */
+const DATETIME_LOCAL = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
+
+/**
+ * The inverse: `"2026-09-15T09:30"` (read as UTC) → `"2026-09-15T09:30:00.000Z"`.
+ *
+ * `null` for an empty or unparseable value — empty is the ordinary case ("let the cadence decide"),
+ * and the caller sends `null` on the wire rather than a string the backend would have to guess at.
+ */
+export function datetimeLocalUtcToIso(value: string): string | null {
+  const trimmed = value.trim();
+  if (!DATETIME_LOCAL.test(trimmed)) return null;
+  // The control omits seconds unless its `step` asks for them; append them rather than letting
+  // `Date` guess, so the only thing appended to the string is the `Z` that pins it to UTC.
+  const parsed = new Date(`${trimmed.length === 16 ? `${trimmed}:00` : trimmed}Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}

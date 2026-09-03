@@ -7,6 +7,7 @@ import {
   budgetScheduleBillingPlans,
   budgetScheduleFormDailyGlobal,
   budgetScheduleFormEmpty,
+  budgetScheduleFormForcedWindow,
   budgetScheduleFormInvalid,
   budgetScheduleFormInvalidErrors,
   budgetScheduleFormMonthlyAccount,
@@ -26,11 +27,13 @@ function Controlled({
   errors,
   formMode = 'create',
   billingPlans = budgetScheduleBillingPlans,
+  currentNextRunAt,
 }: {
   initial: BudgetScheduleFormValue;
   errors?: BudgetScheduleFormErrors;
   formMode?: 'create' | 'edit';
   billingPlans?: typeof budgetScheduleBillingPlans;
+  currentNextRunAt?: string;
 }) {
   const [value, setValue] = useState(initial);
   return (
@@ -42,6 +45,7 @@ function Controlled({
           errors={errors}
           formMode={formMode}
           billingPlans={billingPlans}
+          currentNextRunAt={currentNextRunAt}
         />
       </Card>
     </div>
@@ -127,4 +131,29 @@ export const InvalidLight: Story = {
 export const PlansStillLoading: Story = {
   name: 'Billing plans still loading — the picker is disabled, not empty',
   args: { initial: budgetScheduleFormWeeklyTopUp, billingPlans: [] },
+};
+
+// "Next execution" — the override that forces ONE window onto a date instead of letting the cadence
+// pick it (backend ADR-0032's 2026-09-03 amendment). The field is blank on every story above, which
+// is the ordinary case; these two are what it looks like in use.
+export const ForcedNextExecution: Story = {
+  name: 'Next execution — a window forced onto a specific date',
+  args: { initial: budgetScheduleFormForcedWindow, formMode: 'edit' },
+};
+
+export const ForcedNextExecutionLight: Story = {
+  name: 'Next execution — forced — wireframe (light)',
+  args: { initial: budgetScheduleFormForcedWindow, formMode: 'edit' },
+  globals: { theme: 'wireframe' },
+};
+
+// The edit route opens the control EMPTY, because omitting `nextRunAt` is what leaves the stored
+// window alone. `currentNextRunAt` is what stops that being a decision made blind.
+export const EditKeepsTheStoredWindow: Story = {
+  name: 'Next execution — empty on edit, with the stored window stated beside it',
+  args: {
+    initial: budgetScheduleFormDailyGlobal,
+    formMode: 'edit',
+    currentNextRunAt: '2026-09-15 09:30 UTC',
+  },
 };

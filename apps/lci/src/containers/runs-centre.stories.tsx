@@ -4,6 +4,11 @@
 // clicking a segment rewrites `?status=`. The server owns the actual filtering, so `Failed` hands
 // the screen the page the app would have fetched for that filter rather than pretending the
 // client narrows the rows.
+//
+// Since converse-frontends#504 (ADR 0015 amendment A2, owner directive "filters are outside
+// cards") both live in a `PageControls` row on the FLOOR between the title and the table's `Card`,
+// not in a toolbar inside that card. `Unavailable` is the story that makes the consequence
+// visible: the row is still there when the table is not.
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { RunsCentre } from './runs-centre';
@@ -58,11 +63,13 @@ export const Paged: Story = {
   args: { result: { ok: true, data: { tasks: TASKS, total: 214 } } },
 };
 
-/** A filter that matched nothing. The chrome (filter + search) stays; only the table goes. */
+/** A filter that matched nothing. The control row stays on the floor; only the table goes. */
 export const Empty: Story = {
   args: { result: { ok: true, data: { tasks: [], total: 0 } } },
 };
 
+/** The failure branch — and the reason the filter state is owned by the screen rather than by the
+ *  table: the control row that would let a reader narrow the query survives the query failing. */
 export const Unavailable: Story = {
   args: { result: { ok: false, reason: 'unavailable' } },
 };

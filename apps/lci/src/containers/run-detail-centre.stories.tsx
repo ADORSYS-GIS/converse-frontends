@@ -4,6 +4,11 @@
 // `NEXT_PUBLIC_GRAFANA_URL` at build time) drops the card entirely rather than rendering an empty
 // frame, and the `kubectl` snippet is always there either way. Both branches are storied, because
 // the deployed default is the one WITHOUT Grafana.
+//
+// Since converse-frontends#504 (ADR 0015 amendment A2) the outcome badge is a one-group
+// `PageControls` row on the floor rather than `PageHeader.controls`, which no longer exists. It
+// stays a toned `StatusText` and is deliberately not folded into the `·`-joined subtitle beside it:
+// the tone is the point.
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { RunDetailCentre } from './run-detail-centre';

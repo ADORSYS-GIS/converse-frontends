@@ -3,8 +3,13 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse as parseYaml } from 'yaml';
 
+import type { ActorLabels } from '@lightbridge/authz-rpc';
+import type { UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest';
+
+import { buildLabelFor } from './actor-labels';
 import { findPage, parseDashboardsFile } from './dashboard-spec';
 import type { DashboardPageSpec } from './dashboard-spec';
+import { toPanelView } from './panel-adapters';
 import { resolveDashboard } from './resolve-dashboard';
 import { englishT } from '../test/english-t';
 import { translateDashboardPage } from './page-entry';
@@ -335,6 +340,84 @@ describe('/settings/overview/usage (the account-family fan-out) in dashboards.ya
     expect(pageFor(ACCOUNT_ROUTE).panels.some((p) => p.options?.dimension === 'account_id')).toBe(
       false
     );
+  });
+
+  /**
+   * Roadmap #509 flagged this panel as still printing raw `api_key_id` cuids on this exact page —
+   * "PR #484 never wired it to the label resolver" — as if #499 ("name API keys on every
+   * spend-by-key panel") had missed it. It did not: #499's own commit message names "the
+   * account-family lens at /settings/overview/usage" as one of the two pages it fixed.
+   *
+   * This is the end-to-end proof, run against the REAL `family-spend-by-api-key` spec straight out
+   * of `dashboards.yaml` (not a hand-rolled fixture panel) fed through the REAL `buildLabelFor` —
+   * the same function `useActorLabels` builds from a `resolveActorLabels` response — rather than a
+   * fake `labelFor`. If a future change ever re-introduced the bug (say, a panel dimension that
+   * stopped matching `group_by[0]`), this is the test that would fail.
+   */
+  it('resolves family-spend-by-api-key rows to key names, not raw ids', () => {
+    const panel = pageFor(FAMILY_ROUTE).panels.find((p) => p.id === 'family-spend-by-api-key');
+    expect(panel).toBeDefined();
+    if (!panel) return;
+
+    const point = (overrides: Partial<UsageSeriesPoint>): UsageSeriesPoint => ({
+      bucket_start: '2026-09-01T00:00:00Z',
+      completion_tokens: 0,
+      latency_samples: 0,
+      prompt_tokens: 0,
+      requests: 0,
+      total_cost: 0,
+      total_tokens: 0,
+      usage_value: 0,
+      ...overrides,
+    });
+    const response: UsageQueryResponse = {
+      truncated: false,
+      points: [
+        point({ api_key_id: 'key_live', total_cost: 3_000_000, requests: 5 }),
+        point({ api_key_id: 'key_dead', total_cost: 1_000_000, requests: 2 }),
+      ],
+    };
+
+    // Stands in for a real `resolveActorLabels` reply — this is what `useActorLabels` would hand
+    // `buildLabelFor` once lightbridge-authz#674's `apiKeyIds` kind answers.
+    const labels: ActorLabels = {
+      users: [],
+      accounts: [],
+      projects: [],
+      apiKeys: [
+        {
+          apiKeyId: 'key_live',
+          name: 'Production ingest',
+          projectId: 'proj_1',
+          accountId: 'acct_1',
+          revoked: false,
+        },
+        {
+          apiKeyId: 'key_dead',
+          name: 'Retired loader',
+          projectId: 'proj_1',
+          accountId: 'acct_1',
+          revoked: true,
+        },
+      ],
+    };
+
+    const view = toPanelView({
+      spec: panel,
+      response,
+      scale: 'linear',
+      onScaleChange: () => {},
+      groupBy: panel.query.group_by,
+      labelFor: buildLabelFor(labels),
+    });
+
+    expect(view.kind).toBe('ranked');
+    if (view.kind !== 'ranked') return;
+    const labelsShown = view.rows.map((row) => row.label);
+    expect(labelsShown).toContain('Production ingest');
+    expect(labelsShown).toContain('Retired loader (revoked)');
+    expect(labelsShown).not.toContain('key_live');
+    expect(labelsShown).not.toContain('key_dead');
   });
 
   /**

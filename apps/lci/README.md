@@ -31,7 +31,10 @@ The four a deployment cannot omit are `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `CONTROL_
 of `OIDC_REDIRECT_URI` / `OIDC_POST_LOGOUT_REDIRECT_URI`.
 
 `NEXT_PUBLIC_GRAFANA_URL` is a **build-time** input — Next inlines `NEXT_PUBLIC_*` at `next build`,
-so setting it as a container env var changes nothing.
+so setting it as a container env var changes nothing. It is set on the `Build lci (Turbo)` step of
+`.github/workflows/lci-docker-image.yml` and listed, with `NEXT_PUBLIC_BUILD_SHA`, in
+`apps/lci/turbo.json`'s `build:web` `env` so a Turbo cache hit can never serve a bundle inlined
+with a different value.
 
 ## Scripts
 

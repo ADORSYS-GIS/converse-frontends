@@ -49,13 +49,22 @@ jobs:
 
       # `--filter=lci` deliberately: this keeps building exactly one package regardless of how
       # many workspaces gain a `build:web` task later.
+      # Both variables below are INLINED by `next build`, so both must be set HERE and not at
+      # image-build or deploy time. `apps/lci/turbo.json` lists both in this task's `env` so they
+      # are explicitly part of Turbo's hash — otherwise a cache hit could restore a `.next/` built
+      # from a different value with no build error and no warning. Same rule, same reason as
+      # `apps/console/turbo.json`; `apps/lci/turbo.json`'s comment records why declaring them
+      # explicitly is not redundant with Turbo's Next.js framework inference.
       - name: Build lci (Turbo)
         env:
-          # Next.js inlines NEXT_PUBLIC_* variables into the client bundle at build time — setting
-          # this at deploy/runtime instead has no effect, the value is already baked into the
-          # compiled JS by then. Not a secret: it's a public URL and ends up in the bundle either
-          # way. Powers the Grafana panels on the repository and run detail screens.
+          # Not a secret: it's a public URL and ends up in the bundle either way. Powers the
+          # Grafana panels on the repository and run detail screens.
           NEXT_PUBLIC_GRAFANA_URL: https://grafana.ai.camer.digital
+          # The build stamp `@lightbridge/otel`'s `resolveServiceVersion` falls back to when no
+          # image stamp is present (lightbridge-authz#573). #486 gave this workflow `IMAGE_TAG`,
+          # which wins — this is the belt-and-braces half, and until now it could never fire for
+          # lci at all because nothing set it.
+          NEXT_PUBLIC_BUILD_SHA: ${{ github.sha }}
         run: pnpm turbo run build:web --filter=lci
 
       - name: Extract metadata

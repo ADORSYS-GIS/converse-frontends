@@ -7,9 +7,18 @@
       "outputs": [".next/**", "!.next/cache/**"],
       // `NEXT_PUBLIC_BUILD_SHA` is INLINED into the bundle by `next build` — it is what
       // `/settings/info`'s Platform card reports as the console's own commit
-      // (lightbridge-authz#573). It therefore MUST be part of this task's hash: left out of `env`,
-      // Turbo would restore a cached `.next/` built from a different commit and the diagnostics
-      // screen would confidently report the wrong SHA, which is worse than reporting none.
+      // (lightbridge-authz#573). It therefore MUST be part of this task's hash.
+      //
+      // Declared EXPLICITLY rather than left to Turbo's Next.js framework inference. Measured on
+      // turbo 2.10.9 (converse-frontends#513): inference already sweeps `NEXT_PUBLIC_BUILD_SHA`
+      // into this hash by default, so under normal flags this entry is not what stops a stale-SHA
+      // cache hit. `--framework-inference=false` is where the entry earns its keep: with inference
+      // off, `turbo run build:web --filter=console --dry=json` reports `framework: ""` and
+      // `inferred: []`, and without this line Turbo would restore a cached `.next/` built from a
+      // different commit — the diagnostics screen would confidently report the wrong SHA, which is
+      // worse than reporting none. An explicit `env` is the guard for inference being disabled, or
+      // for a package Turbo cannot infer a framework for at all — the only form of it that can be
+      // read, reviewed, and relied on either way.
       "env": ["NEXT_PUBLIC_BUILD_SHA"]
     }
   }

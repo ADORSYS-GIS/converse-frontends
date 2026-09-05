@@ -84,8 +84,10 @@ describe('RunDetailCentre', () => {
       />
     );
 
-    expect(screen.getByText('review · PR #1118')).toBeInTheDocument();
-    expect(screen.getByText(/octonaut\/octonaut-svc-03/)).toBeInTheDocument();
+    // Trigger and repository each appear twice now — once in the title row, once again as a
+    // Fact in the new Overview card — so these assert presence, not uniqueness.
+    expect(screen.getAllByText('review · PR #1118').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/octonaut\/octonaut-svc-03/).length).toBeGreaterThan(0);
     expect(screen.getByText('Failed')).toBeInTheDocument();
     expect(screen.getByText(/task-3b9285de/)).toBeInTheDocument();
   });

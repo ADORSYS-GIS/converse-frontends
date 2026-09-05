@@ -12,11 +12,14 @@ import {
 } from './lib/auth';
 
 // Protect every route except /sign-in, the auth API itself, robots.txt (a Next metadata route
-// with no session dependency — a liveness/readiness probe target), and the brand-mark images
-// (must render in chrome that's visible before, and without, a session). Edge-safe: only `jose`
-// and fetch.
+// with no session dependency — a liveness/readiness probe target), the brand-mark images (must
+// render in chrome that's visible before, and without, a session), the PWA manifest and its
+// icons, and the service worker route (`/serwist/sw.js` — a fetch with no session at all; must
+// never be answered with a login redirect). Edge-safe: only `jose` and fetch.
 export const config = {
-  matcher: ['/((?!sign-in|api/auth|branding|_next/static|_next/image|favicon.ico|robots.txt).*)'],
+  matcher: [
+    '/((?!sign-in|api/auth|branding|serwist|manifest\\.json|icons|_next/static|_next/image|favicon.ico|robots.txt).*)',
+  ],
 };
 
 export async function proxy(req: NextRequest) {

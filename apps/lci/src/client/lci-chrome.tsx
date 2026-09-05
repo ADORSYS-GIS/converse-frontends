@@ -7,6 +7,13 @@ import type { NavGroup } from '@lightbridge/ui-web/src/components/nav-spine';
 import { ConsoleSidebar } from '@lightbridge/ui-web/src/sections/console-sidebar';
 import { ConsoleTopBar } from '@lightbridge/ui-web/src/components/console-top-bar';
 import {
+  AdminIcon,
+  OverviewIcon,
+  ProjectsIcon,
+  RunsIcon,
+  SettingsIcon,
+} from '@lightbridge/ui-web/src/lib/icons';
+import {
   RAIL_ICON_COLUMN_CLASS,
   RAIL_ICON_SIZE,
   RAIL_ICON_STROKE_WIDTH,
@@ -29,29 +36,39 @@ function navGroups(pathname: string): NavGroup[] {
       key: 'workspace',
       label: 'Workspace',
       items: [
-        { key: 'overview', label: 'Overview', href: '/', active: pathname === '/' },
+        {
+          key: 'overview',
+          label: 'Overview',
+          href: '/',
+          icon: <OverviewIcon />,
+          active: pathname === '/',
+        },
         {
           key: 'repositories',
           label: 'Repositories',
           href: '/repositories',
+          icon: <ProjectsIcon />,
           active: pathname.startsWith('/repositories'),
         },
         {
           key: 'runs',
           label: 'Runs',
           href: '/runs',
+          icon: <RunsIcon />,
           active: pathname.startsWith('/runs'),
         },
         {
           key: 'admin',
           label: 'Approvals',
           href: '/admin',
+          icon: <AdminIcon />,
           active: pathname.startsWith('/admin'),
         },
         {
           key: 'settings',
           label: 'Settings',
           href: '/settings',
+          icon: <SettingsIcon />,
           active: pathname.startsWith('/settings'),
         },
       ],

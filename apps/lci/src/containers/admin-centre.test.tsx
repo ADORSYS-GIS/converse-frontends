@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { withNuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Repository } from '../lib/domain/repos';
@@ -13,6 +14,11 @@ import type { ApiResult } from '../lib/server/api';
 vi.mock('./admin-actions', () => ({
   approveRepoAction: vi.fn(),
   denyRepoAction: vi.fn(),
+}));
+
+const usePathnameMock = vi.fn(() => '/admin');
+vi.mock('next/navigation', () => ({
+  usePathname: () => usePathnameMock(),
 }));
 
 const { AdminCentre } = await import('./admin-centre');
@@ -35,21 +41,35 @@ function baseRepo(overrides: Partial<Repository> = {}): Repository {
   };
 }
 
+function renderCentre(ui: Parameters<typeof render>[0]) {
+  return render(ui, { wrapper: withNuqsTestingAdapter() });
+}
+
 describe('AdminCentre', () => {
   it('renders a permission-denied message, not the approvals UI, when result is null', () => {
-    render(<AdminCentre result={null} canApprove={false} canDeny={false} />);
+    renderCentre(
+      <AdminCentre
+        title="Pending"
+        emptyMessage="No pending repositories."
+        result={null}
+        canApprove={false}
+        canDeny={false}
+      />
+    );
 
     expect(
       screen.getByText(
         'You need the repo:approve or repo:deny permission to manage repository approvals. Ask an administrator to grant it.'
       )
     ).toBeInTheDocument();
-    expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Pending' })).not.toBeInTheDocument();
   });
 
   it('a FAILED repositories query renders an error line, never a fabricated empty list', () => {
-    render(
+    renderCentre(
       <AdminCentre
+        title="Pending"
+        emptyMessage="No pending repositories."
         result={{ ok: false, reason: 'unavailable' } as ApiResult<Repository[]>}
         canApprove
         canDeny
@@ -59,23 +79,30 @@ describe('AdminCentre', () => {
     expect(screen.getByText('The control plane is unreachable right now.')).toBeInTheDocument();
   });
 
-  it('renders an honest empty-pending message when there are no repositories at all', () => {
-    render(<AdminCentre result={{ ok: true, data: [] }} canApprove canDeny />);
+  it('renders an honest empty message when there are no repositories for this status', () => {
+    renderCentre(
+      <AdminCentre
+        title="Pending"
+        emptyMessage="No pending repositories."
+        result={{ ok: true, data: [] }}
+        canApprove
+        canDeny
+      />
+    );
 
-    expect(screen.getByText('No repositories are awaiting approval.')).toBeInTheDocument();
-    expect(screen.queryByText('Approved')).not.toBeInTheDocument();
-    expect(screen.queryByText('Denied')).not.toBeInTheDocument();
+    expect(screen.getByText('No pending repositories.')).toBeInTheDocument();
   });
 
-  it('groups real repositories into Pending, Approved, and Denied sections', () => {
-    render(
+  it('renders the repositories for this status only', () => {
+    renderCentre(
       <AdminCentre
+        title="Pending"
+        emptyMessage="No pending repositories."
         result={{
           ok: true,
           data: [
             baseRepo({ id: 1, name: 'pending-repo', status: 'pending' }),
-            baseRepo({ id: 2, name: 'approved-repo', status: 'approved' }),
-            baseRepo({ id: 3, name: 'denied-repo', status: 'disabled' }),
+            baseRepo({ id: 2, name: 'another-pending-repo', status: 'pending' }),
           ],
         }}
         canApprove
@@ -84,15 +111,15 @@ describe('AdminCentre', () => {
     );
 
     expect(screen.getByText('acme/pending-repo')).toBeInTheDocument();
-    expect(screen.getByText('acme/approved-repo')).toBeInTheDocument();
-    expect(screen.getByText('acme/denied-repo')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Approved' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Denied' })).toBeInTheDocument();
+    expect(screen.getByText('acme/another-pending-repo')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Pending' })).toBeInTheDocument();
   });
 
   it('shows Approve only when canApprove and the repo is not already approved', () => {
-    render(
+    renderCentre(
       <AdminCentre
+        title="Pending"
+        emptyMessage="No pending repositories."
         result={{ ok: true, data: [baseRepo({ status: 'pending' })] }}
         canApprove={false}
         canDeny={false}
@@ -104,8 +131,10 @@ describe('AdminCentre', () => {
   });
 
   it('an already-approved repo shows Deny but not Approve; a denied one shows Approve but not Deny', () => {
-    render(
+    renderCentre(
       <AdminCentre
+        title="Accepted"
+        emptyMessage="No accepted repositories."
         result={{
           ok: true,
           data: [

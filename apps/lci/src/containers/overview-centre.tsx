@@ -3,7 +3,7 @@ import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { Sparkline } from '@lightbridge/ui-web/src/components/sparkline';
 import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
-import { DATA_CLASS, LABEL_CLASS, META_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
+import { LABEL_CLASS, META_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import Link from 'next/link';
@@ -16,15 +16,7 @@ import {
   runsPerDay,
   type Slice,
 } from '../lib/domain/insights';
-import {
-  duration,
-  relativeTime,
-  repoLabel,
-  shortSha,
-  statusTone,
-  triggerLabel,
-  type Task,
-} from '../lib/domain/tasks';
+import { relativeTime, repoLabel, statusTone, triggerLabel, type Task } from '../lib/domain/tasks';
 import type { ApiResult } from '../lib/server/api';
 
 /**
@@ -111,7 +103,10 @@ function OverviewInsights({ tasks, now }: { tasks: Task[]; now: number }) {
 }
 
 /** The last 8 runs, most recent first. `tasks` already arrives sorted newest-first from
- *  `listTasks()` — this only takes the head. */
+ *  `listTasks()` — this only takes the head.
+ *
+ *  A glance list, not a data table: branch/SHA/duration are dropped in favour of one quiet meta
+ *  line, since the run detail page's own Overview card is where those actually live now. */
 function RecentRuns({ tasks, now }: { tasks: Task[]; now: number }) {
   if (tasks.length === 0) {
     return <InlineStatus>No task runs yet.</InlineStatus>;
@@ -120,27 +115,20 @@ function RecentRuns({ tasks, now }: { tasks: Task[]; now: number }) {
     <ul className="divide-border flex flex-col divide-y">
       {tasks.slice(0, 8).map((task) => {
         const { tone, label } = statusTone(task.status);
-        const sha = shortSha(task.head_sha);
-        const dur = duration(task, now);
         return (
           <li key={task.id}>
             <Link
               href={`/runs/${task.id}`}
-              className="hover:bg-raised -mx-4 flex items-center gap-3 px-4 py-3 first:pt-0 last:pb-0">
-              <span className="w-28 shrink-0">
+              className="hover:bg-raised -mx-4 flex items-center gap-4 px-4 py-4 first:pt-0 last:pb-0">
+              <span className="w-24 shrink-0">
                 <StatusText tone={tone}>{label}</StatusText>
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm">{triggerLabel(task)}</span>
-                <span className={`${META_CLASS} flex flex-wrap items-center gap-x-3`}>
-                  <span className="truncate">{repoLabel(task)}</span>
-                  {task.repo_default_branch ? <span>{task.repo_default_branch}</span> : null}
-                  {sha ? <span className={DATA_CLASS}>{sha}</span> : null}
-                </span>
+                <span className="block truncate text-sm font-medium">{triggerLabel(task)}</span>
+                <span className={`${META_CLASS} mt-1 block truncate`}>{repoLabel(task)}</span>
               </span>
               <span className={`${META_CLASS} hidden shrink-0 text-right sm:block`}>
-                <span className="block">{relativeTime(task.created_at, now)}</span>
-                {dur ? <span className={`block ${DATA_CLASS}`}>{dur}</span> : null}
+                {relativeTime(task.created_at, now)}
               </span>
             </Link>
           </li>

@@ -5,7 +5,7 @@ import { config } from './proxy';
 const matcher = new RegExp(`^${config.matcher[0]}$`);
 
 describe('proxy matcher', () => {
-  it('excludes sign-in, the auth API, robots.txt, and the brand-mark images from the session gate', () => {
+  it('excludes sign-in, the auth API, robots.txt, the brand-mark images, the PWA manifest and icons, and the service worker route from the session gate', () => {
     for (const path of [
       '/sign-in',
       '/api/auth/login',
@@ -13,6 +13,11 @@ describe('proxy matcher', () => {
       '/robots.txt',
       '/branding/logo',
       '/branding/logo-light',
+      '/manifest.json',
+      '/icons/icon.svg',
+      '/icons/icon-192.png',
+      '/serwist/sw.js',
+      '/serwist/sw.js.map',
     ]) {
       expect(matcher.test(path)).toBe(false);
     }

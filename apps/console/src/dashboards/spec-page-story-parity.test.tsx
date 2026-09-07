@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest';
 import {
+  buildEmptySpecPanelView,
   buildSpecPanelView,
   dimensionKeyLookup,
   specPage,
@@ -256,5 +257,67 @@ describe('actor-table identity parity', () => {
     for (const row of story.rows) {
       expect(row.href).toMatch(/\?type=user$/);
     }
+  });
+});
+
+/**
+ * The mark being right is only half of what a page story certifies. `options.style` reached the
+ * story oracle in converse-frontends#493, but the DATA under it still came from
+ * `panelFixtures.series` — the four-model line-board set — so all four stacked boards drew a stack
+ * that could never fold its tail, under a `topN: 5` cap they all declare. A stack whose whole
+ * argument is "the bar's height is the bucket's total" is not reviewable when nothing is left over
+ * to sum into `Other (N)`.
+ */
+describe('stacked-bars fixture shape', () => {
+  it.each([
+    ['/admin/overview', 'spend-by-model'],
+    ['/admin/usage', 'cost-by-model'],
+    ['/accounts/[accountId]/overview', 'spend-by-model'],
+    ['/settings/overview/usage', 'family-spend-by-model'],
+  ] as const)('gives %s panel "%s" more series than its own topN', (route, id) => {
+    const panel = storyPanel(route, id);
+    const story = storyView(route, id);
+    if (story.kind !== 'series') throw new Error('expected a series view');
+    expect(panel.topN).toBe(5);
+    expect(story.topN).toBe(panel.topN);
+    // Strictly greater: equal would draw every series and never exercise the fold.
+    expect(story.series.length).toBeGreaterThan(panel.topN ?? 0);
+  });
+
+  it('leaves a lines panel on the line-board fixture', () => {
+    const story = storyView('/admin/overview', 'request-volume');
+    if (story.kind !== 'series') throw new Error('expected a series view');
+    expect(story.style).toBe('lines');
+    expect(story.series.length).toBe(4);
+  });
+});
+
+/**
+ * The empty state of a stacked panel. `seriesView` in `panel-adapters.tsx` reads `options.style`
+ * off the SPEC, not off the response, so an empty window does not turn a stack back into a line
+ * board — and a line board is the only shape the Linear/Log/Indexed toggle can steer. The story
+ * oracle's empty branch used to drop `style` entirely, offering that toggle over a mark that
+ * cannot honour it.
+ */
+describe('empty-state style parity', () => {
+  it.each([
+    ['/admin/overview', 'spend-by-model'],
+    ['/admin/usage', 'cost-by-model'],
+    ['/accounts/[accountId]/overview', 'spend-by-model'],
+    ['/settings/overview/usage', 'family-spend-by-model'],
+  ] as const)('keeps %s panel "%s" a stack with no data', (route, id) => {
+    const empty = buildEmptySpecPanelView(storyPanel(route, id), SCALE_CONTROLS);
+    if (empty.kind !== 'series') throw new Error('expected a series view');
+    expect(empty.series).toEqual([]);
+    expect(empty.style).toBe('stacked-bars');
+  });
+
+  it('leaves an empty lines panel drawing lines', () => {
+    const empty = buildEmptySpecPanelView(
+      storyPanel('/admin/overview', 'request-volume'),
+      SCALE_CONTROLS
+    );
+    if (empty.kind !== 'series') throw new Error('expected a series view');
+    expect(empty.style).toBe('lines');
   });
 });

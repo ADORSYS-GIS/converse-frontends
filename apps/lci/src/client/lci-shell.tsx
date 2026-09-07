@@ -80,7 +80,7 @@ export function LciShell({
                 key: 'sign-out',
                 label: 'Sign out',
                 onSelect: () => {
-                  window.location.href = '/api/auth/logout';
+                  window.location.href = '/auth/logout';
                 },
               },
             ],

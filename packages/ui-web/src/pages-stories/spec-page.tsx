@@ -33,7 +33,11 @@ import { cn } from '../cn';
 import { LABEL_CLASS, META_CLASS } from '../lib/type-roles';
 import { DashboardGrid } from '../sections/dashboard-grid';
 import { DashboardPanel } from '../sections/dashboard-panel';
-import { emptyPanelFixtures, panelFixtures } from '../sections/dashboard-panels/fixtures';
+import {
+  emptyPanelFixtures,
+  panelFixtures,
+  stackedSeriesFixture,
+} from '../sections/dashboard-panels/fixtures';
 import { renderPanelActions, renderPanelBody } from '../sections/dashboard-panels/panel-renderers';
 import { DASHBOARD_PANEL_TYPES, panelChrome } from '../sections/dashboard-panels/types';
 import type { DashboardPanelType, DashboardPanelView } from '../sections/dashboard-panels/types';
@@ -79,8 +83,15 @@ export interface SpecPanel {
   dimension?: string;
   /** `options.scale` — the panel's own DEFAULT axis transform, which the console takes from the
    *  YAML (`use-dashboard.ts`) rather than from a page-level value. A story that drew every board
-   *  linear would be reviewing a page nobody ships: `cost-by-model` defaults to log precisely
-   *  because one model at ~95% share flattens every other line on a linear axis. */
+   *  linear would be reviewing a page nobody ships: `/admin/usage`'s `tokens-by-model` and the
+   *  three per-actor/channel/chat `*-cost-by-model` boards default to log precisely because one
+   *  model at ~95% share flattens every other line on a linear axis.
+   *
+   *  Only a LINES board reads this. The four `stacked-bars` panels declare no `scale` at all and
+   *  could not use one — `log`/`indexed` transform each series independently and transformed
+   *  segments do not sum, so the toggle is suppressed for them (`panel-renderers.tsx`). This
+   *  comment used to cite `cost-by-model` as the log example; that panel became a stack in
+   *  converse-frontends#487 and dropped its `scale` key with it. */
   scale?: MultiSeriesSpendScale;
   /** `options.style` — `series` only, which MARK the panel draws (`lines`, the default, or
    *  `stacked-bars`). Read here rather than left to the per-type fixture because a fixture drawn
@@ -555,6 +566,29 @@ export interface SpecPanelScaleControls {
 }
 
 /**
+ * The per-TYPE fixture, except that a `series` panel drawn as a STACK takes the stack's own
+ * fixture rather than the line board's.
+ *
+ * `panelFixtures.series` is four models — the right count for a superposed line board, where a
+ * fifth line is noise. A stack's whole argument is the opposite: the bar's height is the bucket's
+ * TOTAL, so every model has to be in it, and the tail beyond `topN` folds into one summed
+ * `Other (N)` band rather than being dropped. Four series under a `topN: 5` cap never reach that
+ * fold, so the story would draw a stack that cannot lose a series — and the four real stacked
+ * panels (`/admin/overview` and `/accounts/<id>/overview` spend-by-model, `/admin/usage`
+ * cost-by-model, `/settings/overview/usage` family-spend-by-model) all cap at 5 over a model
+ * dimension with a long tail. `stackedSeriesFixture` is the eight-model set measured for exactly
+ * that, and is already what the panel-type-level `Panels/Series` stories review.
+ *
+ * This is the same class of drift as `options.style` itself (converse-frontends#487, #492): the
+ * mark was right and the DATA behind it still came from the line board, so the page story drew a
+ * stack no page ships.
+ */
+function seriesAwareFixture(panel: SpecPanel): DashboardPanelView {
+  if (panel.type === 'series' && panel.style === 'stacked-bars') return stackedSeriesFixture;
+  return panelFixtures[panel.type];
+}
+
+/**
  * One panel's fixture-built view for the EMPTY state — pulled out of `SpecPanels`'s render loop so
  * it is callable on its own, without mounting a component. See that function's own doc comment for
  * why the split exists at all.
@@ -565,7 +599,17 @@ export function buildEmptySpecPanelView(
 ): DashboardPanelView {
   const empty = emptyPanelFixtures[panel.type];
   if (empty.kind === 'series' || empty.kind === 'latency-series') {
-    return { ...empty, scale: scaleControls.scale, onScaleChange: scaleControls.onScaleChange };
+    return {
+      ...empty,
+      scale: scaleControls.scale,
+      onScaleChange: scaleControls.onScaleChange,
+      // The MARK survives an empty window, exactly as it does in the console: `seriesView` reads
+      // `options.style` off the spec, not off the data, so a stacked panel with nothing in it is
+      // still a stacked panel — and still carries no scale toggle. Dropping `style` here left the
+      // empty state of all four stacked boards offering a Linear/Log/Indexed control over a mark
+      // that cannot honour it, which is the same divergence as #487/#492 one state along.
+      ...(empty.kind === 'series' ? { style: panel.style } : {}),
+    };
   }
   if (empty.kind === 'stat') {
     // An empty window still has an honest figure, and it is UNIT-CORRECT: `$0.00` for money, `0`
@@ -595,7 +639,7 @@ export function buildSpecPanelView(
   keysFor: DimensionKeyLookup,
   scaleControls: SpecPanelScaleControls
 ): DashboardPanelView {
-  const fixture = panel.type === 'table' ? tableFixture(panel, keysFor) : panelFixtures[panel.type];
+  const fixture = panel.type === 'table' ? tableFixture(panel, keysFor) : seriesAwareFixture(panel);
   const { scale, onScaleChange } = scaleControls;
 
   if (fixture.kind === 'table') return fixture;

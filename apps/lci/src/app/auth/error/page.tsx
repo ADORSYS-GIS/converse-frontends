@@ -2,10 +2,10 @@ import { Button } from '@lightbridge/ui-web/src/components/button';
 import { ERROR_TEXT_CLASS, PAGE_TITLE_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
 
 /**
- * Where `/api/auth/callback` sends a failed login — outside the `(lci)` shell group, same as the
+ * Where `/auth/callback` sends a failed login — outside the `(lci)` shell group, same as the
  * OIDC routes themselves. There is no separate "click to sign in" landing page (auth is Keycloak
- * end to end, and every unauthenticated request already redirects straight to `/api/auth/login`
- * — see `proxy.ts` — the same shape `apps/console`'s `/auth/login` route takes); this page exists
+ * end to end, and every unauthenticated request already redirects straight to `/auth/login` — see
+ * `proxy.ts` — the same shape `apps/console`'s own `/auth/login` route takes); this page exists
  * only because a failed callback has to land somewhere other than a bare redirect loop.
  *
  * A plain `<p>` rather than `ui-web`'s `ErrorLine`: that component calls `useCopy()` with no
@@ -35,7 +35,7 @@ export default async function AuthErrorPage({
         variant="primary"
         render={
           // eslint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label
-          <a href="/api/auth/login" />
+          <a href="/auth/login" />
         }
         nativeButton={false}>
         Try again

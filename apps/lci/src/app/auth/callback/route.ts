@@ -7,8 +7,8 @@ import {
   REFRESH_COOKIE,
   SESSION_COOKIE,
   STATE_COOKIE,
-} from '../../../../lib/auth';
-import { getOidc } from '../../../../lib/auth/oidc';
+} from '../../../lib/auth';
+import { getOidc } from '../../../lib/auth/oidc';
 
 export const runtime = 'nodejs';
 

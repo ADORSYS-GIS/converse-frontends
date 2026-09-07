@@ -5,10 +5,11 @@ import { config } from './proxy';
 const matcher = new RegExp(`^${config.matcher[0]}$`);
 
 describe('proxy matcher', () => {
-  it('excludes the auth API, /auth/error, robots.txt, and the brand-mark images from the session gate', () => {
+  it('excludes every /auth/* route, robots.txt, and the brand-mark images from the session gate', () => {
     for (const path of [
-      '/api/auth/login',
-      '/api/auth/callback',
+      '/auth/login',
+      '/auth/callback',
+      '/auth/logout',
       '/auth/error',
       '/robots.txt',
       '/branding/logo',

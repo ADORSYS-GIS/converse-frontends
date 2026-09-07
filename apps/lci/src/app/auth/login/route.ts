@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import * as client from 'openid-client';
 
-import { cookieOptions, PKCE_COOKIE, STATE_COOKIE } from '../../../../lib/auth';
-import { getOidc } from '../../../../lib/auth/oidc';
+import { cookieOptions, PKCE_COOKIE, STATE_COOKIE } from '../../../lib/auth';
+import { getOidc } from '../../../lib/auth/oidc';
 
 // openid-client is not Edge-safe.
 export const runtime = 'nodejs';

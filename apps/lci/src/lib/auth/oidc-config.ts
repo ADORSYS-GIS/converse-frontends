@@ -24,7 +24,7 @@ export function oidcClientConfigFromEnv(): OidcClientConfig {
     issuer: required('OIDC_ISSUER').replace(/\/+$/, ''),
     clientId: required('OIDC_CLIENT_ID'),
     clientSecret: process.env.OIDC_CLIENT_SECRET || undefined,
-    redirectUri: process.env.OIDC_REDIRECT_URI ?? 'http://localhost:3001/api/auth/callback',
+    redirectUri: process.env.OIDC_REDIRECT_URI ?? 'http://localhost:3001/auth/callback',
     postLogoutRedirectUri: process.env.OIDC_POST_LOGOUT_REDIRECT_URI ?? 'http://localhost:3001',
     scope: process.env.OIDC_SCOPE ?? 'openid profile email',
   };

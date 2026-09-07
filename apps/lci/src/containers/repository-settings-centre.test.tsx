@@ -17,10 +17,16 @@ vi.mock('./repo-settings-form', () => ({
 }));
 
 // `denyRepoAction` is a Server Action module (reads the session cookie, calls the control plane) —
-// mocked wholesale, same as `admin-centre.test.tsx`, since the Danger zone form only ever binds it
-// as an `action` here and a submit is never simulated.
+// mocked wholesale, same as `admin-centre.test.tsx`, since this file only checks the Danger zone
+// renders; the confirm flow itself has its own dedicated coverage (`deny-repo-button.test.tsx`).
 vi.mock('./repository-actions', () => ({
   denyRepoAction: vi.fn(),
+}));
+
+// `DenyRepoButton` calls `useRouter()` on every render, which needs an app-router context this
+// container-level test never mounts.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
 
 const { RepositorySettingsCentre } = await import('./repository-settings-centre');

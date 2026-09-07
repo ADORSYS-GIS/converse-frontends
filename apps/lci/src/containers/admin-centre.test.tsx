@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { withNuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { Repository } from '../lib/domain/repos';
+import { REPOS_PAGE_SIZE, type Repository } from '../lib/domain/repos';
 import type { ApiResult } from '../lib/server/api';
 
 /**
@@ -149,5 +150,79 @@ describe('AdminCentre', () => {
 
     expect(screen.getAllByRole('button', { name: 'Approve' })).toHaveLength(1);
     expect(screen.getAllByRole('button', { name: 'Deny' })).toHaveLength(1);
+  });
+
+  it('pages a queue larger than one page, and shows the second page on Next', async () => {
+    const user = userEvent.setup();
+    const repos = Array.from({ length: REPOS_PAGE_SIZE + 3 }, (_, i) =>
+      baseRepo({ id: i + 1, name: `repo-${String(i + 1).padStart(2, '0')}` })
+    );
+    renderCentre(
+      <AdminCentre
+        title="Pending"
+        emptyMessage="No pending repositories."
+        result={{ ok: true, data: repos }}
+        canApprove
+        canDeny
+      />
+    );
+
+    expect(screen.getByText('acme/repo-01')).toBeInTheDocument();
+    expect(screen.queryByText(`acme/repo-${REPOS_PAGE_SIZE + 1}`)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+
+    expect(screen.getByText(`acme/repo-${REPOS_PAGE_SIZE + 1}`)).toBeInTheDocument();
+    expect(screen.queryByText('acme/repo-01')).not.toBeInTheDocument();
+  });
+
+  it('filters the list by a typed query, and names the query in the empty state', async () => {
+    const user = userEvent.setup();
+    renderCentre(
+      <AdminCentre
+        title="Pending"
+        emptyMessage="No pending repositories."
+        result={{
+          ok: true,
+          data: [baseRepo({ id: 1, name: 'widgets' }), baseRepo({ id: 2, name: 'gadgets' })],
+        }}
+        canApprove
+        canDeny
+      />
+    );
+
+    await user.type(screen.getByPlaceholderText('Search repositories'), 'widg');
+
+    expect(screen.getByText('acme/widgets')).toBeInTheDocument();
+    expect(screen.queryByText('acme/gadgets')).not.toBeInTheDocument();
+
+    await user.clear(screen.getByPlaceholderText('Search repositories'));
+    await user.type(screen.getByPlaceholderText('Search repositories'), 'nothing-matches-this');
+
+    expect(screen.getByText('No repositories match "nothing-matches-this".')).toBeInTheDocument();
+  });
+
+  it('resets to the first page when the search query changes', async () => {
+    const user = userEvent.setup();
+    const repos = Array.from({ length: REPOS_PAGE_SIZE + 3 }, (_, i) =>
+      baseRepo({ id: i + 1, name: `repo-${String(i + 1).padStart(2, '0')}` })
+    );
+    renderCentre(
+      <AdminCentre
+        title="Pending"
+        emptyMessage="No pending repositories."
+        result={{ ok: true, data: repos }}
+        canApprove
+        canDeny
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    expect(screen.getByText(`acme/repo-${REPOS_PAGE_SIZE + 1}`)).toBeInTheDocument();
+
+    // Narrowing the query while on page 2 must not leave the reader on a now-invalid page.
+    await user.type(screen.getByPlaceholderText('Search repositories'), 'repo-01');
+
+    expect(screen.getByText('acme/repo-01')).toBeInTheDocument();
   });
 });

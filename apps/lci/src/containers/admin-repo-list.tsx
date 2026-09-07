@@ -1,67 +1,43 @@
-'use client';
-
 import { Button } from '@lightbridge/ui-web/src/components/button';
-import { Field } from '@lightbridge/ui-web/src/components/field';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { Pagination } from '@lightbridge/ui-web/src/components/pagination';
 import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
 import { LABEL_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
-import { parseAsInteger, useQueryState } from 'nuqs';
 
-import { approvalTone, REPOS_PAGE_SIZE, repoSlug, type Repository } from '../lib/domain/repos';
+import { REPOS_PAGE_SIZE, approvalTone, repoSlug, type Repository } from '../lib/domain/repos';
 import { approveRepoAction, denyRepoAction } from './admin-actions';
 
 /**
- * One status's worth of the repository approval queue — search + real pagination over the list
- * the server already fetched for that status. The control plane's `/admin/repositories` endpoint
- * has no `page`/`pageSize` of its own, so this pages and filters the fetched array client-side;
- * that's a real, working control for queues of the size this screen expects, not a placeholder —
- * worth revisiting for server-side paging only if a single status ever grows large enough to make
- * one full fetch expensive.
+ * One status's worth of the repository approval queue — the list, its pager, and each row's
+ * approve/deny actions. Search and pagination are decided by the caller; this renders whichever
+ * page of results it's handed.
  */
 export function AdminRepoList({
-  repos,
+  shown,
+  total,
+  page,
+  pageCount,
+  onPageChange,
+  query,
+  isEmpty,
   emptyMessage,
   canApprove,
   canDeny,
 }: {
-  repos: Repository[];
+  shown: Repository[];
+  total: number;
+  page: number;
+  pageCount: number;
+  onPageChange: (page: number) => void;
+  query: string;
+  isEmpty: boolean;
   emptyMessage: string;
   canApprove: boolean;
   canDeny: boolean;
 }) {
-  const [query, setQuery] = useQueryState('q', {
-    defaultValue: '',
-    clearOnDefault: true,
-  });
-  const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(0));
-
-  const filtered = query
-    ? repos.filter((repo) => repoSlug(repo).toLowerCase().includes(query.toLowerCase()))
-    : repos;
-
-  const total = filtered.length;
-  const pageCount = Math.max(1, Math.ceil(total / REPOS_PAGE_SIZE));
-  const current = Math.min(Math.max(0, page), pageCount - 1);
-  const start = current * REPOS_PAGE_SIZE;
-  const shown = filtered.slice(start, start + REPOS_PAGE_SIZE);
-
   return (
     <div className="flex flex-col gap-4">
-      <Field
-        label="Search repositories"
-        hideLabel
-        type="search"
-        placeholder="Search repositories"
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value || null);
-          setPage(null);
-        }}
-        containerClassName="max-w-xs"
-      />
-
-      {repos.length === 0 ? (
+      {isEmpty ? (
         <InlineStatus>{emptyMessage}</InlineStatus>
       ) : shown.length === 0 ? (
         <InlineStatus>No repositories match &quot;{query}&quot;.</InlineStatus>
@@ -78,10 +54,10 @@ export function AdminRepoList({
           shown={shown.length}
           total={total}
           unit="repositories"
-          hasPrev={current > 0}
-          hasNext={current < pageCount - 1}
-          onPrev={current > 0 ? () => setPage(current - 1) : undefined}
-          onNext={current < pageCount - 1 ? () => setPage(current + 1) : undefined}
+          hasPrev={page > 0}
+          hasNext={page < pageCount - 1}
+          onPrev={page > 0 ? () => onPageChange(page - 1) : undefined}
+          onNext={page < pageCount - 1 ? () => onPageChange(page + 1) : undefined}
         />
       ) : null}
     </div>

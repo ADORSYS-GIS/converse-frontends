@@ -5,7 +5,7 @@ import { config } from './proxy';
 const matcher = new RegExp(`^${config.matcher[0]}$`);
 
 describe('proxy matcher', () => {
-  it('excludes every /auth/* route, robots.txt, and the brand-mark images from the session gate', () => {
+  it('excludes every /auth/* route, robots.txt, the brand-mark images, the PWA manifest and icons, and the service worker route from the session gate', () => {
     for (const path of [
       '/auth/login',
       '/auth/callback',
@@ -14,6 +14,11 @@ describe('proxy matcher', () => {
       '/robots.txt',
       '/branding/logo',
       '/branding/logo-light',
+      '/manifest.json',
+      '/icons/icon.svg',
+      '/icons/icon-192.png',
+      '/serwist/sw.js',
+      '/serwist/sw.js.map',
     ]) {
       expect(matcher.test(path)).toBe(false);
     }
@@ -32,7 +37,13 @@ describe('proxy matcher', () => {
   });
 
   it('does not exempt a path that only starts with the same letters as an exempt prefix', () => {
-    for (const path of ['/authenticate', '/brandingx', '/robots.txtx']) {
+    for (const path of [
+      '/authenticate',
+      '/brandingx',
+      '/robots.txtx',
+      '/serwistfoo',
+      '/iconsomething',
+    ]) {
       expect(matcher.test(path)).toBe(true);
     }
   });

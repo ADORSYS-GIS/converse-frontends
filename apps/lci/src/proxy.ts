@@ -13,18 +13,19 @@ import {
 
 // Protect every route except /auth/* — login, callback, logout, and the callback's own failure
 // landing, all reachable with no session by definition — robots.txt (a Next metadata route with
-// no session dependency — a liveness/readiness probe target), and the brand-mark images (must
-// render in chrome that's visible before, and without, a session). There is no separate "click
-// to sign in" page to exempt: every other unauthenticated request already redirects straight to
-// /auth/login below. `/api/*` otherwise (the control-plane data proxies) stays fully gated —
-// only the `auth` segment is exempt, not the whole `api` prefix.
+// no session dependency — a liveness/readiness probe target), the brand-mark images (must render
+// in chrome that's visible before, and without, a session), the PWA manifest and its icons, and
+// the service worker route (a fetch with no session at all; must never be answered with a login
+// redirect). There is no separate "click to sign in" page to exempt: every other unauthenticated
+// request already redirects straight to /auth/login below. `/api/*` otherwise (the control-plane
+// data proxies) stays fully gated — only the `auth` segment is exempt, not the whole `api` prefix.
 //
 // Each alternative is followed by `(?:/|$)` so a prefix only exempts itself, not anything that
 // merely starts with the same letters (`/brandingx`, `/authenticate` would otherwise slip through
 // unprotected). Edge-safe: only `jose` and fetch.
 export const config = {
   matcher: [
-    '/((?!(?:auth|branding|_next/static|_next/image|favicon\\.ico|robots\\.txt)(?:/|$)).*)',
+    '/((?!(?:auth|branding|serwist|manifest\\.json|icons|_next/static|_next/image|favicon\\.ico|robots\\.txt)(?:/|$)).*)',
   ],
 };
 

@@ -1,6 +1,7 @@
 import { Button } from '@lightbridge/ui-web/src/components/button';
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { SettingsRow } from '@lightbridge/ui-web/src/components/settings-row';
+import { SignOutIcon } from '@lightbridge/ui-web/src/lib/icons';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 import type { SessionClaims } from '../lib/auth';
@@ -115,6 +116,7 @@ export function SettingsCentre({
             <a href="/auth/logout" />
           }
           nativeButton={false}>
+          <SignOutIcon />
           Sign out
         </Button>
       </div>

@@ -1,5 +1,6 @@
-// `/admin` — repository approvals. A newly connected repository stays pending until an approver
-// acts; only then is it indexed or reviewed.
+// `/admin`, `/admin/accepted`, `/admin/denied` — repository approvals, one status per route. A
+// newly connected repository stays pending until an approver acts; only then is it indexed or
+// reviewed.
 //
 // The permission booleans are the interesting axis: `canApprove`/`canDeny` come from the token,
 // and a reader with neither still sees the queue (it is not a 404) with no buttons on it. The
@@ -8,22 +9,27 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { AdminCentre } from './admin-centre';
-import { REPOSITORIES, repository, withPagePadding } from './story-fixtures';
+import { REPOSITORIES, withNuqs, withPagePadding, withPathname } from './story-fixtures';
 
 const meta = {
   title: 'Pages/LCI/Admin',
   component: AdminCentre,
   parameters: { layout: 'fullscreen' },
-  decorators: [withPagePadding],
-  args: { canApprove: true, canDeny: true },
+  decorators: [withNuqs, withPagePadding, withPathname('/admin')],
+  args: {
+    title: 'Pending',
+    emptyMessage: 'No pending repositories.',
+    canApprove: true,
+    canDeny: true,
+  },
 } satisfies Meta<typeof AdminCentre>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** All three sections populated: pending, approved, denied. */
+/** The Pending tab — one repository awaiting a decision. */
 export const Default: Story = {
-  args: { result: { ok: true, data: REPOSITORIES } },
+  args: { result: { ok: true, data: REPOSITORIES.filter((repo) => repo.status === 'pending') } },
 };
 
 export const Wireframe: Story = {
@@ -31,16 +37,38 @@ export const Wireframe: Story = {
   globals: { theme: 'wireframe' },
 };
 
-/** Nothing waiting. The Pending card stays with an inline line; the other two sections vanish. */
-export const NothingPending: Story = {
+/** The Accepted tab. */
+export const Accepted: Story = {
+  decorators: [withPathname('/admin/accepted')],
   args: {
-    result: { ok: true, data: [repository(), repository({ id: 2, name: 'converse-frontends' })] },
+    title: 'Accepted',
+    emptyMessage: 'No accepted repositories.',
+    result: { ok: true, data: REPOSITORIES.filter((repo) => repo.status === 'approved') },
   },
+};
+
+/** The Denied tab. */
+export const Denied: Story = {
+  decorators: [withPathname('/admin/denied')],
+  args: {
+    title: 'Denied',
+    emptyMessage: 'No denied repositories.',
+    result: { ok: true, data: REPOSITORIES.filter((repo) => repo.status === 'disabled') },
+  },
+};
+
+/** Nothing pending — the empty message stands in for the list. */
+export const NothingPending: Story = {
+  args: { result: { ok: true, data: [] } },
 };
 
 /** `repo:read` but neither `repo:approve` nor `repo:deny` — the queue is readable, not actionable. */
 export const ReadOnly: Story = {
-  args: { result: { ok: true, data: REPOSITORIES }, canApprove: false, canDeny: false },
+  args: {
+    result: { ok: true, data: REPOSITORIES.filter((repo) => repo.status === 'pending') },
+    canApprove: false,
+    canDeny: false,
+  },
 };
 
 /** No admin permission at all: `result` is `null` and the screen says which grant is missing. */

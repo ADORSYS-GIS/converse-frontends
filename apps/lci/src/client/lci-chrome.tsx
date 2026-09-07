@@ -7,6 +7,14 @@ import type { NavGroup } from '@lightbridge/ui-web/src/components/nav-spine';
 import { ConsoleSidebar } from '@lightbridge/ui-web/src/sections/console-sidebar';
 import { ConsoleTopBar } from '@lightbridge/ui-web/src/components/console-top-bar';
 import {
+  AdminIcon,
+  OverviewIcon,
+  ProjectsIcon,
+  RunsIcon,
+  SettingsIcon,
+  SignOutIcon,
+} from '@lightbridge/ui-web/src/lib/icons';
+import {
   RAIL_ICON_COLUMN_CLASS,
   RAIL_ICON_SIZE,
   RAIL_ICON_STROKE_WIDTH,
@@ -29,29 +37,39 @@ function navGroups(pathname: string): NavGroup[] {
       key: 'workspace',
       label: 'Workspace',
       items: [
-        { key: 'overview', label: 'Overview', href: '/', active: pathname === '/' },
+        {
+          key: 'overview',
+          label: 'Overview',
+          href: '/',
+          icon: <OverviewIcon />,
+          active: pathname === '/',
+        },
         {
           key: 'repositories',
           label: 'Repositories',
           href: '/repositories',
+          icon: <ProjectsIcon />,
           active: pathname.startsWith('/repositories'),
         },
         {
           key: 'runs',
           label: 'Runs',
           href: '/runs',
+          icon: <RunsIcon />,
           active: pathname.startsWith('/runs'),
         },
         {
           key: 'admin',
           label: 'Approvals',
           href: '/admin',
+          icon: <AdminIcon />,
           active: pathname.startsWith('/admin'),
         },
         {
           key: 'settings',
           label: 'Settings',
           href: '/settings',
+          icon: <SettingsIcon />,
           active: pathname.startsWith('/settings'),
         },
       ],
@@ -159,16 +177,15 @@ export function LciSidebarContent({
             <span className="rail-row-label text-soft text-[13px]">{userLabel}</span>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              aria-label="Sign out"
               className="ml-auto"
               render={
-                // Base UI `render` takes a template that is cloned WITH this Button's children —
-                // see `packages/ui-web/src/components/button/component.tsx`'s note on these rules.
                 // eslint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label
                 <a href="/auth/logout" />
               }
               nativeButton={false}>
-              Sign out
+              <SignOutIcon />
             </Button>
           </div>
         </>

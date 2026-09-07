@@ -33,6 +33,13 @@ const nextConfig = {
   // Listing them here is also what pulls the real files into the standalone output the container
   // image ships.
   serverExternalPackages: [
+    // `@serwist/turbopack`'s `createSerwistRoute` (`src/app/serwist/[path]/route.ts`) spawns
+    // `esbuild-wasm`'s own `bin/esbuild` as a child process at request time. Left un-externalized,
+    // Next traces and inlines that `require()` the same way it would any other server-route
+    // import, which breaks the WASM loader's own path resolution (`Error: Cannot find module
+    // '.../esbuild-wasm/bin/esbuild'`, `Error: The service was stopped`) — the package has to stay
+    // a real on-disk dependency, not something Next tries to bundle.
+    'esbuild-wasm',
     '@opentelemetry/api',
     '@opentelemetry/core',
     '@opentelemetry/exporter-trace-otlp-proto',

@@ -1,10 +1,10 @@
-import { AdminCentre } from '../../../containers/admin-centre';
-import { hasPermission, listAdminRepos } from '../../../lib/server/admin';
-import { currentClaims } from '../../../lib/server/session';
+import { AdminCentre } from '../../../../containers/admin-centre';
+import { hasPermission, listAdminRepos } from '../../../../lib/server/admin';
+import { currentClaims } from '../../../../lib/server/session';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminPage() {
+export default async function AdminAcceptedPage() {
   const claims = await currentClaims();
   const canApprove = hasPermission(claims, 'repo:approve');
   const canDeny = hasPermission(claims, 'repo:deny');
@@ -12,8 +12,8 @@ export default async function AdminPage() {
   if (!canApprove && !canDeny) {
     return (
       <AdminCentre
-        title="Pending"
-        emptyMessage="No pending repositories."
+        title="Accepted"
+        emptyMessage="No accepted repositories."
         result={null}
         canApprove={canApprove}
         canDeny={canDeny}
@@ -21,11 +21,11 @@ export default async function AdminPage() {
     );
   }
 
-  const result = await listAdminRepos('pending');
+  const result = await listAdminRepos('approved');
   return (
     <AdminCentre
-      title="Pending"
-      emptyMessage="No pending repositories."
+      title="Accepted"
+      emptyMessage="No accepted repositories."
       result={result}
       canApprove={canApprove}
       canDeny={canDeny}

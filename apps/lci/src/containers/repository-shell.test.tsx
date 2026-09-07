@@ -1,8 +1,12 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Repository } from '../lib/domain/repos';
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 vi.mock('./repository-actions', () => ({
   approveRepoAction: vi.fn(),
   denyRepoAction: vi.fn(),
@@ -59,7 +63,7 @@ describe('RepositoryShell', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Deny…' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Deny repository' })).not.toBeInTheDocument();
   });
 
   it('shows Approve for a pending repo when canApprove, and Deny when canDeny', () => {
@@ -70,7 +74,7 @@ describe('RepositoryShell', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Deny…' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Deny repository' })).toBeInTheDocument();
   });
 
   it('hides Approve for an already-approved repo even with canApprove, since there is nothing to approve', () => {
@@ -81,7 +85,7 @@ describe('RepositoryShell', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Deny…' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Deny repository' })).toBeInTheDocument();
   });
 
   // ── The `PageControls` contract (ADR 0015 amendment A2, converse-frontends#504) ──────────────
@@ -101,7 +105,7 @@ describe('RepositoryShell', () => {
     const approval = screen.getByRole('group', { name: 'Approval' });
     expect(approval).toContainElement(screen.getByText('Pending approval'));
     expect(approval).toContainElement(screen.getByRole('button', { name: 'Approve' }));
-    expect(approval).toContainElement(screen.getByRole('button', { name: 'Deny…' }));
+    expect(approval).toContainElement(screen.getByRole('button', { name: 'Deny repository' }));
     expect(approval.closest('.page-controls')).not.toBeNull();
     expect(approval).toHaveAttribute('data-align', 'end');
 
@@ -112,20 +116,16 @@ describe('RepositoryShell', () => {
     expect(header?.querySelector('.page-header-action')).toBeNull();
   });
 
-  // Deny navigates; it does not submit. The one-click deny that used to sit beside routine status
-  // text on every tab is gone — the button is an anchor into the Settings tab's Danger zone, and
-  // this asserts the href because "it says Deny…" would pass just as well if it still submitted.
-  it('renders Deny as a link into the settings Danger zone, not a submit', () => {
+  it('keeps Deny behind a typed confirmation instead of submitting on click', async () => {
+    const user = userEvent.setup();
     render(
       <RepositoryShell id={81} repo={baseRepo({ status: 'pending' })} canApprove canDeny>
         <p>tab content</p>
       </RepositoryShell>
     );
 
-    const deny = screen.getByRole('button', { name: 'Deny…' });
-    expect(deny.tagName).toBe('A');
-    expect(deny).toHaveAttribute('href', '/repositories/81/settings#danger');
-    expect(deny).not.toHaveAttribute('type', 'submit');
+    await user.click(screen.getByRole('button', { name: 'Deny repository' }));
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
   });
 
   it('hides Deny for an already-disabled repo even with canDeny, since there is nothing to deny', () => {
@@ -136,6 +136,6 @@ describe('RepositoryShell', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Deny…' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Deny repository' })).not.toBeInTheDocument();
   });
 });

@@ -2,32 +2,21 @@ import { Card } from '@lightbridge/ui-web/src/components/card';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 
-import { repoSlug, type Repository } from '../lib/domain/repos';
 import type { ResolvedSettings } from '../lib/server/admin';
 import type { ApiResult } from '../lib/server/api';
-import { DenyRepoButton } from './deny-repo-button';
 import { RepoSettingsForm } from './repo-settings-form';
 
 /** Repository settings tab: the six review-behaviour settings (check-run reporting, review
  *  triggers, push-storm handling, finding-suppression scope), each showing whether it's on its
- *  default, set by the repo's own config file, or overridden by an admin — plus, at the bottom, a
- *  "Danger zone" carrying the repo's own deny action. Deny lives here rather than as a one-click
- *  header button (`RepositoryShell`'s header links here instead) because it revokes review access
- *  outright, and a destructive action belongs somewhere you have to deliberately navigate to and
- *  type the repository's own name to confirm — not a button sitting next to routine status text
- *  on every tab. */
+ *  default, set by the repo's own config file, or overridden by an admin. */
 export function RepositorySettingsCentre({
   id,
   result,
   canConfigure,
-  repo,
-  canDeny,
 }: {
   id: number;
   result: ApiResult<{ settings: ResolvedSettings }>;
   canConfigure: boolean;
-  repo: Repository | null;
-  canDeny: boolean;
 }) {
   if (!result.ok) {
     return (
@@ -53,19 +42,6 @@ export function RepositorySettingsCentre({
       <Card title="Review behaviour">
         <RepoSettingsForm id={id} settings={result.data.settings} canConfigure={canConfigure} />
       </Card>
-      {canDeny && repo && repo.status !== 'disabled' ? (
-        <Card title="Danger zone" id="danger">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium">Deny this repository</p>
-              <p className="text-subtle text-sm">
-                Revokes review access. Can be re-approved later from Approvals.
-              </p>
-            </div>
-            <DenyRepoButton id={id} slug={repoSlug(repo)} />
-          </div>
-        </Card>
-      ) : null}
     </div>
   );
 }

@@ -11,12 +11,20 @@ import {
   verifyConfigFromEnv,
 } from './lib/auth';
 
-// Protect every route except /sign-in, the auth API itself, robots.txt (a Next metadata route
-// with no session dependency — a liveness/readiness probe target), and the brand-mark images
-// (must render in chrome that's visible before, and without, a session). Edge-safe: only `jose`
-// and fetch.
+// Protect every route except the auth API itself and /auth/error (the callback's own failure
+// landing — reachable with no session by definition), robots.txt (a Next metadata route with no
+// session dependency — a liveness/readiness probe target), and the brand-mark images (must render
+// in chrome that's visible before, and without, a session). There is no separate "click to sign
+// in" page to exempt: every other unauthenticated request already redirects straight to
+// /api/auth/login below.
+//
+// Each alternative is followed by `(?:/|$)` so a prefix only exempts itself, not anything that
+// merely starts with the same letters (`/brandingx`, `/authenticate` would otherwise slip through
+// unprotected). Edge-safe: only `jose` and fetch.
 export const config = {
-  matcher: ['/((?!sign-in|api/auth|branding|_next/static|_next/image|favicon.ico|robots.txt).*)'],
+  matcher: [
+    '/((?!(?:api/auth|auth/error|branding|_next/static|_next/image|favicon\\.ico|robots\\.txt)(?:/|$)).*)',
+  ],
 };
 
 export async function proxy(req: NextRequest) {

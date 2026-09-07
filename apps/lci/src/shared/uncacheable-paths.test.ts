@@ -15,7 +15,7 @@ import {
  */
 describe('isUncacheablePath', () => {
   it('excludes the OIDC redirect legs', () => {
-    for (const path of ['/api/auth/login', '/api/auth/callback', '/api/auth/logout']) {
+    for (const path of ['/auth/login', '/auth/callback', '/auth/logout']) {
       expect(isUncacheablePath(path), `${path} must never be cached`).toBe(true);
     }
   });
@@ -29,11 +29,7 @@ describe('isUncacheablePath', () => {
     }
   });
 
-  it('excludes the bare prefix itself', () => {
-    expect(isUncacheablePath('/api')).toBe(true);
-  });
-
-  it('leaves the cacheable app shell and static assets alone', () => {
+  it("excludes every real screen, since each one server-renders the caller's own session data", () => {
     for (const path of [
       '/',
       '/repositories',
@@ -45,7 +41,19 @@ describe('isUncacheablePath', () => {
       '/admin/accepted',
       '/admin/denied',
       '/settings',
-      '/sign-in',
+    ]) {
+      expect(isUncacheablePath(path), `${path} must never be cached`).toBe(true);
+    }
+  });
+
+  it('excludes the bare prefixes themselves', () => {
+    for (const prefix of UNCACHEABLE_PATH_PREFIXES) {
+      expect(isUncacheablePath(prefix), `${prefix} must never be cached`).toBe(true);
+    }
+  });
+
+  it('leaves the public, unauthenticated routes and static assets cacheable', () => {
+    for (const path of [
       '/branding/logo',
       '/branding/logo-light',
       '/_next/static/chunks/main.js',
@@ -57,13 +65,20 @@ describe('isUncacheablePath', () => {
   });
 
   it('does not match a prefix that only appears mid-path', () => {
-    expect(isUncacheablePath('/repositories/api/graph')).toBe(false);
+    expect(isUncacheablePath('/branding/admin-logo')).toBe(false);
+  });
+
+  it('does not treat a path that only starts with the same letters as an exempt prefix', () => {
+    for (const path of ['/runsomething', '/adminx', '/authenticate']) {
+      expect(isUncacheablePath(path), `${path} should stay cacheable`).toBe(false);
+    }
   });
 });
 
 describe('isUncacheableUrl', () => {
   it('inspects the pathname, not the raw string', () => {
-    expect(isUncacheableUrl('/api/auth/callback?code=abc&state=def')).toBe(true);
+    expect(isUncacheableUrl('/auth/callback?code=abc&state=def')).toBe(true);
+    expect(isUncacheableUrl('/runs/task-1')).toBe(true);
     expect(isUncacheableUrl('/icons/icon-192.png?__WB_REVISION__=deadbeef')).toBe(false);
     expect(isUncacheableUrl('https://lci.example.com/api/repositories/81/graph')).toBe(true);
   });
@@ -74,7 +89,7 @@ describe('filterPrecacheEntries', () => {
     const manifest = [
       { url: '/_next/static/chunks/main.js', revision: null },
       { url: '/icons/icon-192.png', revision: 'abc' },
-      { url: '/api/auth/login', revision: 'def' },
+      { url: '/auth/login', revision: 'def' },
       '/api/repositories/81/graph',
       '/manifest.json',
     ];

@@ -3,24 +3,39 @@
  * truth for `src/sw.ts` (see its doc comment for how each Serwist mechanism consumes it) and the
  * thing `src/proxy.test.ts` pins the matcher against.
  *
- * `/api/*` covers both the OIDC redirect legs (`/api/auth/login`, `/api/auth/callback`,
- * `/api/auth/logout` — 307/303s to and from the IdP, carrying single-use `code`/`state`
- * parameters, and setting or clearing the session cookies) and the server-side control-plane
- * proxies (`/api/repositories/[id]/graph`, `.../symbols/[nodeId]/similar`). Every one is
- * authenticated per request against the caller's own session, and a cached navigation response
- * here would replay a spent login, serve a signed-out shell to a signed-in user, swallow a
- * `Set-Cookie`, or leak one viewer's repository data to the next — a cache is origin-scoped and
- * shared across sessions.
+ * Every real screen in this app renders the caller's own session data server-side — the
+ * repository list, run history, and approval queue are all part of the response HTML/RSC payload,
+ * not fetched separately after the shell loads. So the safe set to cache is the small one: the
+ * public branding/icon/manifest routes. Everything else — the root Overview page and every route
+ * under `/repositories`, `/runs`, `/admin` and `/settings` — is one viewer's own data, and must
+ * never be replayed to the next person who opens the same URL on a shared device, or to the same
+ * person after they've signed out.
  *
- * Deliberately NOT a general "is this public" list: `/branding/*`, `/icons/*` and
- * `manifest.json` are unauthenticated too, and they are exactly the things that SHOULD be cached.
+ * `/auth/*` (login, callback, logout) is excluded too, for a different reason: those are
+ * single-use redirect legs carrying `code`/`state` parameters and setting or clearing the session
+ * cookie, and a stale cached copy would replay a spent login or swallow a `Set-Cookie`.
+ *
+ * `/api/*` covers the server-side control-plane proxies (`/api/repositories/[id]/graph`,
+ * `.../symbols/[nodeId]/similar`) — real per-request data, authenticated against the caller's
+ * own session.
+ *
+ * Deliberately NOT a general "is this authenticated" list stated the other way round: `/branding/*`,
+ * `/icons/*` and `manifest.json` are unauthenticated too, and they are exactly the things that
+ * SHOULD be cached — so the list names what to exclude, not what to allow.
  */
 
 /**
  * Path prefixes, without a trailing slash. A path matches when it equals a prefix exactly or
- * continues with `/`, so `/api` and `/api/repositories` both match while `/apikeys` does not.
+ * continues with `/`, so `/runs` and `/runs/task-1` both match while `/runsomething` does not.
  */
-export const UNCACHEABLE_PATH_PREFIXES = ['/api'] as const;
+export const UNCACHEABLE_PATH_PREFIXES = [
+  '/api',
+  '/auth',
+  '/repositories',
+  '/runs',
+  '/admin',
+  '/settings',
+] as const;
 
 /**
  * The prefix list as a single `RegExp`, for the Serwist options that take patterns rather than a
@@ -31,10 +46,18 @@ export const UNCACHEABLE_PATH_PATTERN = new RegExp(
 );
 
 /**
+ * The app's own root — the Overview page, server-rendered from the caller's session. Not a
+ * prefix the way `/runs` is (nothing nests under it), so it gets its own exact pattern rather
+ * than joining the list above, where `(?:/|$)` would otherwise turn a bare `/` into "matches
+ * every path" instead of "matches only the root".
+ */
+export const UNCACHEABLE_ROOT_PATTERN = /^\/$/;
+
+/**
  * Whether a URL **pathname** (no origin, no query) is one the service worker must not cache.
  */
 export function isUncacheablePath(pathname: string): boolean {
-  return UNCACHEABLE_PATH_PATTERN.test(pathname);
+  return UNCACHEABLE_ROOT_PATTERN.test(pathname) || UNCACHEABLE_PATH_PATTERN.test(pathname);
 }
 
 /**
@@ -60,8 +83,8 @@ export function isUncacheableUrl(url: string): boolean {
 type PrecacheManifestEntry = string | { url: string };
 
 /**
- * Drops any injected precache entry that resolves under an uncacheable prefix. Serwist registers
- * its `PrecacheRoute` ahead of every `runtimeCaching` rule, so an entry that reaches the manifest
+ * Drops any injected precache entry that resolves to an uncacheable path. Serwist registers its
+ * `PrecacheRoute` ahead of every `runtimeCaching` rule, so an entry that reaches the manifest
  * cannot be shadowed by a `NetworkOnly` route later — it has to be removed here.
  */
 export function filterPrecacheEntries<T extends PrecacheManifestEntry>(

@@ -75,7 +75,7 @@ export function RunDetailCentre({
     <div className="flex flex-col gap-6">
       <PageHeader
         title={triggerLabel(task)}
-        subtitle={`${repoLabel(task)} · ${relativeTime(task.created_at, now)}${duration(task, now) ? ` · ${duration(task, now)}` : ''}`}
+        subtitle={`${repoLabel(task)} · ${relativeTime(task.created_at, now)}`}
       />
 
       <PageControls
@@ -103,7 +103,7 @@ export function RunDetailCentre({
               {repoLabel(task)}
             </Link>
           </Fact>
-          <Fact label="Branch">{task.repo_default_branch ?? '—'}</Fact>
+          <Fact label="Default branch">{task.repo_default_branch ?? '—'}</Fact>
           <Fact label="Trigger">{triggerLabel(task)}</Fact>
           <Fact label="Delivery">
             <code className="bg-chrome rounded-field px-1.5 py-0.5 font-mono">

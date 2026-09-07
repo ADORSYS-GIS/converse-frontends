@@ -12,6 +12,7 @@ import {
   ProjectsIcon,
   RunsIcon,
   SettingsIcon,
+  SignOutIcon,
 } from '@lightbridge/ui-web/src/lib/icons';
 import {
   RAIL_ICON_COLUMN_CLASS,
@@ -176,16 +177,15 @@ export function LciSidebarContent({
             <span className="rail-row-label text-soft text-[13px]">{userLabel}</span>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              aria-label="Sign out"
               className="ml-auto"
               render={
-                // Base UI `render` takes a template that is cloned WITH this Button's children —
-                // see `packages/ui-web/src/components/button/component.tsx`'s note on these rules.
                 // eslint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label
                 <a href="/auth/logout" />
               }
               nativeButton={false}>
-              Sign out
+              <SignOutIcon />
             </Button>
           </div>
         </>

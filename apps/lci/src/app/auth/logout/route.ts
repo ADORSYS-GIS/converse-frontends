@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import * as client from 'openid-client';
 
-import { REFRESH_COOKIE, SESSION_COOKIE } from '../../../../lib/auth';
-import { getOidc } from '../../../../lib/auth/oidc';
+import { REFRESH_COOKIE, SESSION_COOKIE } from '../../../lib/auth';
+import { getOidc } from '../../../lib/auth/oidc';
 
 export const runtime = 'nodejs';
 

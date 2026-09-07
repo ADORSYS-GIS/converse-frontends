@@ -12,13 +12,12 @@ import {
 } from './lib/auth';
 
 // Protect every route except /auth/* — login, callback, logout, and the callback's own failure
-// landing, all reachable with no session by definition, same path shape `apps/console` uses for
-// its own OIDC routes — robots.txt (a Next metadata route with no session dependency — a
-// liveness/readiness probe target), and the brand-mark images (must render in chrome that's
-// visible before, and without, a session). There is no separate "click to sign in" page to
-// exempt: every other unauthenticated request already redirects straight to /auth/login below.
-// `/api/*` otherwise (the control-plane data proxies) stays fully gated — only the `auth`
-// SEGMENT is exempt, not the `api` prefix it used to sit under.
+// landing, all reachable with no session by definition — robots.txt (a Next metadata route with
+// no session dependency — a liveness/readiness probe target), and the brand-mark images (must
+// render in chrome that's visible before, and without, a session). There is no separate "click
+// to sign in" page to exempt: every other unauthenticated request already redirects straight to
+// /auth/login below. `/api/*` otherwise (the control-plane data proxies) stays fully gated —
+// only the `auth` segment is exempt, not the whole `api` prefix.
 //
 // Each alternative is followed by `(?:/|$)` so a prefix only exempts itself, not anything that
 // merely starts with the same letters (`/brandingx`, `/authenticate` would otherwise slip through

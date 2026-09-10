@@ -1,5 +1,5 @@
-import type { AugmentationRequest } from '@lightbridge/authz-rpc';
-import type { RefillHistoryRow, RefillRequestRow } from '@lightbridge/ui-web';
+import type { AugmentationRequest, UserProfile } from '@lightbridge/authz-rpc';
+import type { RefillHistoryRow, RefillRequester, RefillRequestRow } from '@lightbridge/ui-web';
 
 /**
  * Pure adapters from the generated `AugmentationRequest` model to the admin review queue's rows.
@@ -57,14 +57,68 @@ export function toRefillRequestRow(
   request: AugmentationRequest,
   now: number,
   projectLabel: string,
-  accountLabel: string
+  accountLabel: string,
+  requester: RefillRequester
 ): RefillRequestRow {
   return {
     id: request.id,
     submittedAgo: relativeAge(request.createdAt, now),
     project: projectLabel,
     account: accountLabel,
+    requester,
     requestedAmount: microsToAmount(request.requestedAmountMicros),
+  };
+}
+
+/**
+ * Every distinct `requestedByUserId` on a page, de-duplicated and SORTED — the argument to the one
+ * `resolveUserProfiles` batch the queue fires (converse-frontends#444).
+ *
+ * Sorted because the list doubles as the react-query cache key: `['b','a']` and `['a','b']` name
+ * the same batch, and an unsorted key would refetch it whenever the page's row order changed
+ * (which the Submitted-column sort does on every toggle).
+ *
+ * Rows with a NULL `requestedByUserId` contribute nothing: they predate
+ * `migrations/20260902000004_budget_augmentation_requests_add_requested_by.sql` and there is no id
+ * to ask about — they render the dated "unknown" sentinel instead.
+ */
+export function requesterIdsOf(requests: readonly AugmentationRequest[]): string[] {
+  const ids = new Set<string>();
+  for (const request of requests) {
+    if (request.requestedByUserId) ids.add(request.requestedByUserId);
+  }
+  return [...ids].sort();
+}
+
+/**
+ * `requestedByUserId` + the resolved batch → the requester a row renders.
+ *
+ * `profiles === undefined` means the batch has not answered yet (`resolving`); an empty map after
+ * a failure means it answered with nothing (`unresolved`) — the caller distinguishes the two, this
+ * function only maps them. A profile whose every display field is null is `unresolved` too: the
+ * backend returns `userId` plus three nulls for a `users` row with no completed federated login
+ * (`authz.cstack`'s own comment on `UserProfile`), which is a row that exists but names nobody, and
+ * the console must never synthesise a name for it.
+ *
+ * Name precedence is displayName → username → email: an email is a fallback identity, not a
+ * preferred one, and showing it twice (as both lines) would say less than showing it once.
+ */
+export function toRequester(
+  requestedByUserId: string | null | undefined,
+  profiles: ReadonlyMap<string, UserProfile> | undefined
+): RefillRequester {
+  if (!requestedByUserId) return { kind: 'unknown' };
+  if (!profiles) return { kind: 'resolving' };
+
+  const profile = profiles.get(requestedByUserId);
+  const name = profile?.displayName || profile?.username || profile?.email;
+  if (!name) return { kind: 'unresolved', userId: requestedByUserId };
+
+  return {
+    kind: 'user',
+    name,
+    // Never repeat the email as the second line when it is already the first.
+    email: profile?.email && profile.email !== name ? profile.email : undefined,
   };
 }
 

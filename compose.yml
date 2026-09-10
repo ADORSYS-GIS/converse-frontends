@@ -19,11 +19,43 @@ services:
     volumes:
       - ./.docker/keycloak-config/:/opt/keycloak/data/import/:ro
 
-    
+  # The Typst PDF sidecar the console's export pipeline POSTs to (converse-frontends#453).
+  # Built from source here rather than pulled, so a local change to apps/typst-render is one
+  # `docker compose up --build typst-render` away.
+  #
+  # Requires the compiled output first — the Dockerfile is runtime-only, exactly like the console
+  # and lci ones:
+  #   pnpm turbo run build:web --filter=typst-render
+  #   docker compose up --build typst-render
+  #
+  # Without this service the console's export route still serves format=html and format=csv;
+  # only format=pdf needs it, and it must surface a clear error rather than fall back to a
+  # chartless PDF.
+  typst-render:
+    build:
+      # Repo root, matching the documented `docker build -f apps/typst-render/Dockerfile ... .`
+      context: .
+      dockerfile: apps/typst-render/Dockerfile
+    ports:
+      - '8080:8080'
+    healthcheck:
+      # `GET /healthz` runs `typst --version` inside the container, so `service_healthy` here
+      # means "can render", not merely "is listening".
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:8080/healthz', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   wiremock:
     image: wiremock/wiremock:3.13.2
     ports:
-      - "18888:8080"
+      - '18888:8080'
     volumes:
       - ./wiremock:/home/wiremock:ro
     command:

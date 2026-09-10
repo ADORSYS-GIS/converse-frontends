@@ -36,6 +36,7 @@ import {
   sortedAllowedAmountsMicros,
   useBudgetRefillLadder,
 } from './use-budget-refill';
+import { useTranslation } from '../i18n/client';
 
 /**
  * `/admin/refill-policies` (owner ruling, verbatim: "Refill options are for admins only. Not
@@ -88,8 +89,27 @@ export interface AdminRefillPoliciesListScreen {
   onManualOpenChange: (open: boolean) => void;
 }
 
+/**
+ * "Start from example policy" (issue #445) — CREATE-ONLY, by construction rather than by a flag:
+ * only `useRefillPolicyCreateScreen` returns this object, and `RefillPolicyFormView` renders the
+ * action only when it is present. The edit route, which authors a replacement revision for a policy
+ * set that already exists, never offers to overwrite that draft with a sample.
+ *
+ * `onStart` is the button's own handler and owns the dirty check: on a pristine form it fills
+ * immediately, on a dirty one it opens the confirmation instead of silently discarding what the
+ * admin typed. `confirmOpen`/`onConfirm`/`onCancelConfirm` drive that `ConfirmDialog`.
+ */
+export interface StartFromExampleAction {
+  onStart: () => void;
+  confirmOpen: boolean;
+  onConfirm: () => void;
+  onCancelConfirm: () => void;
+}
+
 export interface AdminRefillPoliciesFormScreen {
   mode: 'create' | 'edit';
+  /** Create-only — `undefined` on the edit route (see `StartFromExampleAction`). */
+  startFromExample?: StartFromExampleAction;
   /** `undefined` in `edit` mode — the id comes straight from `?edit=<id>`, never retargeted. */
   policySetId: string;
   onPolicySetIdChange?: (value: string) => void;
@@ -135,6 +155,7 @@ export interface AdminRefillPoliciesScreen {
 }
 
 export function useRefillPoliciesScreen(): AdminRefillPoliciesScreen {
+  const { t } = useTranslation('admin');
   const scope = useConsoleScope();
   const budgetClient = useConsoleBudgetClient();
   const queryClient = useQueryClient();
@@ -269,13 +290,13 @@ export function useRefillPoliciesScreen(): AdminRefillPoliciesScreen {
   } else if (ladderQuery.error) {
     ladder = {
       status: 'error',
-      errorMessage: 'Could not load the refill policy.',
+      errorMessage: t('refill-policies.ladder-load-failed'),
       onRetry: ladderQuery.refetch,
     };
   } else if (sortedAmounts.length === 0) {
     ladder = {
       status: 'empty',
-      caption: 'The active refill policy currently offers no amount for this account.',
+      caption: t('refill-policies.ladder-no-amount'),
     };
   } else {
     ladder = {

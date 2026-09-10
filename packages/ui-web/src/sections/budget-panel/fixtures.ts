@@ -9,13 +9,13 @@ import type {
 export const overviewBudget: BudgetSummary = {
   value: 142.55,
   ceiling: 500,
-  caption: 'account ceiling · 28% used · resets 01 Mar',
+  caption: 'account ceiling · 28% used this budget period',
 };
 
 export const overviewEmptyBudget: BudgetSummary = {
   value: 0,
   ceiling: 500,
-  caption: 'account ceiling · 0% used · resets 01 Mar',
+  caption: 'account ceiling · 0% used this budget period',
 };
 
 // #273 — Overview's real state today: no usage-backend query client exists, so neither

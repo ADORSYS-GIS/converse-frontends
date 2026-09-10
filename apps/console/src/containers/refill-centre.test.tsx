@@ -75,11 +75,13 @@ describe('RefillCentre', () => {
     expect(screen.queryByRole('button', { name: 'Request refill' })).not.toBeInTheDocument();
   });
 
-  it('renders the caller\'s own history rows', async () => {
+  it("renders the caller's own history rows", async () => {
     await renderCentre({
       history: {
         status: 'ready',
-        rows: [{ id: 'req_1', submittedAgo: '2 days ago', amount: 12, statusLabel: 'Pending review' }],
+        rows: [
+          { id: 'req_1', submittedAgo: '2 days ago', amount: 12, statusLabel: 'Pending review' },
+        ],
       },
     });
 

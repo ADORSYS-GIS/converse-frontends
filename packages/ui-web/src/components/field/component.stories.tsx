@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Field } from './component';
 
 const meta: Meta<typeof Field> = {
-  title: 'Forms & actions/Field',
+  title: 'Primitives/Fields/Field',
   component: Field,
   args: {
     label: 'Key name',
@@ -26,7 +26,10 @@ export const Default: Story = {
 export const Focused: Story = {
   render: (args) => (
     <div className="w-[280px]">
-      {/* autoFocus demonstrates the focus → primary border treatment */}
+      {/* autoFocus demonstrates the focus → primary border treatment. Story-only: it is the whole
+          subject of this story, and a Storybook iframe is not a page a user lands on. `Field`
+          itself never sets it. */}
+      {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
       <Field {...args} autoFocus />
     </div>
   ),
@@ -36,6 +39,31 @@ export const WithError: Story = {
   render: (args) => (
     <div className="w-[280px]">
       <Field {...args} error="A key with this name already exists." defaultValue="ci-deploy" />
+    </div>
+  ),
+};
+
+// Issue #445 — the example slot: a muted line BETWEEN the label and the control, wired into the
+// control's `aria-describedby`. Never a placeholder, so it survives the first keystroke.
+export const WithExample: Story = {
+  render: (args) => (
+    <div className="w-[280px]">
+      <Field {...args} label="Refill ladder" example="e.g. 2, 5, 10, 25" defaultValue="2" />
+    </div>
+  ),
+};
+
+export const WithExampleAndError: Story = {
+  name: 'Example and error together',
+  render: (args) => (
+    <div className="w-[280px]">
+      <Field
+        {...args}
+        label="Refill ladder"
+        example="e.g. 2, 5, 10, 25"
+        error="Enter a positive amount."
+        defaultValue="-5"
+      />
     </div>
   ),
 };
@@ -51,7 +79,12 @@ export const Disabled: Story = {
 export const Textarea: Story = {
   render: () => (
     <div className="w-[280px]">
-      <Field label="Decision note" multiline placeholder="Optional · visible to requester" rows={3} />
+      <Field
+        label="Decision note"
+        multiline
+        placeholder="Optional · visible to requester"
+        rows={3}
+      />
     </div>
   ),
 };

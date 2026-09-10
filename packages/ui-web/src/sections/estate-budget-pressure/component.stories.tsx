@@ -5,7 +5,7 @@ import { EstateBudgetPressure } from './component';
 import { estateBudgetPressureAccounts, estateBudgetPressureEmpty } from './fixtures';
 
 const meta: Meta<typeof EstateBudgetPressure> = {
-  title: 'Sections/EstateBudgetPressure',
+  title: 'Sections/Budget/EstateBudgetPressure',
   component: EstateBudgetPressure,
   parameters: { layout: 'fullscreen' },
   args: {

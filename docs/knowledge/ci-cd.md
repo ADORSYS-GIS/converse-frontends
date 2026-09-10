@@ -7,7 +7,7 @@
 
 ## Pipeline Overview
 
-CI/CD is implemented with **GitHub Actions**, eight workflows under `.github/workflows/`.
+CI/CD is implemented with **GitHub Actions**, ten workflows under `.github/workflows/`.
 
 **Runner:** every job in every workflow runs on GitHub-hosted **`ubuntu-latest`**
 (`runs-on: ubuntu-latest`, confirmed in each workflow file). This repo ran on a
@@ -33,17 +33,18 @@ walked back anywhere else in this repo's docs:
 
 ## Trigger Matrix
 
-| Workflow                 | `pull_request` → `main`                 | `push` (any branch) | `push` → `main` only                                                                                                                           | Tag `v*`       | Schedule                  | `workflow_dispatch` |
-| ------------------------ | --------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------------------- | ------------------- |
-| `test.yml`               | ✅                                      | ✅                  | —                                                                                                                                              | —              | —                         | —                   |
-| `quality.yml`            | ✅                                      | ✅                  | —                                                                                                                                              | —              | ✅ weekly (Sun 02:00 UTC) | ✅                  |
-| `security.yml`           | ✅                                      | ✅                  | —                                                                                                                                              | —              | —                         | —                   |
-| `governance.yml`         | ✅ (opened/edited/synchronize/reopened) | —                   | —                                                                                                                                              | —              | —                         | —                   |
-| `opencode.yml`           | ✅ (opened/synchronize)¹                | —                   | —                                                                                                                                              | —              | —                         | —                   |
-| `docker-image.yml`       | ❌ **never**                            | —                   | ✅                                                                                                                                             | ✅             | —                         | ✅                  |
-| `authz-ui-image.yml`     | ❌ **never**                            | —                   | ✅ ² (+ `feat/authz-ui-**`; paths: `apps/authz-ui/**`, `packages/ui-web/**`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`, own files) | ❌ **never** ³ | —                         | ✅                  |
-| `publish-charts-oci.yml` | —                                       | —                   | ✅ (paths: `charts/**`)                                                                                                                        | —              | —                         | ✅                  |
-| `storybook-pages.yml`    | —                                       | —                   | ✅ (paths: `packages/ui/**`)                                                                                                                   | —              | —                         | ✅                  |
+| Workflow                           | `pull_request` → `main`                 | `push` (any branch) | `push` → `main` only                                                                                                                           | Tag `v*`       | Schedule                  | `workflow_dispatch` |
+| ---------------------------------- | --------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------------------- | ------------------- |
+| `test.yml`                         | ✅                                      | ✅                  | —                                                                                                                                              | —              | —                         | —                   |
+| `quality.yml`                      | ✅                                      | ✅                  | —                                                                                                                                              | —              | ✅ weekly (Sun 02:00 UTC) | ✅                  |
+| `security.yml`                     | ✅                                      | ✅                  | —                                                                                                                                              | —              | —                         | —                   |
+| `governance.yml`                   | ✅ (opened/edited/synchronize/reopened) | —                   | —                                                                                                                                              | —              | —                         | —                   |
+| `opencode.yml`                     | ✅ (opened/synchronize)¹                | —                   | —                                                                                                                                              | —              | —                         | —                   |
+| `docker-image.yml`                 | ❌ **never**                            | —                   | ✅                                                                                                                                             | ✅             | —                         | ✅                  |
+| `authz-ui-image.yml`               | ❌ **never**                            | —                   | ✅ ² (+ `feat/authz-ui-**`; paths: `apps/authz-ui/**`, `packages/ui-web/**`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`, own files) | ❌ **never** ³ | —                         | ✅                  |
+| `governance-auth-callback-oci.yml` | ❌ **never**                            | —                   | ✅ (paths: `apps/governance-auth/**`, `packages/ui-web/**`, `pnpm-lock.yaml`, own file)                                                        | ❌ **never** ⁴ | —                         | ✅                  |
+| `publish-charts-oci.yml`           | —                                       | —                   | ✅ (paths: `charts/**`)                                                                                                                        | —              | —                         | ✅                  |
+| `storybook-pages.yml`              | —                                       | —                   | ✅ (paths: `packages/ui-web/**`, own file)                                                                                                     | —              | —                         | ✅                  |
 
 ¹ `opencode.yml` also runs on `issue_comment` and `pull_request_review_comment` (for the
 `/oc` slash-command path), and is a no-op unless the `OPENCODE_GATEWAY_AUDIENCE` repo/org
@@ -64,6 +65,12 @@ bundle is consumed by digest (never by semver) and every commit that changes it 
 `sha-` image on `main`, the tag trigger would buy nothing and cost a silent gap.
 `workflow_dispatch` is the manual escape hatch.
 
+⁴ `governance-auth-callback-oci.yml` publishes **no container image** — only the app's single
+self-contained `dist/index.html` as an OCI _artifact_ (via `oras`), pinned by full commit `sha`.
+It has no `v*` tag trigger (the `latest` tag it does carry is called out in
+`apps/governance-auth/README.md` as a footgun, not a shortcut), matching the `authz-ui-image.yml`
+contract of never publishing an unbounded tag from a feature branch.
+
 ```mermaid
 flowchart LR
     PR["Pull request opened/synchronize<br/>→ main"]
@@ -72,7 +79,7 @@ flowchart LR
     TAG["Tag push v*"]
     SCHED["Weekly schedule<br/>Sun 02:00 UTC"]
 
-    TEST["test.yml<br/>pnpm test"]
+    TEST["test.yml<br/>.ci/test/run.sh (every package, no bail)"]
     QUALITY["quality.yml<br/>ESLint + tsc + Prettier scan"]
     SECURITY["security.yml<br/>Trivy fs scan"]
     GOV["governance.yml<br/>AI usage declaration check"]
@@ -101,8 +108,10 @@ flowchart LR
 
     PUSHFEAT["Push → feat/authz-ui-**"]
     AUTHZUI["authz-ui-image.yml<br/>turbo build:web --filter=authz-ui<br/>+ Buildah scratch + GHCR push"]
+    GOVAUTH["governance-auth-callback-oci.yml<br/>turbo build:web --filter=governance-auth<br/>+ oras OCI artifact push"]
     PUSHMAIN --> AUTHZUI
     PUSHFEAT --> AUTHZUI
+    PUSHMAIN --> GOVAUTH
 ```
 
 The dashed edge is the load-bearing line in this diagram: **no event a PR can raise ever
@@ -157,7 +166,15 @@ either — Gap 1) does not type-check. So `pnpm build` (`turbo run build:web`) s
 code `tsc` rejects, and no CI step gated on a PR currently disagrees. A dependency-bump PR
 nearly shipped a type regression today for exactly this combination of reasons.
 
-### 3. `pnpm lint` fails on `main` today — verified numbers, not the ones quoted at scoping time
+### 3. `pnpm lint` fails on `main` today — verified numbers, not the ones quoted at scoping time (CLOSED, converse-frontends#412, see below)
+
+> **Update, 2026-09-03 (`main` @ `b6d3c42` → this fix):** `pnpm lint` exits `0` on `main`
+> (0 errors, 39 warnings; the earlier reformat landed in #494) and `test.yml` now has a
+> dedicated `lint` job that runs `pnpm lint` and fails the PR check on it — verified by a
+> falsification run (a deliberately mis-formatted throwaway file made the job's command
+> exit 1; removing it restored exit 0). See `docs/ROADMAP.md`'s CI & quality gates table.
+> The numbers and analysis below are the history of how this gap was found and are left
+> as-is; they no longer describe the current state.
 
 The root `lint` script (`package.json`) is:
 
@@ -226,8 +243,92 @@ currently absent, not merely miscalibrated.
 
 Triggers: `pull_request` → `main`, `push` to any branch. Installs deps (`pnpm install
 --frozen-lockfile`, which also regenerates the gitignored RPC/REST clients via
-`postinstall` — see [Codegen](#codegen)) and runs `pnpm test` (`pnpm -r --if-present run
-test`, i.e. Jest per-workspace).
+`postinstall` — see [Codegen](#codegen)) and runs **`.ci/test/run.sh`**, which drives
+`pnpm test` (`pnpm -r --no-bail --if-present run test`, vitest per workspace) and then proves
+every package that declares a `test` script actually produced a result.
+
+#### Why the gate is a script and not a bare `pnpm test`
+
+`pnpm -r` **bails on the first failing package**, and it walks the workspaces in order —
+`apps/*` before `packages/*`, alphabetically within each. `apps/lci` therefore sorts before
+`apps/console`. When #504 broke five `apps/lci` suites, that one package ended the run:
+`apps/console`'s ~1490 tests never executed on any PR until the break was fixed, and nothing
+in the job said so. The check was red for one honest reason and silent about N unknowns —
+the worst possible shape for a gate, because "red" and "red plus 9 packages never tried"
+look identical in the PR list.
+
+Two changes, and both are load-bearing:
+
+1. **`--no-bail`**, baked into the ROOT `test` script rather than passed only in the
+   workflow — a developer's local `pnpm test` and CI's must not disagree about whether one
+   failure ends the run.
+2. **`.ci/test/run.sh`**, which enumerates the packages that _should_ run (from pnpm's own
+   workspace listing plus each manifest's `scripts.test` — never a second hardcoded list),
+   then reads pnpm's per-package `… test: Done` / `… test: Failed` markers back out of the
+   log and writes the verdict table to `$GITHUB_STEP_SUMMARY`. A package that declares a
+   `test` script and produces NO marker is a hard failure even when pnpm itself exits 0:
+   `--no-bail` alone would still let a suite silently disappear from the run, and a gate that
+   executes zero tests goes green exactly like one that executes all of them.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant GHA as test.yml<br/>(Unit tests job)
+    participant Sh as .ci/test/run.sh
+    participant Pnpm as pnpm -r --no-bail
+    participant Pkg as each workspace<br/>(vitest run)
+    participant Sum as $GITHUB_STEP_SUMMARY
+
+    GHA->>Sh: bash .ci/test/run.sh
+    Sh->>Pnpm: pnpm list -r --depth -1 --json
+    Pnpm-->>Sh: 13 projects
+    Note over Sh: keep those whose package.json<br/>declares scripts.test → EXPECTED
+    alt EXPECTED is empty
+        Sh-->>GHA: ::error:: gate would be a no-op → exit 1
+    end
+    Sh->>Pnpm: pnpm test
+    loop every package, failures included
+        Pnpm->>Pkg: run test
+        Pkg-->>Pnpm: pass / fail
+        Pnpm-->>Sh: "<dir> test: Done" | "<dir> test: Failed"
+    end
+    Pnpm-->>Sh: exit 0 if all passed, else 1
+    loop every EXPECTED package
+        Sh->>Sh: grep its marker in the log
+    end
+    Sh->>Sum: | package | path | result | table
+    Sh-->>GHA: exit 0 only if every package RAN and PASSED
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Enumerating
+    Enumerating --> NoOp: no package declares scripts.test
+    Enumerating --> Running: EXPECTED ≥ 1
+    Running --> Reconciling: pnpm finished (all packages attempted)
+    Reconciling --> Missing: an EXPECTED package produced no marker
+    Reconciling --> Failing: ≥ 1 package reported Failed
+    Reconciling --> Passing: every package reported Done
+    NoOp --> [*]: exit 1
+    Missing --> [*]: exit 1
+    Failing --> [*]: exit 1
+    Passing --> [*]: exit 0
+
+    note right of NoOp
+      Unreachable in practice today, and
+      deliberately kept as a state: it is
+      what a broken filter or a dropped
+      test script would land in, and it
+      used to be indistinguishable from
+      Passing.
+    end note
+    note right of Missing
+      The state --no-bail alone cannot
+      reach a verdict on. pnpm exits 0
+      here; only the reconciliation step
+      turns it red.
+    end note
+```
 
 ### `quality.yml` — Code Quality Scan
 
@@ -299,9 +400,45 @@ re-trigger itself. Idempotent — skips a version already published. Uses the bu
 
 ### `storybook-pages.yml` — Storybook → GitHub Pages
 
-Triggers: `push` to `main` with `paths: packages/ui/**` (or the workflow file itself),
+Triggers: `push` to `main` with `paths: packages/ui-web/**` (or the workflow file itself),
 `workflow_dispatch`. Builds Storybook via `pnpm turbo run build-storybook` and deploys the
 static output to GitHub Pages via `actions/deploy-pages`.
+
+**GitHub Pages is currently DISABLED on this repository**, and a workflow cannot enable it — it
+is a repo setting. `actions/configure-pages` hard-fails on that ("Get Pages site failed. Please
+verify that the repository has Pages enabled"), which used to paint every `main` run of this
+workflow red for a reason no code change could fix, drowning out real failures. Since
+[#443](https://github.com/ADORSYS-GIS/converse-frontends/issues/443) a `preflight` job probes
+`GET /repos/{owner}/{repo}/pages` (404 while Pages is off, verified against this repo) and
+publishes a `pages-enabled` output:
+
+- **Pages off** — `configure-pages`/`upload-pages-artifact` and the whole `deploy` job report as
+  **skipped**, and the run emits a `::notice` saying why. Not `continue-on-error`: that would
+  equally hide a genuine deploy failure, which is the opposite of what we want.
+- **Pages on** — everything runs, with no edit to the workflow. Enabling Pages in
+  _Settings → Pages_ (source: GitHub Actions) is all that is needed; the next push publishes.
+
+The Storybook **build** runs unconditionally either way, so a broken story still fails `main`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Preflight: push to main touching packages/ui-web/**
+    Preflight --> PagesOn: the Pages API answers 200
+    Preflight --> PagesOff: 404 or any non-200, plus a notice
+    PagesOn --> BuildAndUpload: build-storybook, configure-pages, upload-pages-artifact
+    PagesOff --> BuildOnly: build-storybook only
+    BuildAndUpload --> Deploy: deploy job runs
+    BuildOnly --> Skipped: deploy job skipped, run stays green
+    Deploy --> [*]
+    Skipped --> [*]
+    BuildOnly --> RedRun: a story fails to build
+    BuildAndUpload --> RedRun
+    RedRun --> [*]
+    note right of Skipped
+      "Pages is off" is no longer expressible as a red run --
+      only a real build or deploy failure is.
+    end note
+```
 
 ---
 
@@ -428,6 +565,12 @@ the container image tag. Both are driven by ArgoCD reconciling against the `home
     inspected layer-by-layer ("Verify the pushed image contains the bundle") — a bundle that only
     existed on the runner's disk fails the second check. It is never deployed as a workload;
     `lightbridge-authz` pulls it at container-build time at a digest pin.
+- **OCI artifacts** (not images) are also published via `oras`:
+  - `ghcr.io/adorsys-gis/governance-auth-callback` — `governance-auth-callback-oci.yml`; carries
+    only `apps/governance-auth/dist/index.html` — the single self-contained callback page
+    `lightbridge-governance` `include_str!`s at compile time. Pinned by full commit `sha-<40-char>`
+    (the `latest` tag it also carries is a footgun, per `apps/governance-auth/README.md`), no `v*`
+    tag, never a container image (there is no Dockerfile).
 - **Image tags** generated per build:
   - `branch-name` — for branch pushes (in practice, only `main` and the dead branch above)
   - `v*` — for version tags (semver)
@@ -454,6 +597,12 @@ The one exception is `authz-ui-image.yml`, which publishes from `feat/authz-ui-*
 (footnote ² above). It has no ArgoCD Application and no `argocd-image-updater` watch — the artifact
 is a build-time input to another repo, not a deployable workload — so a feature-branch image there
 cannot reach any cluster.
+
+`governance-auth-callback-oci.yml` is similar but stricter still: it publishes only on `main` (no
+feature-branch trigger at all) as a digest-pinned OCI artifact, consumed at compile time by
+`lightbridge-governance`'s `scripts/vendor-callback-page.sh <sha>`. Like `authz-ui-image.yml` it
+has no ArgoCD Application and no image-updater watch, so its artifact can never reach a cluster
+either.
 
 Deployment to Kubernetes is driven by a separate GitOps process (ArgoCD in the `ai-helm`
 repo, targeting the `home-os` cluster) — see [Build-and-Deploy Chain](#build-and-deploy-chain)

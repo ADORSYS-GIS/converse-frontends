@@ -65,10 +65,10 @@ Results:
 
 Add evidence here:
 
-* Screenshot: [link]
-* Logs: [link]
-* Metrics: [link]
-* Recording: [link]
+- Screenshot: [link]
+- Logs: [link]
+- Metrics: [link]
+- Recording: [link]
 
 ---
 
@@ -76,19 +76,19 @@ Add evidence here:
 
 Risk level:
 
-* [ ] Low
-* [ ] Medium
-* [ ] High
+- [ ] Low
+- [ ] Medium
+- [ ] High
 
 Potential risks:
 
-* [Risk 1]
-* [Risk 2]
+- [Risk 1]
+- [Risk 2]
 
 Mitigation:
 
-* [Mitigation 1]
-* [Mitigation 2]
+- [Mitigation 1]
+- [Mitigation 2]
 
 ---
 
@@ -96,21 +96,21 @@ Mitigation:
 
 AI was used for:
 
-* [ ] Understanding existing code
-* [ ] Generating code
-* [ ] Refactoring
-* [ ] Generating tests
-* [ ] Drafting documentation
-* [ ] Reviewing the diff
-* [ ] Not used
+- [ ] Understanding existing code
+- [ ] Generating code
+- [ ] Refactoring
+- [ ] Generating tests
+- [ ] Drafting documentation
+- [ ] Reviewing the diff
+- [ ] Not used
 
 Human verification:
 
-* [ ] I understand every meaningful change in this PR
-* [ ] I checked generated code manually
-* [ ] I checked generated tests manually
-* [ ] I removed unsupported AI assumptions
-* [ ] I accept responsibility for this PR
+- [ ] I understand every meaningful change in this PR
+- [ ] I checked generated code manually
+- [ ] I checked generated tests manually
+- [ ] I removed unsupported AI assumptions
+- [ ] I accept responsibility for this PR
 
 ---
 
@@ -118,11 +118,11 @@ Human verification:
 
 Please focus your review on:
 
-* [ ] Correctness
-* [ ] Architecture
-* [ ] Security
-* [ ] Performance
-* [ ] Tests
-* [ ] Maintainability
-* [ ] Product intent
-* [ ] Edge cases
+- [ ] Correctness
+- [ ] Architecture
+- [ ] Security
+- [ ] Performance
+- [ ] Tests
+- [ ] Maintainability
+- [ ] Product intent
+- [ ] Edge cases

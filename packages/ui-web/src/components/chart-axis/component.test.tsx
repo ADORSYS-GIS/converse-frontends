@@ -10,7 +10,7 @@ describe('ChartAxisBottom', () => {
     const { container } = render(
       <svg>
         <ChartAxisBottom y={10} ticks={[]} />
-      </svg>,
+      </svg>
     );
 
     expect(container.querySelector('line')).not.toBeInTheDocument();
@@ -26,7 +26,7 @@ describe('ChartAxisBottom', () => {
             { position: 100, label: 'Tue' },
           ]}
         />
-      </svg>,
+      </svg>
     );
 
     expect(screen.getByText('Mon')).toBeInTheDocument();
@@ -38,7 +38,7 @@ describe('ChartAxisBottom', () => {
     const { container } = render(
       <svg>
         <ChartAxisBottom y={20} x1={0} x2={100} ticks={[{ position: 10, label: 'Mon' }]} />
-      </svg>,
+      </svg>
     );
 
     const baseline = container.querySelector('line');
@@ -51,7 +51,7 @@ describe('ChartAxisBottom', () => {
     const { container } = render(
       <svg>
         <ChartAxisBottom y={20} gridHeight={40} ticks={[{ position: 10, label: 'Mon' }]} />
-      </svg>,
+      </svg>
     );
 
     const lines = container.querySelectorAll('line');
@@ -65,7 +65,7 @@ describe('ChartAxisLeft', () => {
     const { container } = render(
       <svg>
         <ChartAxisLeft x={10} ticks={[]} />
-      </svg>,
+      </svg>
     );
 
     expect(container.querySelector('line')).not.toBeInTheDocument();
@@ -81,7 +81,7 @@ describe('ChartAxisLeft', () => {
             { position: 50, label: '$0' },
           ]}
         />
-      </svg>,
+      </svg>
     );
 
     expect(screen.getByText('$100')).toHaveAttribute('text-anchor', 'end');

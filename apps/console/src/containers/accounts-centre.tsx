@@ -5,6 +5,7 @@ import { Card } from '@lightbridge/ui-web/src/components/card';
 import { AccountDirectory } from '@lightbridge/ui-web/src/sections/account-directory';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
+import { useTranslation } from '../i18n/client';
 import { useOpenCreateAccountDialog } from './use-create-account-dialog';
 import { useAccountsScreen } from './use-accounts-screen';
 
@@ -18,21 +19,23 @@ import { useAccountsScreen } from './use-accounts-screen';
  *     (`use-create-account-dialog.ts`, mounted once in `app/(console)/layout.tsx`).
  */
 export function AccountsCentre() {
+  const { t } = useTranslation('settings');
   const screen = useAccountsScreen();
   const openCreateAccount = useOpenCreateAccountDialog();
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Accounts"
+        title={t('accounts.title')}
         subtitle={
-          screen.accountCount > 0
-            ? `${screen.accountCount} account${screen.accountCount === 1 ? '' : 's'}`
-            : undefined
+          // i18next's own plural resolution (`accounts.count_one`/`_other`), not a hand-rolled
+          // `=== 1 ? '' : 's'`: German pluralises on a different rule from English, and a suffix
+          // appended in JSX is a rule this file would be asserting on the bundle's behalf.
+          screen.accountCount > 0 ? t('accounts.count', { count: screen.accountCount }) : undefined
         }
         action={
           <Button type="button" variant="primary" onClick={openCreateAccount}>
-            + New account
+            {t('accounts.new-account')}
           </Button>
         }
       />

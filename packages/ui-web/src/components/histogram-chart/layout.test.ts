@@ -48,7 +48,7 @@ describe('layoutBars', () => {
   it('every bar has a positive width and none overlap, for a normal contiguous spread', () => {
     const bins = computeHistogramBins(
       Array.from({ length: 50 }, (_, i) => i),
-      6,
+      6
     );
     const scale = makeLinearScale(computeXDomain(bins), [0, 300], { nice: false });
     const bars = layoutBars(bins, scale, 2);
@@ -87,7 +87,7 @@ describe('collectXTicks', () => {
   it('thins boundary labels to roughly maxTicks, not one per every bin edge', () => {
     const bins = computeHistogramBins(
       Array.from({ length: 100 }, (_, i) => i),
-      10,
+      10
     );
     const scale = makeLinearScale(computeXDomain(bins), [0, 400], { nice: false });
     const ticks = collectXTicks(bins, scale, (v) => String(Math.round(v)), 4);

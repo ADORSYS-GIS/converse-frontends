@@ -34,7 +34,9 @@ const sarrifResults = results.map((issue) => ({
     {
       physicalLocation: {
         artifactLocation: {
-          uri: path.relative(process.cwd(), issue.filepath || '.github/workflows/unknown.yml').replace(/\\/g, '/'),
+          uri: path
+            .relative(process.cwd(), issue.filepath || '.github/workflows/unknown.yml')
+            .replace(/\\/g, '/'),
         },
         region: {
           startLine: issue.line || 1,

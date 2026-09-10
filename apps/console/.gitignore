@@ -6,6 +6,11 @@ tsconfig.tsbuildinfo
 # scripts/stage-cratestack-cbor-for-docker.mjs (see that script + Dockerfile) — never committed.
 .docker-stage/
 
+# Build output of scripts/build-report-charts.mjs (converse-frontends#453) — the report's chart
+# renderer, bundled out of Next's react-server layer. Produced by `build:web`, by vitest's
+# globalSetup, and COPYed into the image by the Dockerfile. Never committed.
+report-charts/
+
 # Local overrides on top of the committed .env defaults — never committed.
 .env.local
 .env.*.local

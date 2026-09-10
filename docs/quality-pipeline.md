@@ -5,6 +5,7 @@
 The quality pipeline is an offline-capable code quality scanning system that replaces SonarQube CE's practical responsibilities without introducing a SaaS platform. It was originally designed to run entirely on self-hosted infrastructure (`adorsys-gis-runner`), with every scanner pre-provisioned on that runner's image; [#134](https://github.com/ADORSYS-GIS/converse-frontends/pull/134) (2026-07-31) moved `quality.yml` to GitHub-hosted `ubuntu-latest` along with every other workflow, and the pre-provisioning assumption did not move with it — see the **Known Gap** below before trusting the "pull request checks via reviewdog" claim.
 
 **Key features (as designed):**
+
 - ✅ No external scanning platforms or cloud services
 - ✅ Pull request checks via GitHub Check API + reviewdog
 - ✅ Preserved reports as CI artifacts
@@ -100,37 +101,37 @@ output, so small Node.js scripts convert their native formats.
 
 ### SAST (Static Application Security Testing)
 
-| Scanner | What It Finds | SonarQube CE Equivalent |
-|---------|--|--|
-| **ESLint** | Linting violations, unsafe patterns, style issues | Built-in code smells |
-| **Semgrep** | Security patterns, anti-patterns (custom rules) | Custom rule engine |
-| **TypeScript Compiler** | Type errors, strict mode violations | Type checking |
+| Scanner                 | What It Finds                                     | SonarQube CE Equivalent |
+| ----------------------- | ------------------------------------------------- | ----------------------- |
+| **ESLint**              | Linting violations, unsafe patterns, style issues | Built-in code smells    |
+| **Semgrep**             | Security patterns, anti-patterns (custom rules)   | Custom rule engine      |
+| **TypeScript Compiler** | Type errors, strict mode violations               | Type checking           |
 
 **Output:** SARIF with `error` and `warning` levels.
 
 ### Linting & Formatting
 
-| Tool | What It Finds | SonarQube CE Equivalent |
-|------|--|--|
-| **Prettier** | Format violations (indentation, line length) | Code formatting rules |
-| **ESLint** | Style, naming, best practices | Built-in quality rules |
+| Tool         | What It Finds                                | SonarQube CE Equivalent |
+| ------------ | -------------------------------------------- | ----------------------- |
+| **Prettier** | Format violations (indentation, line length) | Code formatting rules   |
+| **ESLint**   | Style, naming, best practices                | Built-in quality rules  |
 
 **Output:** Violations mapped to SARIF `note` level.
 
 ### Infrastructure & Configuration
 
-| Tool | What It Finds | SonarQube CE Equivalent |
-|------|--|--|
-| **Hadolint** | Dockerfile best practices, security issues | No direct equivalent |
-| **Actionlint** | GitHub Actions YAML validation | No direct equivalent |
+| Tool           | What It Finds                              | SonarQube CE Equivalent |
+| -------------- | ------------------------------------------ | ----------------------- |
+| **Hadolint**   | Dockerfile best practices, security issues | No direct equivalent    |
+| **Actionlint** | GitHub Actions YAML validation             | No direct equivalent    |
 
 **Output:** SARIF with `warning` level.
 
 ### Code Quality & Duplication
 
-| Tool | What It Finds | SonarQube CE Equivalent |
-|------|--|--|
-| **jscpd** | Copy-paste code, duplication | Duplication ratio |
+| Tool      | What It Finds                | SonarQube CE Equivalent |
+| --------- | ---------------------------- | ----------------------- |
+| **jscpd** | Copy-paste code, duplication | Duplication ratio       |
 
 **Output:** SARIF with `note` level.
 
@@ -142,6 +143,7 @@ output, so small Node.js scripts convert their native formats.
 ## Which SonarQube Capabilities Are Replaced
 
 ✅ **Replaced:**
+
 - Code smell detection (ESLint + Semgrep)
 - Security hotspot discovery (Semgrep + ESLint)
 - Type/strictness checking (TypeScript)
@@ -151,6 +153,7 @@ output, so small Node.js scripts convert their native formats.
 - CI/CD workflow validation (Actionlint)
 
 ❌ **NOT Replaced** (and not needed):
+
 - Centralized issue dashboard (use GitHub Issues + Projects)
 - Historical trend tracking (use GitHub Actions artifacts + Datadog)
 - Hotspot prioritization by impact (use code review processes)
@@ -257,10 +260,10 @@ When a PR is opened:
 Quality Pipeline · 3 annotations
   ✗ Semgrep · typescript.security.no-hardcoded-secrets
     line 42: Hardcoded API key. Use environment variables.
-    
+
   ⚠ Prettier · format/indent
     line 87: File does not match Prettier formatting.
-    
+
   ℹ jscpd · duplication
     lines 105–120: Duplicate code found with other-file.ts:50–65
 ```
@@ -279,6 +282,7 @@ Add new rules to `.ci/rules/semgrep/`:
 ```
 
 Each rule includes:
+
 - `id`: Unique identifier — Semgrep only allows `[a-zA-Z0-9._-]`, so use dots
   as separators (e.g., `typescript.security.no-hardcoded-secrets`), never `/`
 - `pattern`: Semgrep pattern syntax to match — must be valid, parseable code
@@ -291,11 +295,12 @@ Each rule includes:
 - `languages`: Target languages (e.g., `typescript`, `javascript`)
 
 **Example rule:**
+
 ```yaml
 rules:
   - id: typescript.security.dangerous-regexp
     patterns:
-      - pattern: new RegExp($EXPR)  # Without Regex.escape or validation
+      - pattern: new RegExp($EXPR) # Without Regex.escape or validation
     message: Regular expression from untrusted input is a ReDoS risk.
     severity: WARNING
     languages: [typescript, javascript]
@@ -341,6 +346,7 @@ explicit install steps to `quality.yml`, which does not currently exist.
 ### By Tool
 
 **ESLint / TypeScript / Prettier** (inline, preferred):
+
 ```typescript
 // eslint-disable-next-line no-unsafe-optional-chaining
 const x = obj?.method?.();
@@ -354,6 +360,7 @@ const z = 'long string that should not be formatted';
 
 **Semgrep** (baseline file):
 Edit `.ci/baselines/.semgrep.json`:
+
 ```json
 [
   {
@@ -367,12 +374,14 @@ Edit `.ci/baselines/.semgrep.json`:
 ```
 
 **Hadolint** (inline in Dockerfile):
+
 ```dockerfile
 # hadolint disable=DL3007
 FROM node:latest
 ```
 
 **Actionlint** (workflow YAML comment):
+
 ```yaml
 jobs:
   # actionlint disable SC2086
@@ -383,11 +392,13 @@ jobs:
 ### Expiration Policy
 
 Every suppression **must** include an expiration date (6–12 months):
+
 - **6 months**: False positives or temporary workarounds
 - **12 months**: Longer-term technical debt
 - **Never "permanent"**: If truly permanent, close as won't-fix
 
 On expiration date, re-evaluate and either:
+
 - Remove the suppression (issue fixed)
 - Update expiration date (still needed)
 - Close as won't-fix (decision made)
@@ -397,6 +408,7 @@ On expiration date, re-evaluate and either:
 Two independent mechanisms, deliberately not merged into one:
 
 **`gate.sh` fails CI (exit 1) only for:**
+
 - A scanner execution/configuration error — a tool crashing (OOM, signal
   kill), a missing required tool, an invalid rule file, or a missing/invalid
   merged SARIF. Tracked per-tool in `scanner-status.txt`, written by `run.sh`.
@@ -404,11 +416,13 @@ Two independent mechanisms, deliberately not merged into one:
   SARIF is repo-wide, and gating on it would fail every PR on the backlog.
 
 **reviewdog fails the PR check only for:**
+
 - A newly-introduced `error`-level finding on an added/changed line
   (`-filter-mode=added -fail-on-error`, pull_request event only)
 - Warnings and notes are posted as annotations without failing
 
 **PR Behavior:**
+
 - Only **new/modified** findings can fail the check — via reviewdog, not `gate.sh`
 - Baseline findings are NOT re-reported and never fail a PR on their own
 - Historical findings remain in the merged SARIF artifact and in `gate.sh`'s
@@ -419,6 +433,7 @@ Two independent mechanisms, deliberately not merged into one:
 To enable Code Scanning upload:
 
 1. **Set repository variable:**
+
    ```
    Repo settings → Secrets and variables → Variables
    Add: ENABLE_CODE_SCANNING = true
@@ -432,6 +447,7 @@ To enable Code Scanning upload:
    ```
 
 **Notes:**
+
 - Upload is **optional**; pipeline is fully functional without it
 - Uses category `quality-pipeline` to avoid mixing with other scanners
 - Only runs on default branch (not on PRs or scheduled runs)
@@ -440,6 +456,7 @@ To enable Code Scanning upload:
 ## Limitations
 
 This pipeline replaces SonarQube CE's **scanning and quality gates**, but **not:**
+
 - Centralized dashboard / issue management (use GitHub Issues + Projects)
 - Historical trend analysis (use GitHub Actions artifacts + external analytics)
 - Hotspot prioritization by risk score (use code review processes)
@@ -452,6 +469,7 @@ For centralized metrics, export SARIF data to a data warehouse or analytics plat
 ### Workflow doesn't trigger
 
 Check:
+
 - Branch matches `main` for PRs
 - `fetch-depth: 0` is set (required for reviewdog diffs)
 - Concurrency rules don't cancel the run
@@ -459,6 +477,7 @@ Check:
 ### Tools report "not found"
 
 Locally:
+
 - Install: `pnpm install` (ESLint, TypeScript, Prettier)
 - Install system tools: `brew install semgrep hadolint actionlint` (macOS), `npm install -g jscpd reviewdog`
 - Ensure tools are in `$PATH`
@@ -474,6 +493,7 @@ existing script.
 On the current runner, reviewdog isn't installed at all (see Known Gap) — the step prints
 `reviewdog not found in PATH; skipping PR check` and exits `0` unconditionally. If/when
 reviewdog is installed in CI again, the remaining checks are:
+
 - Workflow has `pull-requests: write` permission
 - `REVIEWDOG_GITHUB_API_TOKEN` is set — reviewdog's GitHub reporters read
   this specific variable name, **not** `GITHUB_TOKEN`
@@ -485,11 +505,13 @@ reviewdog is installed in CI again, the remaining checks are:
 ### SARIF validation fails
 
 Check with jq:
+
 ```bash
 jq . .ci/quality/reports/quality.sarif > /dev/null && echo "Valid"
 ```
 
 For individual tool output:
+
 ```bash
 jq . .ci/quality/reports/eslint.sarif
 ```

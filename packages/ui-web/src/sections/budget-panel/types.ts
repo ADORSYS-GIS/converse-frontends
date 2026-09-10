@@ -6,7 +6,7 @@ export interface BudgetSummaryReady {
   ceiling: number;
   /** Fraction (0-1) at/past which the meter turns `--signal`. Defaults to `BudgetHero`'s own 0.9. */
   threshold?: number;
-  /** Inter prose caption, e.g. "account ceiling · 28% used · resets 01 Mar". */
+  /** Inter prose caption, e.g. "account ceiling · 28% used this budget period". */
   caption: string;
 }
 
@@ -35,6 +35,44 @@ export interface BudgetSummaryError {
  */
 export type BudgetSummary =
   BudgetSummaryReady | BudgetSummaryUnwired | BudgetSummaryLoading | BudgetSummaryError;
+
+/**
+ * The account's next budget reset (converse-frontends#451, story C8) — resolved by
+ * `getEffectiveResetSchedule`, which answers with the WINNING schedule for this account
+ * (account > billing_plan > global). Precedence is the backend's answer and is never recomputed
+ * here, so a card can never disagree with what the scheduler will actually do.
+ *
+ * `'none'` is a real, explicit line ("No reset scheduled"), NOT a hidden block: the story's own
+ * negative acceptance criterion says so, and for good reason — blank space beside a balance reads
+ * as "it will be topped up somehow", which is exactly the belief this feature exists to replace.
+ * `'unavailable'` is the separate, honest case where the read itself could not be made (no
+ * `budget:read` on this session, a forbidden account) and the console must not claim either way.
+ */
+export type BudgetNextReset =
+  | { status: 'scheduled'; /** e.g. "Next reset in 3 days → $2.00 (reset)". */ label: string }
+  | { status: 'none' }
+  | { status: 'loading' }
+  | { status: 'unavailable'; caption: string };
+
+/**
+ * Spend over the window since the reset schedule LAST fired (owner question, 2026-09-03) — the
+ * companion row to `BudgetNextReset`, and the answer to the question the hero above cannot give.
+ *
+ * The hero's numeral and the "Budget remaining" stat beside it are both measured over the ledger's
+ * `Period` — the calendar month — because that is what the ledger itself means by `remaining`
+ * (`effective_budget_micros` − month-to-date spend), and a console that redefined it would be
+ * showing a number the backend would never agree with. But an operator on a $2/day reset is asking
+ * "how much of TODAY's $2 is gone", which is a different window and therefore a different row.
+ *
+ * `'none'` renders NOTHING here, unlike `BudgetNextReset`'s own `'none'`: without a schedule the
+ * phrase "since last reset" names no window at all, and a line reading "since the period started"
+ * would restate the hero's own figure under a second name.
+ */
+export type BudgetSinceReset =
+  | { status: 'ready'; /** e.g. "Spent since last reset $0.84 · 2 h ago". */ label: string }
+  | { status: 'none' }
+  | { status: 'loading' }
+  | { status: 'unavailable'; caption: string };
 
 export interface BudgetNeedsAttentionProject {
   name: string;
@@ -66,6 +104,19 @@ export interface BudgetPanelProps {
    * `BudgetHeroProps.action`'s own "only present once breached" convention.
    */
   heroAction?: ReactNode;
+  /**
+   * The next reset line, under the hero (story C8). Unlike every other optional block on this
+   * panel, `'none'` still RENDERS — see `BudgetNextReset`. Omitting the prop entirely is for a
+   * caller that has not adopted schedules at all (the loading skeleton, a story predating them);
+   * a caller wired to `getEffectiveResetSchedule` always passes one of the four states.
+   */
+  nextReset?: BudgetNextReset;
+  /**
+   * The "spent since last reset" row, ABOVE the next-reset line (owner question, 2026-09-03) —
+   * the two read as one pair: what this cycle has drawn, then when the next one starts. See
+   * `BudgetSinceReset` for why its `'none'` renders nothing where `nextReset`'s renders a line.
+   */
+  sinceReset?: BudgetSinceReset;
   /** Omitted entirely when no project is near its ceiling — never an empty placeholder block. */
   needsAttentionProject?: BudgetNeedsAttentionProject;
   onRequestRefill?: () => void;

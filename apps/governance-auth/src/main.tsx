@@ -40,3 +40,16 @@ createRoot(rootElement).render(
     <CallbackPage status={status} />
   </StrictMode>
 );
+
+// Dev-time accessibility reporting (#443): axe over the live DOM, findings in the browser console.
+// Same `import.meta.env.DEV` compile-time constant `devStatusOverride` above relies on, and the
+// same consequence — the branch, the dynamic `import()` and `axe-core` behind it are all
+// eliminated from `dist`. This app's `scripts/verify-single-file.mjs` inlines everything into one
+// HTML file, so anything that survived would be impossible to miss; the grep proving it does not
+// is in `docs/knowledge/accessibility.md`. `@axe-core/react` is deliberately not used — see
+// `packages/ui-web/src/dev/axe-reporter.ts` for the React 19 reason.
+if (import.meta.env.DEV) {
+  void import('@lightbridge/ui-web/src/dev/axe-reporter').then(({ startDevA11yReporter }) =>
+    startDevA11yReporter({ appName: 'governance-auth' })
+  );
+}

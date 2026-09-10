@@ -6,7 +6,7 @@ import { useState } from 'react';
 
 import { useConsoleAuthzClient } from '../client/rpc-clients';
 import { useConsoleScope } from '../client/use-console-scope';
-import { SETTINGS_DIALOG_OPTIONS, useSettingsParams } from '../client/url-state';
+import { CONSOLE_DIALOGS, useUrlDialog } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { PROJECT_NAME_MUTATION_KEY } from './use-project-settings-screen';
 import { classifyProjectNameError } from './rpc-field-error';
@@ -33,10 +33,10 @@ import { classifyProjectNameError } from './rpc-field-error';
  * one case that DOES matter: a pending/failed rename fired from one screen stays visible if a link
  * somehow lands on the other mid-flight.
  *
- * `?rename=true` (`settingsParsers.projectNameOpen`) is reused verbatim rather than a new param:
- * it is already exactly "is the project-rename dialog open", and this hook never touches
- * `renameProjectId` (`?row=`) at all — the TARGET here is whichever project the ledger's own
- * `?row=` selection already names (passed in as `project`), not a second, redundant id param.
+ * `?dialog=rename-project` (`CONSOLE_DIALOGS`, migrated 2026-09-03 from `?rename=true`) carries no
+ * `dialog-id` and does not need one: the TARGET here is whichever project the ledger's own `?row=`
+ * SELECTION already names (passed in as `project`), and a second, redundant id param could
+ * contradict it. Selection and modal are separate facts, so they stay separate params.
  */
 export interface ProjectRenameController {
   dialog: ProjectNameDialogProps;
@@ -48,7 +48,7 @@ export function useProjectRename(
 ): ProjectRenameController {
   const client = useConsoleAuthzClient();
   const scope = useConsoleScope();
-  const [view, setView] = useSettingsParams();
+  const renameDialog = useUrlDialog(CONSOLE_DIALOGS.renameProject);
 
   /**
    * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — same clause `use-project-settings-screen.ts`
@@ -67,12 +67,12 @@ export function useProjectRename(
     onSuccess: () => {
       scope.refetch();
       setNameDraft('');
-      void setView({ projectNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
+      renameDialog.close();
     },
   });
 
   const fieldErrors = action.errorMessage ? classifyProjectNameError(action.errorMessage) : {};
-  const open = view.projectNameOpen && project !== null;
+  const open = renameDialog.open && project !== null;
   const canSubmit =
     project !== null && nameDraft.trim().length > 0 && nameDraft.trim() !== project.name;
 
@@ -81,7 +81,7 @@ export function useProjectRename(
       if (project === null) return;
       if (action.errorMessage) action.dismiss();
       setNameDraft(project.name);
-      void setView({ projectNameOpen: true }, SETTINGS_DIALOG_OPTIONS);
+      renameDialog.openDialog();
     },
     dialog: {
       open,
@@ -100,7 +100,7 @@ export function useProjectRename(
       onCancel: () => {
         if (action.errorMessage) action.dismiss();
         setNameDraft('');
-        void setView({ projectNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
+        renameDialog.close();
       },
     },
   };

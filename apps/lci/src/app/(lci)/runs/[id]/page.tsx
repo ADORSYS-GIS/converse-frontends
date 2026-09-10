@@ -14,5 +14,12 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
 
   const reviewResult = taskResult.ok && taskResult.data ? await getReview(id) : null;
 
-  return <RunDetailCentre taskResult={taskResult} reviewResult={reviewResult} now={now} />;
+  return (
+    <RunDetailCentre
+      taskResult={taskResult}
+      reviewResult={reviewResult}
+      now={now}
+      grafanaBaseUrl={process.env.NEXT_PUBLIC_GRAFANA_URL ?? null}
+    />
+  );
 }

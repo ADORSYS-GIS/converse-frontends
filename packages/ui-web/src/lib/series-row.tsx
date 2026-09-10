@@ -41,6 +41,13 @@ export interface SeriesRowProps {
   ariaLabel?: string;
   /** Omitted for a read-only row, which then renders `disabled`. */
   onSelect?: () => void;
+  /**
+   * A destination for this row. When set the row is an `<a>` rather than a `<button>` — the SAME
+   * row, only reached differently, exactly the split `RankedSeriesRows` already makes for its own
+   * `hrefFor`. A link WINS over `onSelect`: a row that both navigated and toggled a selection would
+   * do two things on one click, and the navigation is the one the reader asked for.
+   */
+  href?: string;
 }
 
 export function SeriesRow({
@@ -52,7 +59,31 @@ export function SeriesRow({
   pressed,
   ariaLabel,
   onSelect,
+  href,
 }: SeriesRowProps) {
+  // Identical cell content either way — extracted rather than duplicated so a linked row and a
+  // selectable row can never drift into two different rows.
+  const cells = (
+    <>
+      <span aria-hidden="true" className="series-swatch" style={{ backgroundColor: color }} />
+      <span className="series-label">{label}</span>
+      {value ? <span className="series-value">{value}</span> : null}
+      {percent === undefined ? null : <span className="series-percent">{percent}</span>}
+    </>
+  );
+
+  if (href) {
+    return (
+      <a
+        href={href}
+        aria-label={ariaLabel}
+        data-emphasized={emphasized ? 'true' : 'false'}
+        className="series-row">
+        {cells}
+      </a>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -62,10 +93,7 @@ export function SeriesRow({
       aria-label={ariaLabel}
       data-emphasized={emphasized ? 'true' : 'false'}
       className="series-row">
-      <span aria-hidden="true" className="series-swatch" style={{ backgroundColor: color }} />
-      <span className="series-label">{label}</span>
-      {value ? <span className="series-value">{value}</span> : null}
-      {percent === undefined ? null : <span className="series-percent">{percent}</span>}
+      {cells}
     </button>
   );
 }

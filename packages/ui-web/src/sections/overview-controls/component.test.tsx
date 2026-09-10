@@ -5,7 +5,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { presetRange } from '../../components/date-range-field';
 import { OverviewControls } from './component';
 import type { OverviewControlsField } from './types';
-import { BUCKET_OPTIONS, GROUP_BY_OPTIONS, PROJECT_FILTER_OPTIONS, RANGE_PRESETS } from './fixtures';
+import {
+  BUCKET_OPTIONS,
+  GROUP_BY_OPTIONS,
+  PROJECT_FILTER_OPTIONS,
+  RANGE_PRESETS,
+} from './fixtures';
 
 function field(
   label: string,
@@ -79,7 +84,10 @@ describe('OverviewControls', () => {
   it('changing a select calls that field own onChange with the new value', async () => {
     const onChange = vi.fn();
     render(
-      <OverviewControls {...base} bucketField={field('Bucket', 'daily', BUCKET_OPTIONS, onChange)} />
+      <OverviewControls
+        {...base}
+        bucketField={field('Bucket', 'daily', BUCKET_OPTIONS, onChange)}
+      />
     );
 
     fireEvent.click(screen.getByLabelText('Bucket'));
@@ -99,11 +107,14 @@ describe('OverviewControls', () => {
     expect(onPresetChange).toHaveBeenCalledWith('7d');
   });
 
-  it('is one landmark region, and a horizontal cluster (PageHeader.controls), not a stacked rail', () => {
-    render(<OverviewControls {...base} />);
+  // 2026-09-03 (ADR 0015 amendment A2): this cluster is a FRAGMENT now, not its own landmark. The
+  // `<section aria-label>` and the `flex flex-wrap items-end gap-3` it used to carry are
+  // `PageControls`' — the page-level control row — so four sibling clusters stopped spelling the
+  // same four utilities. What this asserts is that it did NOT keep a wrapper of its own.
+  it('renders no wrapper of its own — `PageControls` owns the row', () => {
+    const { container } = render(<OverviewControls {...base} />);
 
-    const region = screen.getByRole('region', { name: 'View and filters' });
-    expect(region).toHaveClass('flex-wrap', 'items-end');
-    expect(region).not.toHaveClass('flex-col');
+    expect(container.querySelector('section')).toBeNull();
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
   });
 });

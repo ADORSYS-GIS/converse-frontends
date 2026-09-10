@@ -13,7 +13,7 @@ const baseProps: ApiKeysLedgerProps = {
   onRequestRevoke: vi.fn(),
   onConfirmRevoke: vi.fn(),
   onCancelRevoke: vi.fn(),
-  isAdmin: true,
+  canDelete: true,
   onRequestDelete: vi.fn(),
   onConfirmDelete: vi.fn(),
   onCancelDelete: vi.fn(),
@@ -37,10 +37,14 @@ describe('ApiKeysLedger', () => {
     expect(container.querySelector('.secret-strip')).toBeNull();
   });
 
-  it('renders the compact-tier trigger slot in the table toolbar', () => {
-    render(<ApiKeysLedger {...baseProps} toolbarActions={<button type="button">Open filters</button>} />);
-
-    expect(screen.getByRole('button', { name: 'Open filters' })).toBeInTheDocument();
+  // 2026-09-03 (owner directive "filters are outside cards", ADR 0015 amendment A2): the compact-
+  // tier FILTERS trigger — a control row inside the very card it filtered — is deleted, and every
+  // parameter is a `PageControls` group on the floor at every tier. What is left in this card is
+  // the table and its pager.
+  it('renders no control row of its own — the card is content only', () => {
+    const { container } = render(<ApiKeysLedger {...baseProps} />);
+    expect(container.querySelector('input')).toBeNull();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
   describe('revoke gating flow', () => {
@@ -201,7 +205,7 @@ describe('ApiKeysLedger', () => {
     });
 
     it('is unavailable to a non-admin — omitted, not shown disabled with no explanation', () => {
-      render(<ApiKeysLedger {...baseProps} isAdmin={false} />);
+      render(<ApiKeysLedger {...baseProps} canDelete={false} />);
 
       // Rotate and Revoke stay reachable; only the admin-gated Delete action disappears.
       const group = screen.getByRole('group', { name: `${apiKeysFixture[0].name} actions` });

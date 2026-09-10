@@ -20,7 +20,7 @@ const projects = [
 ];
 
 const meta: Meta<typeof ScopeSelect> = {
-  title: 'Forms & actions/ScopeSelect',
+  title: 'Primitives/Fields/ScopeSelect',
   component: ScopeSelect,
 };
 

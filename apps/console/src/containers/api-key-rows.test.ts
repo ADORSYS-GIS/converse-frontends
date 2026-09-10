@@ -214,7 +214,9 @@ describe('apiKeysAccountFilters', () => {
     const accountB = apiKeysAccountFilters({ projectId: null, accountProjectIds: ['proj_b1'] });
 
     expect(accountA).not.toEqual(accountB);
-    expect(accountA).toEqual([{ field: 'projectId', operator: 'in', value: ['proj_a1', 'proj_a2'] }]);
+    expect(accountA).toEqual([
+      { field: 'projectId', operator: 'in', value: ['proj_a1', 'proj_a2'] },
+    ]);
     expect(accountB).toEqual([{ field: 'projectId', operator: 'in', value: ['proj_b1'] }]);
   });
 

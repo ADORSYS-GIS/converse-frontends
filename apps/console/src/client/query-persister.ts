@@ -33,7 +33,21 @@ export function createIndexedDbPersister(key: string = CACHE_KEY): Persister {
 export const QUERY_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Cache buster. Keyed on the app version so a deploy that changes a payload shape discards the
- * previous cache instead of rehydrating objects the new code cannot read.
+ * Cache buster: a deploy that changes a payload shape must DISCARD the previous cache rather than
+ * rehydrate objects the new code cannot read.
+ *
+ * Keyed on the build SHA, not the app version. `NEXT_PUBLIC_APP_VERSION` is
+ * `apps/console/package.json`'s `version`, which is `0.0.0` and has never moved — so the buster it
+ * produced was one frozen string for the entire life of the app, and the "discards the previous
+ * cache" property this constant exists for was never actually true in production. That is what
+ * turned the 2026-09-03 `resolveUserProfiles` shape collision (see
+ * `containers/user-profiles-query.ts`) from a transient mismatch into a sticky, 24-hour,
+ * every-page crash: the poisoned entry outlived every deploy that could have cleared it.
+ *
+ * `NEXT_PUBLIC_BUILD_SHA` is inlined by `next build` and set per build in CI
+ * (`.github/workflows/docker-image.yml`), so it changes on every deploy — which is exactly the
+ * granularity a shape change needs. The version stays as the fallback for a local `next build`
+ * that sets no SHA, and `'dev'` for `next dev`.
  */
-export const QUERY_CACHE_BUSTER = process.env.NEXT_PUBLIC_APP_VERSION ?? 'dev';
+export const QUERY_CACHE_BUSTER =
+  process.env.NEXT_PUBLIC_BUILD_SHA || process.env.NEXT_PUBLIC_APP_VERSION || 'dev';

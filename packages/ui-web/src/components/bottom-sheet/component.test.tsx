@@ -12,7 +12,7 @@ describe('BottomSheet — transient modal drawer', () => {
     render(
       <BottomSheet open={false} onOpenChange={vi.fn()} title="Nav">
         <div>Drawer content</div>
-      </BottomSheet>,
+      </BottomSheet>
     );
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -23,7 +23,7 @@ describe('BottomSheet — transient modal drawer', () => {
     render(
       <BottomSheet open onOpenChange={vi.fn()} title="Nav">
         <div>Drawer content</div>
-      </BottomSheet>,
+      </BottomSheet>
     );
 
     expect(screen.getByText('Drawer content')).toBeInTheDocument();
@@ -36,7 +36,7 @@ describe('BottomSheet — transient modal drawer', () => {
     render(
       <BottomSheet open onOpenChange={onOpenChange} title="Nav">
         <div>Drawer content</div>
-      </BottomSheet>,
+      </BottomSheet>
     );
 
     screen.getByRole('button', { name: 'Close' }).click();
@@ -49,7 +49,7 @@ describe('BottomSheet — transient modal drawer', () => {
     render(
       <BottomSheet open onOpenChange={onOpenChange} title="Nav">
         <div>Drawer content</div>
-      </BottomSheet>,
+      </BottomSheet>
     );
 
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
@@ -63,7 +63,7 @@ describe('BottomSheet — transient modal drawer', () => {
     render(
       <BottomSheet open onOpenChange={vi.fn()} title="Filters">
         <div>Bottom content</div>
-      </BottomSheet>,
+      </BottomSheet>
     );
 
     expect(screen.getByRole('dialog')).toHaveAttribute('data-swipe-direction', 'down');
@@ -73,7 +73,7 @@ describe('BottomSheet — transient modal drawer', () => {
     render(
       <BottomSheet open onOpenChange={vi.fn()} title="Filters">
         <div>Bottom content</div>
-      </BottomSheet>,
+      </BottomSheet>
     );
 
     expect(document.querySelector('.sheet-handle')).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe('BottomSheet — transient modal drawer', () => {
     render(
       <BottomSheet open onOpenChange={vi.fn()} title="gateway-prod" subtitle="adorsys-gis">
         <div>Content</div>
-      </BottomSheet>,
+      </BottomSheet>
     );
 
     expect(screen.getByText('adorsys-gis')).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe('BottomSheet — transient modal drawer', () => {
         title="gateway-prod"
         footer={<button type="button">Rename</button>}>
         <div>Content</div>
-      </BottomSheet>,
+      </BottomSheet>
     );
 
     expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
@@ -107,7 +107,7 @@ describe('BottomSheet — transient modal drawer', () => {
     render(
       <BottomSheet open onOpenChange={vi.fn()} title="gateway-prod">
         <div>Content</div>
-      </BottomSheet>,
+      </BottomSheet>
     );
 
     expect(document.querySelector('.sheet-footer')).not.toBeInTheDocument();
@@ -117,7 +117,7 @@ describe('BottomSheet — transient modal drawer', () => {
     render(
       <BottomSheet open onOpenChange={vi.fn()}>
         <div>Untitled content</div>
-      </BottomSheet>,
+      </BottomSheet>
     );
 
     expect(screen.getByRole('dialog', { name: 'Drawer' })).toBeInTheDocument();
@@ -130,7 +130,7 @@ describe('BottomSheet — transient modal drawer', () => {
     render(
       <BottomSheet open onOpenChange={vi.fn()} title="Nav" portalClassName="lg:hidden">
         <div>Drawer content</div>
-      </BottomSheet>,
+      </BottomSheet>
     );
 
     const portal = document.querySelector('[data-base-ui-portal]');
@@ -139,7 +139,7 @@ describe('BottomSheet — transient modal drawer', () => {
     expect(portal).toContainElement(document.querySelector(BACKDROP));
     // Base UI's own press-absorber: fixed, full-bleed, and carrying no class we could target.
     const pressAbsorber = portal?.querySelector<HTMLElement>(
-      ':scope > [role="presentation"]:not([class])',
+      ':scope > [role="presentation"]:not([class])'
     );
     expect(pressAbsorber?.style.position).toBe('fixed');
   });

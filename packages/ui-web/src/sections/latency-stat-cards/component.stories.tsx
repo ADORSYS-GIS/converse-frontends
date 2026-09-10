@@ -5,7 +5,7 @@ import { LatencyStatCards } from './component';
 import { latencyStatRows, latencyStatRowsEmpty } from './fixtures';
 
 const meta: Meta<typeof LatencyStatCards> = {
-  title: 'Sections/LatencyStatCards',
+  title: 'Sections/Usage/LatencyStatCards',
   component: LatencyStatCards,
   parameters: { layout: 'fullscreen' },
   args: { rows: latencyStatRows },
@@ -26,6 +26,18 @@ export const Populated: Story = {};
 export const PopulatedLight: Story = {
   name: 'Populated — wireframe (light)',
   globals: { theme: 'wireframe' },
+};
+
+/** The 390px tier — the cards stack to one column, and the three figure columns keep their grid
+ *  inside a full-width card. The legibility check the owner's 2026-09-03 directive asks for is at
+ *  BOTH ends: 1440 (four cards across, the tightest the figures ever get) and this. */
+export const MobileBaseTier: Story = {
+  globals: { viewport: { value: 'base390' } },
+};
+
+export const MobileBaseTierLight: Story = {
+  name: 'Mobile — wireframe (light)',
+  globals: { viewport: { value: 'base390' }, theme: 'wireframe' },
 };
 
 /** Every row has zero latency-bearing samples — the whole zone renders one inline status line. */

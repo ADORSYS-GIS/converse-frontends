@@ -20,3 +20,9 @@ packages/authz-rpc/generated/
 gha-creds-*.json
 .opencode/
 opencode.json
+
+# Helm dependency tarballs vendored by `helm dependency update` into charts/<name>/charts/.
+# Regenerated on demand from Chart.lock (which IS committed) by every consumer, including
+# publish-charts-oci.yml's own `helm dependency build` — committing the .tgz would put a
+# multi-hundred-KB binary under review on every dependency bump for no gain.
+charts/*/charts/

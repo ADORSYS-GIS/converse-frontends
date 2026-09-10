@@ -54,7 +54,7 @@ export type JwtValidationResult = {
 /**
  * Decode a JWT token without verification
  * This extracts the payload claims for inspection
- * 
+ *
  * @param token - The JWT token string
  * @returns Decoded payload or null if decoding fails
  */
@@ -62,7 +62,7 @@ export function decodeJwt(token: string): JwtPayload | null {
   try {
     // JWT consists of three Base64URL-encoded parts: header.payload.signature
     const parts = token.split('.');
-    
+
     if (parts.length !== 3) {
       console.warn('[JWT] Invalid token format: expected 3 parts');
       return null;
@@ -70,18 +70,16 @@ export function decodeJwt(token: string): JwtPayload | null {
 
     // Decode the payload (second part)
     const payloadBase64 = parts[1];
-    
+
     // Convert Base64URL to Base64 if needed
-    const base64 = payloadBase64
-      .replace(/-/g, '+')
-      .replace(/_/g, '/');
-    
+    const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+
     // Pad with '=' if needed
     const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-    
+
     // Decode Base64 to string
     const payloadJson = atob(padded);
-    
+
     // Parse JSON
     return JSON.parse(payloadJson) as JwtPayload;
   } catch (error) {
@@ -99,33 +97,29 @@ function atob(input: string): string {
   if (typeof globalThis.atob === 'function') {
     return globalThis.atob(input);
   }
-  
+
   // Fallback for environments without atob
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
   let output = '';
-  
+
   for (let i = 0; i < input.length; i += 4) {
     const a = chars.indexOf(input.charAt(i));
     const b = chars.indexOf(input.charAt(i + 1));
     const c = chars.indexOf(input.charAt(i + 2));
     const d = chars.indexOf(input.charAt(i + 3));
-    
+
     const bitmap = (a << 18) | (b << 12) | (c << 6) | d;
-    
-    output += String.fromCharCode(
-      (bitmap >> 16) & 255,
-      (bitmap >> 8) & 255,
-      bitmap & 255
-    );
+
+    output += String.fromCharCode((bitmap >> 16) & 255, (bitmap >> 8) & 255, bitmap & 255);
   }
-  
+
   // Remove padding characters
   return output.replace(/\0+$/, '');
 }
 
 /**
  * Check if an audience claim matches the expected audience(s)
- * 
+ *
  * @param tokenAudience - The audience from the token (string or array)
  * @param expectedAudience - Expected audience(s) to match
  * @returns True if there's at least one matching audience
@@ -143,12 +137,12 @@ export function isAudienceValid(
   const expectedAudiences = Array.isArray(expectedAudience) ? expectedAudience : [expectedAudience];
 
   // Check for intersection
-  return tokenAudiences.some(aud => expectedAudiences.includes(aud));
+  return tokenAudiences.some((aud) => expectedAudiences.includes(aud));
 }
 
 /**
  * Validate a JWT token's audience claim
- * 
+ *
  * @param token - The JWT token string
  * @param options - Validation options
  * @returns Validation result with payload and any errors
@@ -177,7 +171,7 @@ export function validateJwtAudience(
   if (checkExpiration && payload.exp) {
     const now = Math.floor(Date.now() / 1000);
     const expirationWithSkew = payload.exp + clockSkewSeconds;
-    
+
     if (now > expirationWithSkew) {
       errors.push(`Token expired at ${new Date(payload.exp * 1000).toISOString()}`);
     }
@@ -194,7 +188,7 @@ export function validateJwtAudience(
       const actual = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
       errors.push(
         `Token audience mismatch. Expected one of: ${expected.join(', ')}, ` +
-        `got: ${actual.join(', ')}`
+          `got: ${actual.join(', ')}`
       );
     }
   }
@@ -208,13 +202,13 @@ export function validateJwtAudience(
 
 /**
  * Extract the audience claim from a JWT token
- * 
+ *
  * @param token - The JWT token string
  * @returns The audience claim (as array for consistency) or null if not found/invalid
  */
 export function getJwtAudience(token: string): string[] | null {
   const payload = decodeJwt(token);
-  
+
   if (!payload?.aud) {
     return null;
   }
@@ -224,25 +218,25 @@ export function getJwtAudience(token: string): string[] | null {
 
 /**
  * Check if a token is expired
- * 
+ *
  * @param token - The JWT token string
  * @param clockSkewSeconds - Clock skew tolerance in seconds (default: 60)
  * @returns True if token is expired or invalid
  */
 export function isJwtExpired(token: string, clockSkewSeconds = 60): boolean {
   const payload = decodeJwt(token);
-  
+
   if (!payload?.exp) {
     return true; // No expiration = consider expired for safety
   }
 
   const now = Math.floor(Date.now() / 1000);
-  return now > (payload.exp + clockSkewSeconds);
+  return now > payload.exp + clockSkewSeconds;
 }
 
 /**
  * Get the subject (user ID) from a JWT token
- * 
+ *
  * @param token - The JWT token string
  * @returns The subject claim or null if not found
  */

@@ -29,6 +29,14 @@ function baseForm(
 ): AdminRefillPoliciesFormScreen {
   return {
     mode: 'create',
+    // The real hook always returns this on the create route (issue #445) — the edit route never
+    // does, which is what `admin-refill-policies-centre.test.tsx` asserts from the other side.
+    startFromExample: {
+      onStart: vi.fn(),
+      confirmOpen: false,
+      onConfirm: vi.fn(),
+      onCancelConfirm: vi.fn(),
+    },
     policySetId: '',
     onPolicySetIdChange: vi.fn(),
     policySetIdReadOnly: false,
@@ -64,7 +72,11 @@ describe('AdminRefillPolicyCreateCentre', () => {
   it('titles the page "New refill policy" — no target id to author a replacement for yet', () => {
     return renderCentre().then(() => {
       expect(screen.getByText('New refill policy')).toBeInTheDocument();
-      expect(screen.getByText('Author a brand-new policy set from scratch.')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'Author a brand-new policy set from scratch — or start from the example and edit it.'
+        )
+      ).toBeInTheDocument();
     });
   });
 
@@ -86,6 +98,50 @@ describe('AdminRefillPolicyCreateCentre', () => {
     await renderCentre();
 
     expect(screen.getByLabelText('Policy set id')).not.toBeDisabled();
+  });
+
+  // Issue #445 — the example affordances.
+  it('shows the policy set id example under its label, not as a placeholder', async () => {
+    await renderCentre();
+
+    const control = screen.getByLabelText('Policy set id');
+    expect(control).not.toHaveAttribute('placeholder');
+    const describedBy = control.getAttribute('aria-describedby') as string;
+    expect(document.getElementById(describedBy)?.textContent).toBe('e.g. budget-refill-2026-09');
+  });
+
+  it('offers "Start from example policy" and hands the press to the screen', async () => {
+    const onStart = vi.fn();
+    await renderCentre({
+      startFromExample: {
+        onStart,
+        confirmOpen: false,
+        onConfirm: vi.fn(),
+        onCancelConfirm: vi.fn(),
+      },
+    });
+
+    screen.getByRole('button', { name: 'Start from example policy' }).click();
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('gates the overwrite behind a confirmation when the screen says the draft is dirty', async () => {
+    const onConfirm = vi.fn();
+    await renderCentre({
+      startFromExample: {
+        onStart: vi.fn(),
+        confirmOpen: true,
+        onConfirm,
+        onCancelConfirm: vi.fn(),
+      },
+    });
+
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(screen.getByText('Replace this draft with the example policy?')).toBeInTheDocument();
+
+    screen.getByRole('button', { name: 'Replace my draft' }).click();
+    expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
   it('cancel navigates back to the list rather than clearing a mode param — there is none here', async () => {

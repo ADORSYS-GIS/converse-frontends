@@ -5,6 +5,8 @@ import type { SubNavItem } from '@lightbridge/ui-web/src/components/sub-nav';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { useTranslation } from '../i18n/client';
+
 /**
  * The horizontal tab row shared by all three screens under `/settings/accounts/<id>/*`
  * (IA v3 phase E, task item 6 — "Inside an account detail, sub-navigation ... for
@@ -20,6 +22,7 @@ import { usePathname } from 'next/navigation';
  * rail-row treatment `NavSpine`/`ConsoleSidebar` use — see `SubNavProps`' own doc comment.
  */
 export function AccountDetailSubNav({ accountId }: { accountId: string }) {
+  const { t } = useTranslation('nav');
   // `usePathname()` reads `null` outside a mounted Next.js app router (e.g. a container-level
   // test rendered with no router context) rather than throwing — normalized to `''` so `active`
   // below degrades to "nothing is active" instead of crashing on `null.startsWith`.
@@ -27,16 +30,21 @@ export function AccountDetailSubNav({ accountId }: { accountId: string }) {
   const base = `/settings/accounts/${accountId}`;
 
   const items: SubNavItem[] = [
-    { key: 'overview', label: 'Overview', href: base, active: pathname === base },
+    {
+      key: 'overview',
+      label: t('sub-nav.account-overview'),
+      href: base,
+      active: pathname === base,
+    },
     {
       key: 'projects',
-      label: 'Projects',
+      label: t('sub-nav.account-projects'),
       href: `${base}/projects`,
       active: pathname.startsWith(`${base}/projects`),
     },
     {
       key: 'request-refill',
-      label: 'Request refill',
+      label: t('sub-nav.account-request-refill'),
       href: `${base}/request-refill`,
       active: pathname.startsWith(`${base}/request-refill`),
     },

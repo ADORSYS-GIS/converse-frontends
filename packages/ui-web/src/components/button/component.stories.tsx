@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Button } from './component';
 
 const meta: Meta<typeof Button> = {
-  title: 'Forms & actions/Button',
+  title: 'Primitives/Actions/Button',
   component: Button,
   args: {
     children: 'Continue',

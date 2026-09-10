@@ -5,16 +5,17 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { SecretReveal } from './component';
 
 const meta: Meta<typeof SecretReveal> = {
-  title: 'Forms & actions/SecretReveal',
+  title: 'Primitives/Actions/SecretReveal',
   component: SecretReveal,
   args: {
     heading: 'New key created — shown once',
-    description: 'Copy it now. Lightbridge stores only the prefix; this value can never be retrieved again.',
+    description:
+      'Copy it now. Lightbridge stores only the prefix; this value can never be retrieved again.',
     secret: 'sk-lb-Xq7T4mA9vR2nK8sE1wYb6tZ0pL5cJ3dF',
     onDismiss: fn(),
   },
   render: (args) => (
-    <div className="w-[872px] bg-muted p-4">
+    <div className="bg-muted w-[872px] p-4">
       <SecretReveal {...args} />
     </div>
   ),
@@ -30,7 +31,14 @@ export const PreCopy: Story = {
 export const PostCopy: Story = {
   name: 'After copy (confirmation shown)',
   beforeEach: () => {
-    Object.assign(navigator, { clipboard: { writeText: fn().mockResolvedValue(undefined) } });
+    // `defineProperty`, not `Object.assign`: in a real browser `navigator.clipboard` is an
+    // accessor with no setter, and assigning to it throws `Cannot set property clipboard of
+    // #<Navigator> which has only a getter`. jsdom happens to allow the assignment, which is why
+    // this only surfaced under the browser-mode a11y run (`vitest.storybook.config.mts`).
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: fn().mockResolvedValue(undefined) },
+    });
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

@@ -2,6 +2,8 @@
 
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
+import { useTranslation } from '../../../i18n/client';
+
 /**
  * `/settings/*`'s own Suspense fallback — every segment under this group is `force-dynamic`
  * (`settings/layout.tsx`), so without a loading boundary a navigation into any of the five live
@@ -13,9 +15,10 @@ import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
  * route-specific skeleton would be replaced by the real content within one paint either way.
  */
 export default function SettingsLoading() {
+  const { t } = useTranslation('settings');
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Settings" subtitle="Loading…" />
+      <PageHeader title={t('area.title')} subtitle={t('area.loading')} />
     </div>
   );
 }

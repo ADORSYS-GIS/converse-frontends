@@ -26,6 +26,8 @@ import {
   API_KEY_PROJECT_OPTIONS,
   API_KEY_STATUS_OPTIONS,
 } from '../sections/api-keys-controls/fixtures';
+import { SelectField } from '../components/select-field';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import { RefineMockShell } from './shared-chrome';
 
@@ -52,8 +54,8 @@ export function RefineApiKeysScreen() {
   const [revokeTarget, setRevokeTarget] = useState<ApiKeysRevokeTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiKeysDeleteTarget | null>(null);
   // Demo-only toggle for the admin gate (ticket #321) — `apps/console` reads this from the real
-  // session (`useConsoleSession().isAdmin`) instead.
-  const [isAdmin, setIsAdmin] = useState(true);
+  // session (`useConsoleSession().canDelete`) instead.
+  const [canDelete, setCanDelete] = useState(true);
 
   const filters = useMemo<CrudFilter[]>(() => {
     const next: CrudFilter[] = [];
@@ -124,21 +126,6 @@ export function RefineApiKeysScreen() {
       <div className="flex flex-col gap-6">
         <PageHeader
           title="API keys"
-          controls={
-            <ApiKeysControls
-              projectField={{
-                label: 'Project',
-                value: project,
-                options: API_KEY_PROJECT_OPTIONS,
-                onChange: setProject,
-              }}
-              statusOptions={API_KEY_STATUS_OPTIONS}
-              statusValue={statusFilterValue}
-              onStatusChange={setStatusFilterValue}
-              search={search}
-              onSearchChange={setSearch}
-            />
-          }
           action={
             // `+ New key` stays enabled at "All projects" (live findings #4, 2026-08-30): a key
             // belongs to exactly one project, but which one is the real dialog's own question
@@ -151,13 +138,45 @@ export function RefineApiKeysScreen() {
           }
         />
 
+        <PageControls
+          groups={[
+            {
+              id: 'scope',
+              label: 'Scope',
+              children: (
+                <SelectField
+                  label="Project"
+                  layout="inline"
+                  hideLabel
+                  value={project}
+                  options={API_KEY_PROJECT_OPTIONS}
+                  onChange={setProject}
+                />
+              ),
+            },
+            {
+              id: 'slice',
+              label: 'Filters',
+              children: (
+                <ApiKeysControls
+                  statusOptions={API_KEY_STATUS_OPTIONS}
+                  statusValue={statusFilterValue}
+                  onStatusChange={setStatusFilterValue}
+                  search={search}
+                  onSearchChange={setSearch}
+                />
+              ),
+            },
+          ]}
+        />
+
         {rows.length > 0 ? <ApiKeysHygieneNotes hygiene={apiKeysHygiene} /> : null}
 
         {/* Demo-only affordance for the ticket #321 admin gate; `apps/console` has no equivalent —
             it reads the real session instead. Was a button inside the deleted LIFECYCLE rail
             panel (owner review 2026-08-29). */}
-        <Button type="button" variant="secondary" onClick={() => setIsAdmin((value) => !value)}>
-          {isAdmin ? 'Demo: acting as admin' : 'Demo: acting as non-admin'}
+        <Button type="button" variant="secondary" onClick={() => setCanDelete((value) => !value)}>
+          {canDelete ? 'Demo: acting as admin' : 'Demo: acting as non-admin'}
         </Button>
 
         {/* Addition D (2026-08-30) — CREATE's own secret would show inside a real
@@ -237,7 +256,7 @@ export function RefineApiKeysScreen() {
               );
             }}
             onCancelRevoke={() => setRevokeTarget(null)}
-            isAdmin={isAdmin}
+            canDelete={canDelete}
             onRequestDelete={(row) => setDeleteTarget({ row })}
             deleteTarget={deleteTarget}
             onConfirmDelete={(row) => {

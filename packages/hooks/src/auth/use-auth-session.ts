@@ -60,7 +60,7 @@ export function validateStoredTokenAudience(
     return {
       audience: getJwtAudience(accessToken) ?? undefined,
       valid: true,
-      errors: []
+      errors: [],
     };
   }
 
@@ -73,9 +73,7 @@ export function validateStoredTokenAudience(
     });
 
     const rawAud = result.payload?.aud;
-    const audience = rawAud
-      ? (Array.isArray(rawAud) ? rawAud : [rawAud])
-      : undefined;
+    const audience = rawAud ? (Array.isArray(rawAud) ? rawAud : [rawAud]) : undefined;
 
     return {
       audience,
@@ -88,7 +86,7 @@ export function validateStoredTokenAudience(
   return {
     audience: getJwtAudience(accessToken) ?? undefined,
     valid: true,
-    errors: []
+    errors: [],
   };
 }
 

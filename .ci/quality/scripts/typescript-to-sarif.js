@@ -25,8 +25,7 @@ const sarrifResults = [];
 
 // Parse TypeScript compiler output
 // Format: path/to/file.ts(line,col): error/warning TS1234: message
-const tsErrorRegex =
-  /^(.+?)\((\d+),(\d+)\):\s+(error|warning)\s+TS(\d+):\s+(.+)$/gm;
+const tsErrorRegex = /^(.+?)\((\d+),(\d+)\):\s+(error|warning)\s+TS(\d+):\s+(.+)$/gm;
 let match;
 
 while ((match = tsErrorRegex.exec(logContent)) !== null) {

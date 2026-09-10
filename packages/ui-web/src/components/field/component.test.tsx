@@ -65,6 +65,41 @@ describe('Field', () => {
     expect(control.tagName).toBe('TEXTAREA');
   });
 
+  // Issue #445 — the example slot.
+  it('renders the example under the label and describes the control with it', () => {
+    render(<Field label="Refill ladder" example="e.g. 2, 5, 10, 25" />);
+
+    const control = screen.getByLabelText('Refill ladder');
+    const describedBy = control.getAttribute('aria-describedby') as string;
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy)?.textContent).toBe('e.g. 2, 5, 10, 25');
+  });
+
+  it('describes the control with the example AND the error when both are present', () => {
+    render(
+      <Field label="Refill ladder" example="e.g. 2, 5, 10, 25" error="Enter a positive amount." />
+    );
+
+    const control = screen.getByLabelText('Refill ladder');
+    const described = (control.getAttribute('aria-describedby') as string)
+      .split(' ')
+      .map((id) => document.getElementById(id)?.textContent);
+    expect(described).toEqual(['e.g. 2, 5, 10, 25', 'Enter a positive amount.']);
+  });
+
+  it('keeps the example on screen while the control has a value — it is not a placeholder', () => {
+    render(<Field label="Refill ladder" example="e.g. 2, 5, 10, 25" defaultValue="7" />);
+
+    expect(screen.getByText('e.g. 2, 5, 10, 25')).toBeInTheDocument();
+  });
+
+  it('drops the example in the inline layout, where there is no room under the label', () => {
+    render(<Field label="Refill ladder" example="e.g. 2, 5, 10, 25" layout="inline" />);
+
+    expect(screen.queryByText('e.g. 2, 5, 10, 25')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Refill ladder')).not.toHaveAttribute('aria-describedby');
+  });
+
   it('does not mark a valid control as invalid', () => {
     render(<Field label="Key name" />);
 

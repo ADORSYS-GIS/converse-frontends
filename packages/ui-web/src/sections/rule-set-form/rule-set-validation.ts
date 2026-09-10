@@ -98,7 +98,11 @@ export function toRuleDataJson(value: RuleSetValue): string {
 function validateThreshold(threshold: ThresholdConditionValue): ThresholdErrors | undefined {
   const parsed = parseThresholdValue(threshold);
   if (parsed === null) {
-    return { value: isMoneyField(threshold.field) ? 'Enter a non-negative amount.' : 'Enter a whole number, 0 or greater.' };
+    return {
+      value: isMoneyField(threshold.field)
+        ? 'Enter a non-negative amount.'
+        : 'Enter a whole number, 0 or greater.',
+    };
   }
   return undefined;
 }
@@ -135,7 +139,8 @@ function validateRule(rule: RuleValue): RuleErrors | undefined {
 export function validateRuleSet(value: RuleSetValue): RuleSetErrors | undefined {
   const errors: RuleSetErrors = {};
 
-  if (value.policyRevision.trim() === '') errors.policyRevision = 'Policy revision must not be empty.';
+  if (value.policyRevision.trim() === '')
+    errors.policyRevision = 'Policy revision must not be empty.';
   if (value.defaultReasonCode.trim() === '') {
     errors.defaultReasonCode = 'Default reason code must not be empty.';
   }

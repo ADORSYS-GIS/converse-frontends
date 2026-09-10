@@ -16,13 +16,18 @@ import type { ReportExportDialogProps } from './types';
 // wrapper idiom" every other console dialog follows (`lib/dialog.ts`'s shared `DIALOG_*` classes —
 // see `CreateProjectDialog` for the idiom this repeats). The report's own scope select stays
 // inside `ReportExportPanel`, unchanged.
-export function ReportExportDialog({ open, onOpenChange, ...panel }: ReportExportDialogProps) {
+export function ReportExportDialog({
+  open,
+  onOpenChange,
+  title = 'Monthly report',
+  ...panel
+}: ReportExportDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={(nextOpen) => onOpenChange(nextOpen)}>
       <Dialog.Portal>
         <Dialog.Backdrop className={DIALOG_BACKDROP_CLASS} />
         <Dialog.Popup className={DIALOG_POPUP_CLASS}>
-          <Dialog.Title className={DIALOG_TITLE_CLASS}>Monthly report</Dialog.Title>
+          <Dialog.Title className={DIALOG_TITLE_CLASS}>{title}</Dialog.Title>
 
           <div className={DIALOG_BODY_CLASS}>
             <ReportExportPanel {...panel} />

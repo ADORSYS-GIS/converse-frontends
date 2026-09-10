@@ -1,5 +1,6 @@
 <!-- ai-governance:stanza -->
 <!-- BEGIN: AI Governance stanza (managed by ADORSYS-GIS/ai-governance) -->
+
 ## AI Governance
 
 AI may accelerate the work, but humans own intent, verification, and consequences.

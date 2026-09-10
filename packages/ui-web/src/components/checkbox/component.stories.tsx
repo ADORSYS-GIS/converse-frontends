@@ -5,7 +5,7 @@ import { Checkbox, CheckboxGroup } from './component';
 import { LABEL_CLASS } from '../../lib/type-roles';
 
 const meta: Meta<typeof Checkbox> = {
-  title: 'Forms & actions/Checkbox',
+  title: 'Primitives/Actions/Checkbox',
   component: Checkbox,
   parameters: { layout: 'padded' },
   decorators: [

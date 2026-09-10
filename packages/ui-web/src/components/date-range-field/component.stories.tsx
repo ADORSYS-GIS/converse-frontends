@@ -13,7 +13,7 @@ const PRESETS: DateRangePreset[] = [
 ];
 
 const meta: Meta<typeof DateRangeField> = {
-  title: 'Components/DateRangeField',
+  title: 'Primitives/Fields/DateRangeField',
   component: DateRangeField,
   parameters: { layout: 'padded' },
   args: {

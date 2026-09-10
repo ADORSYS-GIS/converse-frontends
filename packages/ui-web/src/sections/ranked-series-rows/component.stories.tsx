@@ -11,7 +11,7 @@ import {
 } from './fixtures';
 
 const meta: Meta<typeof RankedSeriesRows> = {
-  title: 'Sections/RankedSeriesRows',
+  title: 'Sections/Usage/RankedSeriesRows',
   component: RankedSeriesRows,
   parameters: { layout: 'fullscreen' },
   args: {

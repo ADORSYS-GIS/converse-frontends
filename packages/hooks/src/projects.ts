@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useTranslation } from '@lightbridge/i18n';
 import type {
   JsonValue,
   ModelCatalogEntry,
@@ -638,9 +637,19 @@ export function useDeleteProject() {
   };
 }
 
+/**
+ * The auto-provisioned project's name.
+ *
+ * A literal, and deliberately NOT a translated string (ADR 0017). This value is not copy on a
+ * screen: it is written to the authz database as `Project.name` and read back by everyone with
+ * access to the account, in whatever language each of them happens to read in. Translating it at
+ * creation time would mean the same project is called different things depending on who
+ * bootstrapped the account — a stored fact bent by a browser preference. The person renames it.
+ */
+const DEFAULT_PROJECT_NAME = 'Default project';
+
 export function useEnsureDefaultProject() {
   const queryClient = useQueryClient();
-  const { t } = useTranslation();
   const { session } = useAuthSession();
 
   const mutation = useMutation({
@@ -667,7 +676,7 @@ export function useEnsureDefaultProject() {
 
       const created = await getAuthzRpcClient().projects.create(
         buildCreateProjectInput(accountId, {
-          name: t('project.defaultName'),
+          name: DEFAULT_PROJECT_NAME,
           billingPlan: 'free',
           billingIdentity: payer,
         })

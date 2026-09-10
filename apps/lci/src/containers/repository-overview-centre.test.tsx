@@ -31,7 +31,7 @@ describe('RepositoryOverviewCentre', () => {
       <RepositoryOverviewCentre
         result={{ ok: false, reason: 'unavailable' } as ApiResult<Repository | null>}
         now={NOW}
-        grafanaConfigured={false}
+        grafanaBaseUrl={null}
       />
     );
 
@@ -41,11 +41,7 @@ describe('RepositoryOverviewCentre', () => {
 
   it('renders nothing for a not-found repository (ok, null data)', () => {
     const { container } = render(
-      <RepositoryOverviewCentre
-        result={{ ok: true, data: null }}
-        now={NOW}
-        grafanaConfigured={false}
-      />
+      <RepositoryOverviewCentre result={{ ok: true, data: null }} now={NOW} grafanaBaseUrl={null} />
     );
     expect(container).toBeEmptyDOMElement();
   });
@@ -55,7 +51,7 @@ describe('RepositoryOverviewCentre', () => {
       <RepositoryOverviewCentre
         result={{ ok: true, data: baseRepo() }}
         now={NOW}
-        grafanaConfigured={false}
+        grafanaBaseUrl={null}
       />
     );
 
@@ -74,7 +70,7 @@ describe('RepositoryOverviewCentre', () => {
           data: baseRepo({ last_task_at: null, approved_by: null, approved_at: null }),
         }}
         now={NOW}
-        grafanaConfigured={false}
+        grafanaBaseUrl={null}
       />
     );
 
@@ -87,24 +83,33 @@ describe('RepositoryOverviewCentre', () => {
       <RepositoryOverviewCentre
         result={{ ok: true, data: baseRepo() }}
         now={NOW}
-        grafanaConfigured={false}
+        grafanaBaseUrl={null}
       />
     );
 
     expect(screen.getByText('NEXT_PUBLIC_GRAFANA_URL')).toBeInTheDocument();
+    expect(screen.queryByTitle('Billed cost')).not.toBeInTheDocument();
   });
 
-  it('shows the not-yet-wired message when Grafana is configured, rather than a fake chart', () => {
+  it('embeds the real cost and token panels, scoped to this repo, when Grafana is configured', () => {
     render(
       <RepositoryOverviewCentre
         result={{ ok: true, data: baseRepo() }}
         now={NOW}
-        grafanaConfigured={true}
+        grafanaBaseUrl="https://grafana.example.com"
       />
     );
 
-    expect(
-      screen.getByText('Grafana embed configured, panel wiring not ported yet.')
-    ).toBeInTheDocument();
+    const cost = screen.getByTitle('Billed cost');
+    expect(cost.tagName).toBe('IFRAME');
+    expect(cost.getAttribute('src')).toContain(
+      'https://grafana.example.com/d-solo/lci-review-cost'
+    );
+    expect(cost.getAttribute('src')).toContain('var-repo=platform-team%2Fplatform-team-repo-21');
+
+    expect(screen.getByTitle('Tokens used').getAttribute('src')).toContain(
+      '/d-solo/lci-review-quality'
+    );
+    expect(screen.queryByText('NEXT_PUBLIC_GRAFANA_URL')).not.toBeInTheDocument();
   });
 });

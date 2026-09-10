@@ -15,7 +15,6 @@
   "dependencies": {
     "@lightbridge/api-native": "workspace:*",
     "@lightbridge/authz-rpc": "workspace:*",
-    "@lightbridge/i18n": "workspace:*",
     "@react-native-community/netinfo": "^12.0.1",
     "@tanstack/react-db": "^0.1.69",
     "@tanstack/react-query": "^5.101.4",

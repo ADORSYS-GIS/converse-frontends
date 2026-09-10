@@ -141,7 +141,7 @@ const footer = (
 );
 
 const meta: Meta<typeof ConsoleSidebar> = {
-  title: 'Sections/ConsoleSidebar',
+  title: 'Shell/ConsoleSidebar',
   component: ConsoleSidebar,
   parameters: { layout: 'fullscreen' },
 };

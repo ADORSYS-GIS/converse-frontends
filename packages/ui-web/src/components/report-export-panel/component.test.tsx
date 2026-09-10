@@ -114,3 +114,67 @@ describe('ReportExportPanel', () => {
     expect(onGroupByChange).toHaveBeenCalledWith('project');
   });
 });
+
+/**
+ * The DASHBOARD-page shape (converse-frontends#453): the period picker, the scope slot and the
+ * group-by control are ABSENT, not disabled — a dashboard report's window comes from the page's
+ * own range picker (echoed read-only), its scope from the route, and its grouping from
+ * `dashboards.yaml`. A control that appeared to change any of those would be lying.
+ */
+describe('ReportExportPanel — dashboard page export', () => {
+  function renderDashboardPanel(
+    overrides: Partial<React.ComponentProps<typeof ReportExportPanel>> = {}
+  ) {
+    const onGenerate = vi.fn();
+    const onToggleInclude = vi.fn();
+    const onFormatChange = vi.fn();
+    render(
+      <ReportExportPanel
+        rangeEcho="This month · 1 – 14 Sep 2026 · UTC"
+        includeToggles={[{ id: 'tables', label: 'Include tables', checked: true }]}
+        onToggleInclude={onToggleInclude}
+        format="pdf"
+        onFormatChange={onFormatChange}
+        onGenerate={onGenerate}
+        {...overrides}
+      />
+    );
+    return { onGenerate, onToggleInclude, onFormatChange };
+  }
+
+  it('echoes the range as text and offers no period, scope or group-by control', () => {
+    renderDashboardPanel();
+
+    expect(screen.getByText('This month · 1 – 14 Sep 2026 · UTC')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Period')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Group by' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Group by')).not.toBeInTheDocument();
+  });
+
+  it('still generates, reporting the format and the include toggles and nothing else', () => {
+    const { onGenerate } = renderDashboardPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate report' }));
+
+    expect(onGenerate).toHaveBeenCalledWith({
+      period: undefined,
+      groupBy: undefined,
+      format: 'pdf',
+      includes: ['tables'],
+    });
+  });
+
+  it('renders a failure as a retryable ErrorLine while keeping every input', () => {
+    const onRetry = vi.fn();
+    renderDashboardPanel({
+      error: { message: 'The report renderer is unreachable.', onRetry },
+    });
+
+    expect(screen.getByText('The report renderer is unreachable.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetry).toHaveBeenCalled();
+    // The form is intact: the format control and the primary are both still there.
+    expect(screen.getByRole('button', { name: 'Generate report' })).toBeInTheDocument();
+    expect(screen.getByText('This month · 1 – 14 Sep 2026 · UTC')).toBeInTheDocument();
+  });
+});

@@ -5,6 +5,7 @@ This directory contains approved exceptions, suppressions, and baseline findings
 ## Purpose
 
 Baselines allow the team to:
+
 - Accept unavoidable technical debt or false positives with full documentation
 - Track the reason and expiration date for each suppression
 - Prevent repeated reporting of known, non-actionable findings
@@ -17,6 +18,7 @@ Baselines allow the team to:
 Semgrep findings that have been reviewed and approved for suppression.
 
 **Format:**
+
 ```json
 [
   {
@@ -31,6 +33,7 @@ Semgrep findings that have been reviewed and approved for suppression.
 ```
 
 **Fields:**
+
 - `ruleId`: Semgrep rule identifier (from rule YAML)
 - `filePath`: Repository-relative file path
 - `expiresAt`: ISO 8601 date when suppression should be revisited (required)
@@ -39,6 +42,7 @@ Semgrep findings that have been reviewed and approved for suppression.
 - `ticket`: GitHub issue or PR reference (optional)
 
 **Adding a suppression:**
+
 1. Review the finding in the Semgrep report or PR comment
 2. Verify it is a false positive or acceptable exception
 3. Add entry to this file with reason and expiration date (typically 6–12 months from now)
@@ -49,6 +53,7 @@ Semgrep findings that have been reviewed and approved for suppression.
 Secrets or credential patterns that have been reviewed and are not true leaks.
 
 **Format:**
+
 ```json
 [
   {
@@ -78,6 +83,7 @@ Suppressions **must** include an `expiresAt` date. This forces periodic review:
 - **Never "permanent"**: If an issue will never be fixed, close it as won't-fix or escalate
 
 On or before the expiration date:
+
 1. Re-run the scanner
 2. Check if the underlying issue has been fixed
 3. Either remove the suppression or update the expiration date with a new reason
@@ -87,18 +93,21 @@ On or before the expiration date:
 Where possible, use the scanner's native inline suppression syntax instead of this file:
 
 **ESLint:**
+
 ```typescript
 // eslint-disable-next-line no-unsafe-optional-chaining
 const x = obj?.method?.();
 ```
 
 **TypeScript:**
+
 ```typescript
 // @ts-ignore — Type guard is runtime-only
 const isString = (x): x is string => typeof x === 'string';
 ```
 
 **Prettier:**
+
 ```typescript
 // prettier-ignore
 const reallyLongFormattedString = 'this will not be reformatted';

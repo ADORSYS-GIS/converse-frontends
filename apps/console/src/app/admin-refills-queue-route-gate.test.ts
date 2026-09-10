@@ -27,24 +27,23 @@ describe('the /admin/refills-queue role gate', () => {
     const source = readFileSync(join(process.cwd(), REFILLS_QUEUE_SEGMENT), 'utf8');
 
     expect(source).toContain('readSession()');
-    expect(source).toContain('isAdmin(session.user.roles)');
+    expect(source).toContain('can(session, PERMISSION.budgetReview)');
     expect(source).toContain('notFound()');
   });
 
-  it('gates both nav surfaces that link to it, cosmetic but must not regress into "shown then 404s"', () => {
-    // Neither nav row stays visible for a non-admin — cosmetic, but it must not regress into
-    // "shown and then 404s", which advertises the route to everyone. `navGroups`' own `isAdmin`
-    // param gates the account-area Operator group's "Refill requests" row (into `/admin/overview`);
-    // `adminNavGroups` is only ever called once the caller has already checked `session.isAdmin`
-    // (`ConsoleSidebarContent`'s own branch) — both fed from the session by
-    // `client/console-chrome.tsx`'s callers.
-    const chrome = readFileSync(
-      join(process.cwd(), 'src', 'client', 'console-chrome.tsx'),
-      'utf8'
-    );
+  it('gates the nav row that links to it, cosmetic but must not regress into "shown then 404s"', () => {
+    // The row must not stay visible for a caller who lacks `budget:review` — cosmetic, but it must
+    // not regress into "shown and then 404s", which advertises the route to everyone.
+    // converse-frontends#452 moved this from `adminNavGroups` being called only for an admin at
+    // all, to `adminNavGroups` filtering EACH row against the caller's own permission set: admin
+    // is four independent grants now, so "the whole nav or none of it" is no longer a truthful
+    // shape.
+    const chrome = readFileSync(join(process.cwd(), 'src', 'client', 'console-chrome.tsx'), 'utf8');
 
-    expect(chrome).toContain('isAdmin: boolean');
     expect(chrome).toContain('export function adminNavGroups');
+    // The row and its gate are declared together, so neither can be edited without the other.
+    expect(chrome).toContain('permission: PERMISSION.budgetReview');
+    expect(chrome).toContain('hasPermission(permissions, destination.permission)');
   });
 
   it('never leaves the review-detail sheet as a route segment the gate above does not cover', () => {

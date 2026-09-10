@@ -51,7 +51,7 @@ function ModalDrawer({ subtitle, footer }: { subtitle?: string; footer?: React.R
 }
 
 const meta: Meta<typeof BottomSheet> = {
-  title: 'Shell/BottomSheet',
+  title: 'Primitives/Overlays/BottomSheet',
   component: BottomSheet,
   parameters: { layout: 'fullscreen' },
 };

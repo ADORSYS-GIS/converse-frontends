@@ -63,7 +63,7 @@ describe('SubNav', () => {
 
     expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute(
       'href',
-      '/manage/projects',
+      '/manage/projects'
     );
   });
 
@@ -75,14 +75,14 @@ describe('SubNav', () => {
         <a href={href} data-testid="custom-link" {...rest}>
           {children}
         </a>
-      ),
+      )
     );
 
     render(
       <SubNav
         items={[{ key: 'projects', label: 'Projects', href: '/manage/projects' }]}
         linkComponent={CustomLink}
-      />,
+      />
     );
 
     expect(CustomLink).toHaveBeenCalled();

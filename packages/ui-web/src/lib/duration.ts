@@ -68,17 +68,52 @@ function groupThousands(integerPart: string): string {
 
 /** Formats the `>= 1000 ms` band: seconds, with adaptive precision, rolling over into `m s` past
  *  a minute. `ms` is already known finite and non-negative by the time this runs. */
-function formatSeconds(ms: number): string {
+function splitSeconds(ms: number): DurationParts {
   const totalSeconds = ms / 1000;
   if (totalSeconds < 60) {
     const decimals = totalSeconds < 10 ? 2 : 1;
-    return `${totalSeconds.toFixed(decimals)} s`;
+    return { value: totalSeconds.toFixed(decimals), unit: 's' };
   }
 
   const wholeSeconds = Math.round(totalSeconds);
   const minutes = Math.floor(wholeSeconds / 60);
   const seconds = wholeSeconds % 60;
-  return `${groupThousands(String(minutes))} m ${String(seconds).padStart(2, '0')} s`;
+  // Past a minute the duration is a COMPOUND of two units (`1 m 27 s`), so there is no single unit
+  // to hand a caller that wants to set it beside the figure — `unit: ''` says exactly that rather
+  // than picking one of the two and lying about the other. See `splitMs`'s own doc comment.
+  return {
+    value: `${groupThousands(String(minutes))} m ${String(seconds).padStart(2, '0')} s`,
+    unit: '',
+  };
+}
+
+/**
+ * A duration split into the FIGURE and the UNIT beside it.
+ *
+ * `formatMs` returns the two joined, which is right for a tooltip line or a ledger cell. It is
+ * wrong for a stat figure: a card that renders `412 ms` as one string sets `ms` at the numeral's
+ * own size and weight, so the unit competes with the number instead of qualifying it (owner
+ * directive, 2026-09-03, on `LatencyStatCards`: "Those numbers should appear clear"). Splitting
+ * lets a caller give the figure the metric type role and the unit a `meta` one beside it.
+ *
+ * `unit` is the EMPTY STRING for the two shapes that have no single unit to set beside a figure:
+ * a broken/negative input (the em dash is the whole answer) and the past-a-minute `1 m 27 s`
+ * compound. A caller renders the unit span only when the string is non-empty; it must never
+ * fabricate one.
+ */
+export interface DurationParts {
+  /** The figure as it reads — `412`, `4.2`, `<1`, `1.24`, `1 m 27 s`, `—`. */
+  value: string;
+  /** `ms`, `s`, or `''` when the value carries its own units (or is not a duration at all). */
+  unit: string;
+}
+
+export function splitMs(ms: number): DurationParts {
+  if (!Number.isFinite(ms) || ms < 0) return { value: BROKEN_VALUE, unit: '' };
+  if (ms < 1) return { value: '<1', unit: 'ms' };
+  if (ms < 10) return { value: ms.toFixed(1), unit: 'ms' };
+  if (ms < 1000) return { value: String(Math.round(ms)), unit: 'ms' };
+  return splitSeconds(ms);
 }
 
 /**
@@ -86,15 +121,14 @@ function formatSeconds(ms: number): string {
  * per the ladder documented at the top of this file: `<1 ms`, `4.2 ms`, `412 ms`, `1.24 s`,
  * `12.4 s`, `1 m 03 s`.
  *
- * Use this everywhere a duration is being ASSERTED. The only exception is a chart's axis, where
- * the label marks a gridline rather than states a value -- see `formatMsAxis`.
+ * Use this everywhere a duration is being ASSERTED as ONE string. Two exceptions: a chart's axis,
+ * where the label marks a gridline rather than states a value (`formatMsAxis`), and a stat figure
+ * that sets its unit beside the numeral rather than inside it (`splitMs`). All three read the same
+ * precision ladder — this one is `splitMs` joined by a space.
  */
 export function formatMs(ms: number): string {
-  if (!Number.isFinite(ms) || ms < 0) return BROKEN_VALUE;
-  if (ms < 1) return '<1 ms';
-  if (ms < 10) return `${ms.toFixed(1)} ms`;
-  if (ms < 1000) return `${Math.round(ms)} ms`;
-  return formatSeconds(ms);
+  const { value, unit } = splitMs(ms);
+  return unit ? `${value} ${unit}` : value;
 }
 
 /** The mantissa of an abbreviated axis tick: at most one decimal, no pad zero (`1`, `1.5`, `30`) --

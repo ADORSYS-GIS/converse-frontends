@@ -3,6 +3,21 @@
 Frontend monorepo for Lightbridge/GIS's self-service console: a Next.js web application, its
 shared DOM component package, and the generated RPC/REST clients it talks through.
 
+## Roadmap
+
+[`docs/ROADMAP.md`](docs/ROADMAP.md) is the single matrix of what this repository has built and what
+it has not — grouped by workstream, with every row carrying a state (`Done`, `Done, unverified`,
+`Partial`, `Missing`, `Broken`, `Flaky`, `Not future-proof`, `Decision needed`) and a citation: a PR,
+an issue, a commit SHA, or a `path:line` in this tree. It deliberately records the unflattering rows
+too — the gates that pass without enforcing anything, the ratchets that will stop ratcheting, and the
+decisions still waiting on an owner.
+
+Two rules keep it from rotting. **A merged PR updates its row in the same PR** — the row is part of
+the change, like the ADR amendment or the test. **A newly-found gap gets a row before it gets an
+issue** — the row is cheap and immediately visible; the issue is the expensive follow-up. Never
+promote a row on a claim: `Done, unverified` becomes `Done` only when the Evidence column names a
+live probe or a green CI run.
+
 ## Why This Project
 
 This repository exists to:
@@ -16,13 +31,16 @@ This repository exists to:
   - chart math (scales, bins, colour ramps) in `packages/chart-core`
   - generated RPC client in `packages/authz-rpc`
   - generated REST client (usage backend) in `packages/api-rest`
-  - translations in `packages/i18n`
+  - OpenTelemetry wiring in `packages/otel`
+  - translations in `apps/console/locales/` (there is no `packages/i18n` — ADR 0017 D7)
 - support runtime configuration per environment (no rebuild needed)
 
 ## Tech Stack
 
 - Next.js (App Router) + React 19, Node runtime (`apps/console`)
 - Vite + React 19 + react-router, static SPA, no server code (`apps/authz-ui`)
+- Vite + React 19, single self-contained HTML page embedded at compile time into
+  `lightbridge-governance` (`apps/governance-auth`)
 - Tailwind v4 + daisyUI + Base UI + cmdk + Floating UI (see ADR 0010)
 - refine.dev for CRUD scaffolding against cratestack-generated RPC resources
 - TanStack Query
@@ -38,20 +56,28 @@ apps/
                        #   device-pairing flow (routes/manifest, forms post to authz-idp
                        #   endpoints), built with base /ui/ and served same-origin by
                        #   lightbridge-authz's authz-idp (ADR-0021)
+  governance-auth/     # Vite + React 19 — single self-contained HTTP callback page that
+                       #   lightbridge-governance include_str!s at compile time into its
+                       #   OAuth2 loopback redirect (no server, no CSP); shipped as an
+                       #   OCI artifact, not a container image
+  lci/                 # Next.js code-intelligence app (ADR 0014)
+  typst-render/        # Node sidecar that compiles a .typ template to PDF (ADR 0015 D5)
 packages/
   ui-web/              # DOM UI primitives + screen sections
   chart-core/          # DOM-free chart math (scales, bins, colour ramp)
   authz-rpc/           # Generated RPC client (cratestack)
   api-rest/            # Generated REST client (usage backend, Hey API)
+  otel/                # OpenTelemetry SDK wiring for the two Next.js server apps
   hooks/               # Query/service hooks
   api-native/          # Native-capability wrappers (currently unused by apps/console)
-  i18n/                # i18n provider + resources
 openapi/
   usage.backend.yaml   # OpenAPI source for api-rest codegen
 packages/authz-rpc/schema/
   authz.cstack          # cratestack schema source for authz-rpc codegen
 .github/workflows/
-  docker-image.yml     # Build + push apps/console's container to GHCR
+  docker-image.yml           # Build + push apps/console's container to GHCR
+  authz-ui-image.yml         # Build + push apps/authz-ui's assets-only image to GHCR
+  governance-auth-callback-oci.yml  # Publish apps/governance-auth's single HTML as an OCI artifact
 apps/console/Dockerfile # Production Next.js image build
 compose.yml            # Local Keycloak + wiremock helpers
 ```
@@ -154,3 +180,14 @@ pnpm --dir packages/api-rest codegen
 ```
 
 - Follow project conventions in `AGENTS.md` and the `console-ui` skill (`.claude/skills/console-ui/SKILL.md`) for architecture and coding rules.
+
+## Where to read next
+
+**[`AGENTS.md`](AGENTS.md) is the single entry point** — its §0 indexes every skill
+(`.claude/skills/`), every agent (`.claude/agents/`) and every page in
+[`docs/knowledge/`](docs/knowledge/). Decisions and their alternatives live in
+[`docs/adr/`](docs/adr/).
+
+Other harnesses reach the same files through committed symlinks
+(`.github/copilot-instructions.md`, `GEMINI.md`, `.cursorrules`, `.agents/skills/*`) — see
+[`docs/knowledge/agent-harnesses.md`](docs/knowledge/agent-harnesses.md).

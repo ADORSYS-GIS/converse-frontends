@@ -14,7 +14,10 @@ async function mutate(formData: FormData, action: 'approve' | 'deny'): Promise<v
   if (!result.ok) {
     throw new Error(result.error);
   }
+  // Approving/denying moves a repo between all three admin views at once.
   revalidatePath('/admin');
+  revalidatePath('/admin/accepted');
+  revalidatePath('/admin/denied');
 }
 
 export async function approveRepoAction(formData: FormData): Promise<void> {

@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useResizeObserver } from './use-resize-observer';
 
-type ObserverCallback = (entries: Array<{ contentRect: { width: number; height: number } }>) => void;
+type ObserverCallback = (
+  entries: Array<{ contentRect: { width: number; height: number } }>
+) => void;
 
 let observedCallback: ObserverCallback | null = null;
 let disconnectSpy: ReturnType<typeof vi.fn>;

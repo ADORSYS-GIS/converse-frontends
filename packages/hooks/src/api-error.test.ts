@@ -93,6 +93,73 @@ describe('getApiErrorMessage', () => {
     expect(getApiErrorMessage(null)).toBe('null');
   });
 
+  // --- cratestack 0.11.0 (cratestack/cratestack#869) -----------------------------------------
+  // Before this bump, everything in this block arrived as an undecodable `text/plain` body and
+  // was flattened to GENERIC_ERROR_MESSAGE. Now the middleware emits a real typed envelope, so
+  // `body.message` is a genuine string -- and it is a string written for an operator's log. These
+  // assertions are what stops it reaching a user.
+
+  it('replaces a 429 throttle with our own copy, not the wire message', () => {
+    // Exactly what `RateLimitLayer` puts on the wire for the RPC binding: gRPC-style lowercase
+    // `resource_exhausted`, message "rate limit exceeded". Verified against cratestack-axum
+    // 0.11.0's e2e_ratelimit CBOR dump in cratestack/cratestack#869.
+    const error = new CratestackRpcError(429, {
+      code: 'resource_exhausted',
+      message: 'rate limit exceeded',
+    });
+    const message = getApiErrorMessage(error);
+    expect(message).toBe('Too many requests. Please wait a moment and try again.');
+    expect(message).not.toBe('rate limit exceeded');
+  });
+
+  it('never leaks "rate limit store" to a user when the limiter refuses fail-closed', () => {
+    // lightbridge-authz pins StoreErrorPolicy::Deny, so a Redis outage refuses with 503 and
+    // `cratestack-redis`'s STORE_UNAVAILABLE_MESSAGE verbatim. That names an internal component
+    // the user cannot act on -- the whole reason INFRASTRUCTURE_CODE_MESSAGES exists.
+    const error = new CratestackRpcError(503, {
+      code: 'unavailable',
+      message: 'rate limit store temporarily unavailable',
+    });
+    const message = getApiErrorMessage(error);
+    expect(message).toBe('The service is temporarily unavailable. Please try again in a moment.');
+    expect(message).not.toMatch(/rate limit store/i);
+  });
+
+  it('covers the store-timeout wording too, since the code is what is matched, not the text', () => {
+    const error = new CratestackRpcError(503, {
+      code: 'unavailable',
+      message: 'rate limit store timed out',
+    });
+    expect(getApiErrorMessage(error)).toBe(
+      'The service is temporarily unavailable. Please try again in a moment.'
+    );
+  });
+
+  it('leaves every non-infrastructure code alone, including other 4xx the user can act on', () => {
+    // The override is deliberately narrow: a handler's own message is written for whoever made
+    // the call and must survive verbatim. A regression that widened the map would fail here.
+    for (const [status, code, message] of [
+      [403, 'permission_denied', 'Forbidden: missing required permission: budget:self-refill'],
+      [404, 'not_found', 'No project with that id.'],
+      [400, 'invalid_argument', 'name must be at least 3 characters.'],
+      [409, 'conflict', 'An API key with this name already exists.'],
+    ] as const) {
+      const error = new CratestackRpcError(status, { code, message });
+      expect(getApiErrorMessage(error)).toBe(message);
+    }
+  });
+
+  it('still falls back to the generic message when an infrastructure code has no body message', () => {
+    // `readErrorBody` synthesizes `{code: "internal", ...}` for an empty body, so an `unavailable`
+    // with a placeholder message can only come from a real envelope -- but the code arm wins
+    // either way, which is the point of consulting it first.
+    const error = new CratestackRpcError(500, {
+      code: 'internal',
+      message: 'RPC call returned status 500 with an undecodable error body',
+    });
+    expect(getApiErrorMessage(error)).toBe('Something went wrong. Please try again.');
+  });
+
   it('does NOT read the legacy Axios .response.data shape (this app has no Axios client left)', () => {
     const axiosShapedError = {
       response: { data: 'Forbidden: missing permission' },

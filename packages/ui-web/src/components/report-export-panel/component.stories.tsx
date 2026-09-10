@@ -5,7 +5,7 @@ import { ReportExportPanel } from './component';
 import type { ReportExportFormat, ReportIncludeToggle } from './types';
 
 const meta: Meta<typeof ReportExportPanel> = {
-  title: 'Forms & actions/ReportExportPanel',
+  title: 'Primitives/Overlays/ReportExportPanel',
   component: ReportExportPanel,
 };
 

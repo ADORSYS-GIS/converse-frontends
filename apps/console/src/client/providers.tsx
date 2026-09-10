@@ -35,9 +35,12 @@ import { SerwistProvider } from '@serwist/turbopack/react';
 import dynamic from 'next/dynamic';
 import type { ReactNode } from 'react';
 
-import { BrandingProvider } from './branding-context';
-import { SessionProvider } from './session-context';
+import { ConsoleI18nProvider } from '../i18n/client';
+import type { Locale } from '../i18n/config';
 import type { SessionResponse } from '../shared/session-response';
+import { BrandingProvider } from './branding-context';
+import { ConsoleCopyProvider } from './console-copy';
+import { SessionProvider } from './session-context';
 
 /**
  * Mounts the refine tree browser-only.
@@ -71,6 +74,8 @@ export function Providers({
   session,
   hasLogo,
   hasLogoLight,
+  locale,
+  messages,
   children,
 }: {
   session: SessionResponse;
@@ -80,6 +85,11 @@ export function Providers({
   /** Per-theme logos addendum (owner directive 2026-08-31, "White is for dark themes"): whether
    *  `config.yaml`'s `branding.logoLight` is ALSO configured. */
   hasLogoLight: boolean;
+  /** ADR 0017: the locale this request resolved to, and its whole message bundle. Both come from
+   *  the root layout (the only place `lb.locale`/`Accept-Language` are read) so the server render
+   *  and the first client render use the identical resources. */
+  locale: Locale;
+  messages: Record<string, unknown>;
   children: ReactNode;
 }) {
   return (
@@ -95,11 +105,19 @@ export function Providers({
       swUrl="/serwist/sw.js"
       register={process.env.NODE_ENV === 'production'}
       reloadOnOnline={false}>
-      <SessionProvider value={session}>
-        <BrandingProvider hasLogo={hasLogo} hasLogoLight={hasLogoLight}>
-          <ConsoleProviders>{children}</ConsoleProviders>
-        </BrandingProvider>
-      </SessionProvider>
+      {/* ADR 0017. i18n is the OUTERMOST app-level provider: the shell, every route, the dialogs
+          and `ConsoleCopyProvider` below all read from it, and it must be mounted before anything
+          that could call `t()`. It is NOT inside `ConsoleProviders` (which is `ssr: false`), so a
+          server-rendered route is translated on its first paint rather than after hydration. */}
+      <ConsoleI18nProvider locale={locale} resources={messages}>
+        <ConsoleCopyProvider>
+          <SessionProvider value={session}>
+            <BrandingProvider hasLogo={hasLogo} hasLogoLight={hasLogoLight}>
+              <ConsoleProviders>{children}</ConsoleProviders>
+            </BrandingProvider>
+          </SessionProvider>
+        </ConsoleCopyProvider>
+      </ConsoleI18nProvider>
     </SerwistProvider>
   );
 }

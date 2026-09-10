@@ -4,6 +4,8 @@ import { Card } from '@lightbridge/ui-web/src/components/card';
 import { SkeletonMetric } from '@lightbridge/ui-web/src/components/skeleton-metric';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
+import { useTranslation } from '../../../../../i18n/client';
+
 /**
  * `/admin/refill-policies/create` loading skeleton (owner review round 2, 2026-08-31,
  * converse-frontends#368 finding #4 — create's own route, split off `/admin/refill-policies`'s
@@ -15,9 +17,13 @@ import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
  * wrong shape for a screen with no lookup/ladder/manual zones at all.
  */
 export default function AdminRefillPolicyCreateLoading() {
+  const { t } = useTranslation('admin');
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="New refill policy" subtitle="loading…" />
+      <PageHeader
+        title={t('refill-policies.create.title')}
+        subtitle={t('refill-policies.create.loading')}
+      />
 
       <Card>
         <SkeletonMetric width={200} />

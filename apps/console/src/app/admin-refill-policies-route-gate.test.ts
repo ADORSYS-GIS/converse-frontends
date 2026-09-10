@@ -27,19 +27,20 @@ describe('the /admin/refill-policies role gate', () => {
     const source = readFileSync(join(process.cwd(), REFILL_POLICIES_SEGMENT), 'utf8');
 
     expect(source).toContain('readSession()');
-    expect(source).toContain('isAdmin(session.user.roles)');
+    expect(source).toContain('can(session, PERMISSION.budgetPolicyWrite)');
     expect(source).toContain('notFound()');
   });
 
   it('gates the one nav surface that links to it, cosmetic but must not regress into "shown then 404s"', () => {
-    // `adminNavGroups` is only ever called once the caller has already checked `session.isAdmin`
-    // (`ConsoleSidebarContent`'s own branch) — there is no settings-area row to gate any more,
-    // since the whole destination moved off that area (`settingsNavGroups` no longer lists it at
-    // all, `console-chrome.test.ts`'s own regression guard for that).
+    // `adminNavGroups` filters each row against the caller's own permission set
+    // (converse-frontends#452) — there is no settings-area row to gate any more, since the whole
+    // destination moved off that area (`settingsNavGroups` no longer lists it at all,
+    // `console-chrome.test.ts`'s own regression guard for that).
     const chrome = readFileSync(join(process.cwd(), 'src', 'client', 'console-chrome.tsx'), 'utf8');
 
     expect(chrome).toContain("'refill-policies'");
     expect(chrome).toContain('export function adminNavGroups');
+    expect(chrome).toContain('permission: PERMISSION.budgetPolicyWrite');
   });
 
   it('308s the old /settings/refill-options path to the new one, verbatim query params included', () => {

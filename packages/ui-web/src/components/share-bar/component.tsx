@@ -23,6 +23,10 @@ import type { ShareBarProps, ShareBarSegment } from './types';
 
 const MIN_VISIBLE_PERCENT = 0.6;
 
+/** The collapsed tail's key, folded in by the caller (`collapseSegmentsTail`). Never linked: it is
+ *  several entities at once, and there is no page for "several". */
+const OTHER_KEY = '__other__';
+
 const DEFAULT_EMPTY_MESSAGE = 'No spend in this range.';
 
 function defaultFormatPercent(percent: number): string {
@@ -37,6 +41,7 @@ export function ShareBar({
   segments,
   selectedKey,
   onSelectSegment,
+  hrefFor,
   formatPercent = defaultFormatPercent,
   emptyMessage = DEFAULT_EMPTY_MESSAGE,
   className,
@@ -83,6 +88,7 @@ export function ShareBar({
       <ul>
         {computed.map((segment) => {
           const selected = segment.key === selectedKey;
+          const href = segment.key === OTHER_KEY ? undefined : hrefFor?.(segment);
           return (
             <li key={segment.key}>
               <SeriesRow
@@ -92,6 +98,7 @@ export function ShareBar({
                 percent={formatPercent(segment.percent)}
                 emphasized={selected || Boolean(segment.breached)}
                 pressed={selected}
+                href={href}
                 // Only a breach overrides the name. A plain row's text already reads
                 // "name, value, share" and naming it would throw the numbers away.
                 ariaLabel={segment.breached ? `${segment.label}, over ceiling` : undefined}

@@ -21,5 +21,4 @@ export interface OverviewControlsProps {
    * rendered at all" — never a disabled or dead control.
    */
   projectField?: OverviewControlsField;
-  className?: string;
 }

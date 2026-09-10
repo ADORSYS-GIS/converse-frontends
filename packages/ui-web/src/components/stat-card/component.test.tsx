@@ -18,7 +18,7 @@ describe('StatCard', () => {
         label="SPEND"
         metric="$1.00"
         delta={{ direction: 'up', label: '18% vs prev 30d' }}
-      />,
+      />
     );
 
     const delta = screen.getByText(/18% vs prev 30d/);
@@ -27,7 +27,9 @@ describe('StatCard', () => {
   });
 
   it('renders a flat delta with the subtle tone', () => {
-    render(<StatCard label="Projects" metric="6" delta={{ direction: 'flat', label: 'no change' }} />);
+    render(
+      <StatCard label="Projects" metric="6" delta={{ direction: 'flat', label: 'no change' }} />
+    );
 
     const delta = screen.getByText(/no change/);
     expect(delta).toHaveClass('text-subtle');

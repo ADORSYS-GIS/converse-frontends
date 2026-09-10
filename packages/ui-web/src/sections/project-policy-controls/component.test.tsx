@@ -29,9 +29,7 @@ describe('ProjectPolicyControls', () => {
   it('lists every model-policy option and reports the chosen one', () => {
     const onModelPolicyChange = vi.fn();
     render(
-      <ProjectPolicyControls
-        {...props({ allowedModels: ['gpt-4o'], onModelPolicyChange })}
-      />
+      <ProjectPolicyControls {...props({ allowedModels: ['gpt-4o'], onModelPolicyChange })} />
     );
 
     fireEvent.click(screen.getByLabelText('Model policy'));
@@ -61,7 +59,9 @@ describe('ProjectPolicyControls', () => {
   });
 
   it('enables the allowlist option once at least one model is chosen', () => {
-    render(<ProjectPolicyControls {...props({ modelPolicy: 'allow_all', allowedModels: ['gpt-4o'] })} />);
+    render(
+      <ProjectPolicyControls {...props({ modelPolicy: 'allow_all', allowedModels: ['gpt-4o'] })} />
+    );
 
     fireEvent.click(screen.getByLabelText('Model policy'));
     expect(screen.getByRole('option', { name: 'Allowlist only' })).not.toHaveAttribute(
@@ -71,9 +71,7 @@ describe('ProjectPolicyControls', () => {
   });
 
   it('renders a chip per allowed model, resolved to its catalogue name', () => {
-    render(
-      <ProjectPolicyControls {...props({ allowedModels: ['gpt-4o', 'claude-opus-5'] })} />
-    );
+    render(<ProjectPolicyControls {...props({ allowedModels: ['gpt-4o', 'claude-opus-5'] })} />);
 
     expect(screen.getByText('GPT-4o')).toBeInTheDocument();
     expect(screen.getByText('Claude Opus 5')).toBeInTheDocument();
@@ -110,7 +108,11 @@ describe('ProjectPolicyControls', () => {
     const onRetryCatalog = vi.fn();
     render(
       <ProjectPolicyControls
-        {...props({ catalog: [], catalogError: 'Could not load the model catalogue.', onRetryCatalog })}
+        {...props({
+          catalog: [],
+          catalogError: 'Could not load the model catalogue.',
+          onRetryCatalog,
+        })}
       />
     );
 
@@ -120,7 +122,9 @@ describe('ProjectPolicyControls', () => {
   });
 
   it('surfaces a genuine policy write failure', () => {
-    render(<ProjectPolicyControls {...props({ policyError: 'Could not save the model policy.' })} />);
+    render(
+      <ProjectPolicyControls {...props({ policyError: 'Could not save the model policy.' })} />
+    );
 
     expect(screen.getByText('Could not save the model policy.')).toBeInTheDocument();
   });

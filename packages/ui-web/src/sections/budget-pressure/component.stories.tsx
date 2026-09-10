@@ -10,7 +10,7 @@ import {
 } from './fixtures';
 
 const meta: Meta<typeof BudgetPressure> = {
-  title: 'Sections/BudgetPressure',
+  title: 'Sections/Budget/BudgetPressure',
   component: BudgetPressure,
   parameters: { layout: 'fullscreen' },
   args: {

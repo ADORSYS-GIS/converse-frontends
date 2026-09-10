@@ -137,9 +137,16 @@ export function SubNav({
           The HORIZONTAL list is not a rail at all — no bleed, no daisy `menu` paint, just
           `sub-nav-tabs`'s row of cells (theme.css). */}
       <NavigationMenu.List
-        className={horizontal ? 'sub-nav-tabs' : cn('menu menu-sm rail-list', RAIL_ROW_BLEED_CLASS)}>
+        className={
+          horizontal ? 'sub-nav-tabs' : cn('menu menu-sm rail-list', RAIL_ROW_BLEED_CLASS)
+        }>
         {items.map((item) => (
-          <SubNavRow key={item.key} item={item} linkComponent={linkComponent} horizontal={horizontal} />
+          <SubNavRow
+            key={item.key}
+            item={item}
+            linkComponent={linkComponent}
+            horizontal={horizontal}
+          />
         ))}
       </NavigationMenu.List>
     </NavigationMenu.Root>

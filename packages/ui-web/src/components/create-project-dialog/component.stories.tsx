@@ -12,7 +12,7 @@ const PLANS: CreateProjectPlanOption[] = [
 ];
 
 const meta: Meta<typeof CreateProjectDialog> = {
-  title: 'Forms & actions/CreateProjectDialog',
+  title: 'Primitives/Overlays/CreateProjectDialog',
   component: CreateProjectDialog,
   args: {
     open: true,

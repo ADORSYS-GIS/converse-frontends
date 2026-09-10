@@ -1,15 +1,33 @@
 import { describe, expect, it } from 'vitest';
 
+import type { MyAccessSnapshot } from './access';
 import {
-  ADMIN_ROLE,
   buildSessionUser,
   checkAudience,
   decodeJwtClaims,
   extractRoles,
-  isAdmin,
   normalizeAudience,
   type JwtClaims,
 } from './tokens';
+
+/** `getMyAccess` answered — the ordinary case every session build takes. */
+function verified(overrides: Partial<MyAccessSnapshot> = {}): MyAccessSnapshot {
+  return {
+    userId: 'person_1',
+    roles: ['lightbridge-admin'],
+    permissions: ['usage:read-all', 'rbac:manage'],
+    accessVerified: true,
+    ...overrides,
+  };
+}
+
+/** The fail-closed snapshot `fetchMyAccess` returns when the call could not be made at all. */
+const UNVERIFIED: MyAccessSnapshot = {
+  userId: '',
+  roles: [],
+  permissions: [],
+  accessVerified: false,
+};
 
 /** Builds an unsigned JWT with the given payload — decoding never verifies the signature. */
 function jwt(claims: JwtClaims): string {
@@ -140,48 +158,71 @@ describe('extractRoles', () => {
   });
 });
 
-describe('isAdmin', () => {
-  it('recognises exactly the lightbridge-admin role', () => {
-    expect(isAdmin([ADMIN_ROLE])).toBe(true);
-    expect(isAdmin(['lightbridge-editor', 'lightbridge-viewer'])).toBe(false);
-    expect(isAdmin([])).toBe(false);
-  });
-});
-
 describe('buildSessionUser', () => {
-  it('prefers the access token claims', () => {
+  it('prefers the access token claims, and carries the backend\u2019s permission answer', () => {
     const user = buildSessionUser(
       jwt({
         sub: 'u1',
         name: 'Ada',
         preferred_username: 'ada',
         email: 'ada@example.test',
-        lightbridge_api_roles: ['lightbridge-admin'],
+        lightbridge_api_roles: ['lightbridge-viewer'],
       }),
-      'lightbridge_api_roles'
+      'lightbridge_api_roles',
+      verified()
     );
     expect(user).toEqual({
       sub: 'u1',
+      platformUserId: 'person_1',
       name: 'Ada',
       preferredUsername: 'ada',
       email: 'ada@example.test',
+      // The BACKEND's roles, not the token claim's -- `getMyAccess` echoes what the server
+      // actually evaluated, and that is the honest thing to display.
       roles: ['lightbridge-admin'],
+      permissions: ['usage:read-all', 'rbac:manage'],
+      accessVerified: true,
     });
   });
 
+  // converse-frontends#452, negative AC 1: a failed `getMyAccess` never falls back to deriving
+  // permissions from the token's own role claim -- that is exactly the re-derivation this story
+  // deletes, and doing it on the failure path would make the failure INVISIBLE.
+  it('fails closed on an unverified access snapshot, keeping the claim roles for display only', () => {
+    const user = buildSessionUser(
+      jwt({ sub: 'u1', lightbridge_api_roles: ['lightbridge-admin'] }),
+      'lightbridge_api_roles',
+      UNVERIFIED
+    );
+
+    expect(user?.permissions).toEqual([]);
+    expect(user?.accessVerified).toBe(false);
+    expect(user?.platformUserId).toBe('');
+    // Still shown, still ungated: the identity row has something honest to say.
+    expect(user?.roles).toEqual(['lightbridge-admin']);
+  });
+
   it('fills gaps from userinfo without letting it override the subject', () => {
-    const user = buildSessionUser(jwt({ sub: 'u1' }), 'lightbridge_api_roles', undefined, {
-      sub: 'someone-else',
-      name: 'From Userinfo',
-      email: 'ui@example.test',
-    });
+    const user = buildSessionUser(
+      jwt({ sub: 'u1' }),
+      'lightbridge_api_roles',
+      verified(),
+      undefined,
+      {
+        sub: 'someone-else',
+        name: 'From Userinfo',
+        email: 'ui@example.test',
+      }
+    );
     expect(user?.sub).toBe('u1');
     expect(user?.name).toBe('From Userinfo');
     expect(user?.email).toBe('ui@example.test');
   });
 
   it('refuses to build a user with no subject anywhere', () => {
-    expect(buildSessionUser(jwt({ name: 'nobody' }), 'lightbridge_api_roles')).toBeNull();
-    expect(buildSessionUser('garbage', 'lightbridge_api_roles')).toBeNull();
+    expect(
+      buildSessionUser(jwt({ name: 'nobody' }), 'lightbridge_api_roles', verified())
+    ).toBeNull();
+    expect(buildSessionUser('garbage', 'lightbridge_api_roles', verified())).toBeNull();
   });
 });

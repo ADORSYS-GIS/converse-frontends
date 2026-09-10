@@ -18,7 +18,7 @@ describe('the /admin/overview role gate', () => {
     const source = readFileSync(join(process.cwd(), ADMIN_OVERVIEW_SEGMENT), 'utf8');
 
     expect(source).toContain('readSession()');
-    expect(source).toContain('isAdmin(session.user.roles)');
+    expect(source).toContain('can(session, PERMISSION.usageReadAll)');
     expect(source).toContain('notFound()');
   });
 

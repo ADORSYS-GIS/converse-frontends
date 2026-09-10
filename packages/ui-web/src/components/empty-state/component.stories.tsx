@@ -6,7 +6,7 @@ import { Card } from '../card';
 import { EmptyState } from './component';
 
 const meta: Meta<typeof EmptyState> = {
-  title: 'States/EmptyState',
+  title: 'Primitives/States/EmptyState',
   component: EmptyState,
   args: {
     headline: 'No api keys yet',

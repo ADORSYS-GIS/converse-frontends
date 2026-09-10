@@ -79,7 +79,9 @@ describe('validateRuleSet', () => {
           reasonCode: 'r',
           condition: {
             combinator: 'all',
-            thresholds: [{ ...createBlankThreshold(), field: 'effective_balance_micros', value: 'nope' }],
+            thresholds: [
+              { ...createBlankThreshold(), field: 'effective_balance_micros', value: 'nope' },
+            ],
           },
         },
       ],
@@ -91,7 +93,15 @@ describe('validateRuleSet', () => {
   it('flags a missing cap amount only when the effect is auto_approve_capped', () => {
     const value: RuleSetValue = {
       ...ruleSetFormPopulated,
-      rules: [{ ...createBlankRule(), id: 'r1', reasonCode: 'r', effect: 'auto_approve_capped', capAmount: '' }],
+      rules: [
+        {
+          ...createBlankRule(),
+          id: 'r1',
+          reasonCode: 'r',
+          effect: 'auto_approve_capped',
+          capAmount: '',
+        },
+      ],
     };
     const errors = validateRuleSet(value);
     expect(errors?.rules?.[0]?.capAmount).toBe('Enter a non-negative cap amount.');
@@ -106,7 +116,12 @@ describe('toRuleDataJson', () => {
       rules: [
         {
           id: 'within-unaided-allowance',
-          condition: { type: 'threshold', field: 'self_service_grant_count', operator: 'lt', value: 2 },
+          condition: {
+            type: 'threshold',
+            field: 'self_service_grant_count',
+            operator: 'lt',
+            value: 2,
+          },
           effect: 'auto_approve',
           reason_code: 'within_unaided_allowance',
         },

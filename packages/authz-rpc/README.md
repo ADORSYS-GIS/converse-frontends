@@ -24,7 +24,7 @@ pnpm --filter @lightbridge/authz-rpc run codegen
 
 You need that one-liner in exactly one case: when `generated/` is missing or stale but
 `node_modules` is already current. pnpm short-circuits an up-to-date install ("Already up to
-date") without running lifecycle scripts, so `pnpm install` is a no-op there and will *not*
+date") without running lifecycle scripts, so `pnpm install` is a no-op there and will _not_
 rebuild it. A fresh clone, a fresh CI checkout, or any install that actually changes
 dependencies does run `postinstall`, and therefore does regenerate it.
 

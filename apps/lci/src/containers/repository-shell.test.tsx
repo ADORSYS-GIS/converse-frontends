@@ -3,12 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { Repository } from '../lib/domain/repos';
 
-vi.mock('./repository-actions', () => ({
-  approveRepoAction: vi.fn(),
-  denyRepoAction: vi.fn(),
-}));
 // `RepoTabsNav` has its own dedicated coverage (`repo-tabs-nav.test.tsx`) — stubbed here so this
-// file stays focused on the shell's own chrome (title, status, approve/deny gating).
+// file stays focused on the shell's own chrome (title, status, tabs).
 vi.mock('./repo-tabs-nav', () => ({
   RepoTabsNav: ({ id }: { id: number }) => <nav data-testid="repo-tabs-nav">tabs for {id}</nav>,
 }));
@@ -36,7 +32,7 @@ function baseRepo(overrides: Partial<Repository> = {}): Repository {
 describe('RepositoryShell', () => {
   it('renders the repo slug, its approval status, the tabs nav, and its children', () => {
     render(
-      <RepositoryShell id={81} repo={baseRepo()} canApprove={false} canDeny={false}>
+      <RepositoryShell id={81} repo={baseRepo()}>
         <p>tab content</p>
       </RepositoryShell>
     );
@@ -47,51 +43,21 @@ describe('RepositoryShell', () => {
     expect(screen.getByText('tab content')).toBeInTheDocument();
   });
 
-  it('shows neither Approve nor Deny without permission', () => {
-    render(
-      <RepositoryShell
-        id={81}
-        repo={baseRepo({ status: 'pending' })}
-        canApprove={false}
-        canDeny={false}>
+  it('carries the approval status in the controls row, not on the title row', () => {
+    const { container } = render(
+      <RepositoryShell id={81} repo={baseRepo({ status: 'pending' })}>
         <p>tab content</p>
       </RepositoryShell>
     );
 
-    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Deny' })).not.toBeInTheDocument();
-  });
+    const approval = screen.getByRole('group', { name: 'Approval' });
+    expect(approval).toContainElement(screen.getByText('Pending approval'));
+    expect(approval.closest('.page-controls')).not.toBeNull();
+    expect(approval).toHaveAttribute('data-align', 'end');
 
-  it('shows Approve for a pending repo when canApprove, and Deny when canDeny', () => {
-    render(
-      <RepositoryShell id={81} repo={baseRepo({ status: 'pending' })} canApprove canDeny>
-        <p>tab content</p>
-      </RepositoryShell>
-    );
-
-    expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Deny' })).toBeInTheDocument();
-  });
-
-  it('hides Approve for an already-approved repo even with canApprove, since there is nothing to approve', () => {
-    render(
-      <RepositoryShell id={81} repo={baseRepo({ status: 'approved' })} canApprove canDeny>
-        <p>tab content</p>
-      </RepositoryShell>
-    );
-
-    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Deny' })).toBeInTheDocument();
-  });
-
-  it('hides Deny for an already-disabled repo even with canDeny, since there is nothing to deny', () => {
-    render(
-      <RepositoryShell id={81} repo={baseRepo({ status: 'disabled' })} canApprove canDeny>
-        <p>tab content</p>
-      </RepositoryShell>
-    );
-
-    expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Deny' })).not.toBeInTheDocument();
+    const header = container.querySelector('.page-header');
+    expect(header).not.toBeNull();
+    expect(header).toHaveTextContent('platform-team/platform-team-repo-21');
+    expect(header?.querySelector('.page-header-action')).toBeNull();
   });
 });

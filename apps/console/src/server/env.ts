@@ -49,7 +49,33 @@ export type ConsoleEnv = {
    * usage routes answer their honest 503.
    */
   usageClientCert?: { certPath: string; keyPath: string };
-  sessionSecret: string;
+  /**
+   * JWE key material for the session and login-state cookies, newest first (ADR 0016, D3.2).
+   *
+   * A LIST, always — a plain `session.secret: '<string>'` in the YAML normalises to a one-entry
+   * list here. `sessionSecrets[0]` seals; every entry is tried on open, in order. That is what
+   * makes rotating the secret a two-deploy procedure instead of a mass sign-out; see
+   * `docs/knowledge/console-configuration.md`, "Rotating `session.secret`".
+   */
+  sessionSecrets: string[];
+  /**
+   * Sliding session lifetime, in seconds. Stamped as the seal's `exp` AND as the cookie's
+   * `Max-Age`, so the server-enforced expiry and the browser's own hint agree instead of the
+   * 30-day `Max-Age` standing alone as it did before ADR 0016.
+   */
+  sessionMaxAgeSeconds: number;
+  /** Ceiling on the sliding window, measured from the original login (`ConsoleSession.startedAt`). */
+  sessionAbsoluteMaxAgeSeconds: number;
+  /**
+   * Where `GET /api/reports/page` POSTs its render jobs — the `typst-render` sidecar
+   * (converse-frontends#453, `apps/typst-render/README.md` for the wire contract). Unset is a
+   * REAL deployment state, not a misconfiguration: `format=csv`/`format=html` keep working and
+   * `format=pdf` answers a 502 naming the missing configuration. It never degrades to a chartless
+   * PDF — the story lists that as a failure mode by name.
+   *
+   * Resolved YAML-first, then from `TYPST_RENDER_URL` directly — see `resolveTypstRenderUrl`.
+   */
+  typstRenderUrl?: string;
   /** Absolute origin the browser reaches this app on. Falls back to the request's own origin. */
   publicBaseUrl?: string;
   /**
@@ -74,6 +100,13 @@ export type ConsoleEnv = {
     logoLightContentType?: string;
     /** Host-absolute path to a CSS file holding daisyUI custom-property overrides only. */
     stylePath?: string;
+    /**
+     * The brand's own name, printed in an exported report's header — beside the logo when there
+     * is one, INSTEAD of it when there is not (owner feedback 2026-09-03: "the PDF has no custom
+     * logo"). Independently optional and NOT a path, so it carries none of the host-absolute /
+     * extension validation the two logo keys do.
+     */
+    name?: string;
   };
 };
 
@@ -88,15 +121,16 @@ type RawKeycloakConfig = {
 };
 
 type RawConsoleConfig = {
-  session?: { secret?: unknown };
+  session?: { secret?: unknown; maxAgeSeconds?: unknown; absoluteMaxAgeSeconds?: unknown };
   idp?: RawKeycloakConfig;
   backendUrl?: unknown;
   apiBasePath?: unknown;
   budgetUrl?: unknown;
   usageUrl?: unknown;
   usageClientCert?: { certPath?: unknown; keyPath?: unknown };
+  reports?: { typstRenderUrl?: unknown };
   publicBaseUrl?: unknown;
-  branding?: { logo?: unknown; logoLight?: unknown; style?: unknown };
+  branding?: { logo?: unknown; logoLight?: unknown; style?: unknown; name?: unknown };
   // `permissions` is intentionally not read here — config.yaml carries an empty-but-shaped seam
   // for the future authz-style permission model (see config.yaml's comment); wiring it up before
   // there's an engine to consume it would be dormant code.
@@ -161,6 +195,78 @@ function parseAudienceList(value: unknown): string[] {
   return [];
 }
 
+/** Minimum length of any one `session.secret` entry — an HKDF input below this is not key material. */
+export const MIN_SESSION_SECRET_LENGTH = 32;
+
+/** 12 hours. A working day, so a person signing in each morning is not asked again before lunch. */
+export const DEFAULT_SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
+
+/** 7 days. The ceiling no amount of activity extends past — a stolen cookie dies within a week. */
+export const DEFAULT_SESSION_ABSOLUTE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+
+/**
+ * `session.secret`, accepted as a string OR a list, normalised to a list, newest first
+ * (ADR 0016, D3.2). One entry is the steady state; more than one only during a rotation.
+ *
+ * `{env:VAR}` placeholder semantics are untouched — `config-loader.ts` resolves string leaves
+ * inside an array exactly as it resolves a scalar, so both
+ * `secret: '{env:SESSION_SECRET}'` and `secret: ['{env:SESSION_SECRET}', '{env:SESSION_SECRET_PREVIOUS}']`
+ * work, and an unset variable in the list collapses to `undefined` and is dropped rather than
+ * becoming an empty-string "secret" that would open nothing and cost an HKDF per request.
+ */
+export function parseSessionSecrets(value: unknown, parsed: ParsedConfigFile): string[] {
+  const entries = Array.isArray(value) ? value : [value];
+  const secrets: string[] = [];
+
+  entries.forEach((entry, index) => {
+    // Dropped, not rejected: a list entry whose `{env:VAR}` is unset resolves to `undefined`, and
+    // that is the normal shape of "the previous secret has been retired but the line is still in
+    // the document". An entry that is present but WRONG (too short, not a string) still fails.
+    if (entry === undefined || entry === null || entry === '') return;
+    const label = Array.isArray(value) ? `session.secret[${index}]` : 'session.secret';
+    if (typeof entry !== 'string') {
+      throw new Error(
+        `[console] config.yaml key "${label}" must be a string, got ${typeof entry} ` +
+          `(${parsed.absolutePath})`
+      );
+    }
+    if (entry.length < MIN_SESSION_SECRET_LENGTH) {
+      throw new Error(
+        `[console] config.yaml key "${label}" must resolve to at least ` +
+          `${MIN_SESSION_SECRET_LENGTH} characters (${parsed.absolutePath})`
+      );
+    }
+    secrets.push(entry);
+  });
+
+  if (secrets.length === 0) {
+    // Reuses `requiredField`'s message so a bare `secret: '{env:SESSION_SECRET}'` with the
+    // variable unset still names the variable, which is the common misconfiguration.
+    requiredField(parsed, ['session', 'secret']);
+  }
+  return secrets;
+}
+
+/** A positive-integer seconds field, with a default. Rejects 0, negatives and non-numbers loudly:
+ *  a `maxAgeSeconds: 0` typo would expire every session the instant it was written, and silently
+ *  falling back to the default would hide that from whoever wrote it. */
+function parsePositiveSeconds(
+  value: unknown,
+  fieldLabel: string,
+  fallback: number,
+  parsed: ParsedConfigFile
+): number {
+  if (value === undefined || value === null || value === '') return fallback;
+  const numeric = typeof value === 'string' ? Number(value) : value;
+  if (typeof numeric !== 'number' || !Number.isInteger(numeric) || numeric <= 0) {
+    throw new Error(
+      `[console] config.yaml key "${fieldLabel}" must be a positive whole number of seconds, ` +
+        `got ${JSON.stringify(value)} (${parsed.absolutePath})`
+    );
+  }
+  return numeric;
+}
+
 /**
  * `branding.logo`'s extension -> the `Content-Type` `GET /branding/logo` serves it with.
  * Deliberately narrow (issue #368): only formats a `<img>`/`<link rel="icon">`-shaped logo
@@ -223,14 +329,15 @@ function validateBrandingLogoPath(
  * the host-absolute-path/extension checks above.
  */
 function buildBrandingConfig(
-  raw: { logo?: unknown; logoLight?: unknown; style?: unknown } | undefined,
+  raw: { logo?: unknown; logoLight?: unknown; style?: unknown; name?: unknown } | undefined,
   parsed: ParsedConfigFile
 ): ConsoleEnv['branding'] {
   const logoPath = asOptionalString(raw?.logo)?.trim() || undefined;
   const logoLightPath = asOptionalString(raw?.logoLight)?.trim() || undefined;
   const stylePath = asOptionalString(raw?.style)?.trim() || undefined;
+  const name = asOptionalString(raw?.name)?.trim() || undefined;
 
-  if (!logoPath && !logoLightPath && !stylePath) return undefined;
+  if (!logoPath && !logoLightPath && !stylePath && !name) return undefined;
 
   if (logoLightPath && !logoPath) {
     throw new Error(
@@ -258,7 +365,40 @@ function buildBrandingConfig(
     ...(logoPath ? { logoPath, logoContentType } : {}),
     ...(logoLightPath ? { logoLightPath, logoLightContentType } : {}),
     ...(stylePath ? { stylePath } : {}),
+    ...(name ? { name } : {}),
   };
+}
+
+/**
+ * `reports.typstRenderUrl`, YAML-first with a `TYPST_RENDER_URL` fallback.
+ *
+ * **Why the fallback exists at all** (owner feedback 2026-09-03). `charts/converse-console` runs
+ * the renderer as a loopback-only sidecar and sets `TYPST_RENDER_URL` on the console container
+ * unconditionally — but a deployment supplies its OWN `config.yaml` text
+ * (`configMaps.console-config.data`), and prod's document predates the export story and carries no
+ * `reports:` block at all. The placeholder that would have read that variable
+ * (`reports.typstRenderUrl: '{env:TYPST_RENDER_URL}'`) is only in the config.yaml shipped in this
+ * repo, so a correctly-deployed sidecar was refused with "PDF export needs the typst-render
+ * service" — a config-document gap presenting as a missing service.
+ *
+ * The environment variable is therefore read DIRECTLY here, not through a `{env:…}` placeholder,
+ * because the placeholder lives in a document the deployment owns and the variable lives on the
+ * container the chart owns. YAML still wins when the key is present, so a document that names a
+ * different renderer is not overridden by a stale variable; and when neither is set the value stays
+ * `undefined` and `format=pdf` gives the same honest 502 it always did. There is no third state.
+ */
+export function resolveTypstRenderUrl(
+  configured: unknown,
+  environment: Record<string, string | undefined> = process.env
+): string | undefined {
+  // Trimmed like the cert paths above and for the same reason: a `{env:TYPST_RENDER_URL}` that
+  // resolves to whitespace is a realistic config accident, and "configured with a blank URL" has
+  // no honest meaning — it is simply unconfigured, and the PDF path says so.
+  const fromYaml = asOptionalString(configured)?.trim();
+  if (fromYaml) return trimTrailingSlash(fromYaml);
+
+  const fromEnvironment = environment.TYPST_RENDER_URL?.trim();
+  return fromEnvironment ? trimTrailingSlash(fromEnvironment) : undefined;
 }
 
 /** Strips a single trailing slash so `${base}${path}` never doubles up. */
@@ -279,11 +419,26 @@ export function buildConsoleEnv(parsed: ParsedConfigFile): ConsoleEnv {
   const raw = (parsed.resolved ?? {}) as RawConsoleConfig;
 
   const backendUrl = trimTrailingSlash(requiredField(parsed, ['backendUrl']));
-  const sessionSecret = requiredField(parsed, ['session', 'secret']);
-  if (sessionSecret.length < 32) {
+  const sessionSecrets = parseSessionSecrets(raw.session?.secret, parsed);
+  const sessionMaxAgeSeconds = parsePositiveSeconds(
+    raw.session?.maxAgeSeconds,
+    'session.maxAgeSeconds',
+    DEFAULT_SESSION_MAX_AGE_SECONDS,
+    parsed
+  );
+  const sessionAbsoluteMaxAgeSeconds = parsePositiveSeconds(
+    raw.session?.absoluteMaxAgeSeconds,
+    'session.absoluteMaxAgeSeconds',
+    DEFAULT_SESSION_ABSOLUTE_MAX_AGE_SECONDS,
+    parsed
+  );
+  // A sliding window longer than the cap it slides within is a contradiction, and the silent
+  // outcome — the cap quietly wins on every seal — reads as "my maxAgeSeconds is ignored".
+  if (sessionMaxAgeSeconds > sessionAbsoluteMaxAgeSeconds) {
     throw new Error(
-      `[console] config.yaml key "session.secret" must resolve to at least 32 characters ` +
-        `(${parsed.absolutePath})`
+      `[console] config.yaml key "session.maxAgeSeconds" (${sessionMaxAgeSeconds}) must not exceed ` +
+        `"session.absoluteMaxAgeSeconds" (${sessionAbsoluteMaxAgeSeconds}) — the sliding window ` +
+        `cannot be longer than the absolute cap it slides within (${parsed.absolutePath})`
     );
   }
 
@@ -318,7 +473,10 @@ export function buildConsoleEnv(parsed: ParsedConfigFile): ConsoleEnv {
     budgetUrl: trimTrailingSlash(asStringWithFallback(raw.budgetUrl, backendUrl)),
     usageUrl: usageUrl ? trimTrailingSlash(usageUrl) : undefined,
     usageClientCert,
-    sessionSecret,
+    sessionSecrets,
+    sessionMaxAgeSeconds,
+    sessionAbsoluteMaxAgeSeconds,
+    typstRenderUrl: resolveTypstRenderUrl(raw.reports?.typstRenderUrl),
     publicBaseUrl: asOptionalString(raw.publicBaseUrl)
       ? trimTrailingSlash(raw.publicBaseUrl as string)
       : undefined,

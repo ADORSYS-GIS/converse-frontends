@@ -17,7 +17,7 @@ function renderDialog(overrides: Partial<React.ComponentProps<typeof TypedConfir
       onConfirm={onConfirm}
       onCancel={onCancel}
       {...overrides}
-    />,
+    />
   );
   return { onConfirm, onCancel };
 }
@@ -32,7 +32,7 @@ describe('TypedConfirmDialog', () => {
         objectName="ci-deploy"
         onConfirm={() => {}}
         onCancel={() => {}}
-      />,
+      />
     );
 
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -89,7 +89,9 @@ describe('TypedConfirmDialog', () => {
   });
 
   it('stays open and shows the inline error on failure', async () => {
-    renderDialog({ error: 'Could not revoke the key — the server returned a 500. Nothing changed.' });
+    renderDialog({
+      error: 'Could not revoke the key — the server returned a 500. Nothing changed.',
+    });
 
     expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('Could not revoke the key');
@@ -116,7 +118,9 @@ describe('TypedConfirmDialog', () => {
     expect(screen.getByRole('button', { name: 'Revoke' })).toBeEnabled();
 
     rerender(props({ open: false }));
-    rerender(props({ objectName: 'legacy-import', confirmLabel: 'Delete', title: 'Delete legacy-import?' }));
+    rerender(
+      props({ objectName: 'legacy-import', confirmLabel: 'Delete', title: 'Delete legacy-import?' })
+    );
 
     expect(await screen.findByRole('button', { name: 'Delete' })).toBeDisabled();
   });

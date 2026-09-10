@@ -1,4 +1,5 @@
 import type { LedgerSort } from '../../components/ledger-table';
+import type { RefillRequester } from '../../lib/refill-requester';
 
 export type RefillRequestRow = {
   id: string;
@@ -8,6 +9,10 @@ export type RefillRequestRow = {
    *  project/account labels. `'—'` when a request carries no `projectId` at all. */
   project: string;
   account: string;
+  /** Who asked (converse-frontends#444). Resolved by the container from ONE batched
+   *  `resolveUserProfiles` call over the whole page's `requestedByUserId`s — see
+   *  `lib/refill-requester.ts` for why this is a union rather than a nullable name. */
+  requester: RefillRequester;
   requestedAmount: number;
 };
 
@@ -34,6 +39,15 @@ export interface ReviewQueueProps {
 
   selectedRequestId?: string | null;
   onSelectRequest: (row: RefillRequestRow) => void;
+
+  /**
+   * A degraded-but-not-broken note about requester resolution, rendered as an `InlineStatus`
+   * ABOVE the table (converse-frontends#444): the queue's own rows load from
+   * `listPendingAugmentationRequests`, the names from a separate `resolveUserProfiles` batch, and
+   * the second failing must never take the first down with it. Omitted when resolution is fine —
+   * a status line that is always present says nothing.
+   */
+  requesterStatus?: string;
 
   /** Omitted entirely when the source cannot page (or there is only one page) — never a caption
    *  claiming more rows exist with nothing to click. */

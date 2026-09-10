@@ -66,6 +66,18 @@ export interface RankedSeriesRowsProps {
   /** Omit for a read-only list. The "Other" row and the zero-value tail are never selectable,
    *  regardless of this prop — there is no single series behind either to select. */
   onSelect?: (key: string | null) => void;
+  /**
+   * Renders a row as a real `<a href>` instead of a `<button>` — the declarative engine's
+   * `options.link` (converse-frontends#446, decision D-D: a ranked breakdown's rows navigate to
+   * the actor/channel page behind them). Return `undefined` for a row with no destination and it
+   * stays the button it is today.
+   *
+   * A link and a selection are the same gesture on the same row, so they are mutually exclusive
+   * PER ROW: where `hrefFor` yields a destination the row is a link and `onSelect` is not wired
+   * to it. The "Other" row and the zero-value tail are never links either — neither stands for a
+   * single key that could have a page.
+   */
+  hrefFor?: (row: RankedSeriesRow) => string | undefined;
   /** Shown over the still-rendered (empty) list frame when `rows` has no entries at all. */
   emptyMessage?: ReactNode;
   className?: string;

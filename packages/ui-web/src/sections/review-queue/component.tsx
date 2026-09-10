@@ -3,10 +3,12 @@ import React from 'react';
 import { cn } from '../../cn';
 import { EmptyState } from '../../components/empty-state';
 import { ErrorLine } from '../../components/error-line';
+import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
 import { Pagination } from '../../components/pagination';
 import { formatUsd } from '../../lib/money';
+import { RequesterLines } from '../../lib/requester-lines';
 import type { RefillRequestRow, ReviewQueueProps } from './types';
 
 function signedMoney(amount: number): string {
@@ -23,7 +25,15 @@ function signedMoney(amount: number): string {
 // `use-overview-screen.ts` resolves its own scope labels) and Refill, right-aligned mono. Consumed
 // and Ceiling are gone: both were permanently `null` upstream (no consumption query is wired up),
 // and a column that can never hold a real value is not a column, it is a promise the screen
-// cannot keep. Requester is gone too — it duplicated the Account cell verbatim.
+// cannot keep.
+//
+// REQUESTER IS BACK (converse-frontends#444). It was removed because it duplicated the Account
+// cell verbatim — the console had no requester, so it printed the account and called it one.
+// `AugmentationRequest.requestedByUserId` (lightbridge-authz#646) is now a real, distinct fact,
+// resolved to a name+email by ONE batched `resolveUserProfiles` call per page, so the column
+// holds something the Account cell cannot: the person to hold the decision against. Every branch
+// that is not a resolved identity renders a LABELLED sentinel (`lib/refill-requester.ts`), never
+// a blank cell and never a fabricated name.
 export function ReviewQueue({
   pending,
   loading = false,
@@ -34,6 +44,7 @@ export function ReviewQueue({
   onSortChange,
   selectedRequestId,
   onSelectRequest,
+  requesterStatus,
   pagination,
   className,
 }: ReviewQueueProps) {
@@ -49,10 +60,18 @@ export function ReviewQueue({
     {
       key: 'project',
       header: 'Project',
-      width: '180px',
+      width: '160px',
       accessor: (row) => <span className="text-ink">{row.project}</span>,
     },
-    { key: 'account', header: 'Account', width: '190px', accessor: (row) => row.account },
+    { key: 'account', header: 'Account', width: '170px', accessor: (row) => row.account },
+    {
+      key: 'requester',
+      header: 'Requester',
+      // Project/Account each gave up 20px to pay for this column rather than pushing Refill —
+      // the decision's own number — off the visible width of the narrower `md` centre.
+      width: '200px',
+      accessor: (row) => <RequesterLines requester={row.requester} />,
+    },
     {
       key: 'refill',
       header: 'Refill',
@@ -78,6 +97,10 @@ export function ReviewQueue({
         />
       ) : (
         <>
+          {/* Degraded requester resolution is a status, not an error: the rows below are real and
+              decidable, only their names are missing. `InlineStatus` (`role="status"`) rather than
+              `ErrorLine` (`role="alert"`, `Retry`) — console-ui skill "States". */}
+          {requesterStatus ? <InlineStatus>{requesterStatus}</InlineStatus> : null}
           <LedgerTable
             columns={columns}
             data={pending}

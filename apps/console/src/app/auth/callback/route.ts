@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     return failure(request, 'missing_state');
   }
 
-  const authState = await openAuthState(sealedState, env.sessionSecret);
+  const authState = await openAuthState(sealedState, env.sessionSecrets);
   if (!authState) {
     return failure(request, 'invalid_state');
   }

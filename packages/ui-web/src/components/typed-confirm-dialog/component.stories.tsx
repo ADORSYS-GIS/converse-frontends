@@ -5,7 +5,7 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { TypedConfirmDialog } from './component';
 
 const meta: Meta<typeof TypedConfirmDialog> = {
-  title: 'Forms & actions/TypedConfirmDialog',
+  title: 'Primitives/Overlays/TypedConfirmDialog',
   component: TypedConfirmDialog,
   args: {
     open: true,

@@ -97,7 +97,7 @@ function PersistentShell() {
             onRequestRevoke={() => {}}
             onConfirmRevoke={() => {}}
             onCancelRevoke={() => {}}
-            isAdmin
+            canDelete
             onRequestDelete={() => {}}
             onConfirmDelete={() => {}}
             onCancelDelete={() => {}}
@@ -112,7 +112,7 @@ function PersistentShell() {
 }
 
 const meta: Meta<typeof PersistentShell> = {
-  title: 'Pages/ShellPersistence',
+  title: 'Pages/Platform/ShellPersistence',
   component: PersistentShell,
   parameters: { layout: 'fullscreen' },
 };

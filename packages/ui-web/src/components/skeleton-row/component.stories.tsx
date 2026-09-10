@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { SkeletonRow } from './component';
 
 const meta: Meta<typeof SkeletonRow> = {
-  title: 'States/SkeletonRow',
+  title: 'Primitives/States/SkeletonRow',
   component: SkeletonRow,
 };
 

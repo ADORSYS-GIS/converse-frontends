@@ -32,8 +32,14 @@ export interface RefineMockRootProps {
  * rejected call would retry with backoff for several seconds before `isError` ever turns true. */
 export function RefineMockRoot({ children, providerConfig }: RefineMockRootProps) {
   const queryClient = useMemo(
-    () => new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false }, mutations: { retry: false } } }),
-    [],
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: { retry: false, refetchOnWindowFocus: false },
+          mutations: { retry: false },
+        },
+      }),
+    []
   );
   const dataProvider = useMemo(() => createMockDataProvider(providerConfig), [providerConfig]);
 
@@ -41,8 +47,11 @@ export function RefineMockRoot({ children, providerConfig }: RefineMockRootProps
     <Refine
       dataProvider={dataProvider}
       resources={RESOURCES}
-      options={{ syncWithLocation: false, disableTelemetry: true, reactQuery: { clientConfig: queryClient } }}
-    >
+      options={{
+        syncWithLocation: false,
+        disableTelemetry: true,
+        reactQuery: { clientConfig: queryClient },
+      }}>
       {children}
     </Refine>
   );

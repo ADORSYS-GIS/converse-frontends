@@ -11,7 +11,7 @@ import {
 } from './fixtures';
 
 const meta: Meta<typeof RefillHistory> = {
-  title: 'Sections/RefillHistory',
+  title: 'Sections/Admin/RefillHistory',
   component: RefillHistory,
   parameters: { layout: 'fullscreen' },
   args: { state: refillHistoryReady },

@@ -11,7 +11,8 @@
     },
     "build-storybook": {
       "dependsOn": ["codegen"],
-      "outputs": ["storybook-static/**"]
+      "outputs": ["storybook-static/**"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/apps/lci/src/**"]
     }
   }
 }

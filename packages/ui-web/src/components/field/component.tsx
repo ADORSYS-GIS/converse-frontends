@@ -2,7 +2,7 @@ import { Field as BaseField } from '@base-ui/react/field';
 import React, { forwardRef, useId } from 'react';
 
 import { cn } from '../../cn';
-import { LABEL_CLASS } from '../../lib/type-roles';
+import { LABEL_CLASS, META_CLASS } from '../../lib/type-roles';
 import { fieldControlClassName, fieldLabelClassName } from './field-classes';
 import type { FieldProps } from './types';
 
@@ -17,13 +17,27 @@ import type { FieldProps } from './types';
 // rather than four copies that drift.
 export const Field = forwardRef<HTMLInputElement | HTMLTextAreaElement, FieldProps>(
   function Field(props, ref) {
-    const { label, error, containerClassName, className, id, multiline, layout, hideLabel, ...rest } =
-      props;
+    const {
+      label,
+      error,
+      example,
+      containerClassName,
+      className,
+      id,
+      multiline,
+      layout,
+      hideLabel,
+      ...rest
+    } = props;
     // A label beside a textarea has nothing to align to, so `inline` is ignored when multiline.
     const inline = layout === 'inline' && !multiline;
     const generatedId = useId();
     const controlId = id ?? generatedId;
     const errorId = error ? `${controlId}-error` : undefined;
+    // `example` is a stacked-layout affordance — see the prop's own doc comment for why an inline
+    // row has nowhere to put it.
+    const exampleId = example && !inline ? `${controlId}-example` : undefined;
+    const describedBy = [exampleId, errorId].filter(Boolean).join(' ') || undefined;
 
     return (
       <BaseField.Root
@@ -34,6 +48,13 @@ export const Field = forwardRef<HTMLInputElement | HTMLTextAreaElement, FieldPro
         <BaseField.Label className={hideLabel ? 'sr-only' : fieldLabelClassName}>
           {label}
         </BaseField.Label>
+        {exampleId ? (
+          // Between the label and the control, so it reads as part of the label block rather than
+          // as a verdict on what was typed — and it stays put while the author types (issue #445).
+          <p id={exampleId} className={META_CLASS}>
+            {example}
+          </p>
+        ) : null}
         {multiline ? (
           <BaseField.Control
             {...(rest as unknown as React.ComponentPropsWithoutRef<typeof BaseField.Control>)}
@@ -41,7 +62,7 @@ export const Field = forwardRef<HTMLInputElement | HTMLTextAreaElement, FieldPro
             render={<textarea />}
             id={controlId}
             aria-invalid={Boolean(error)}
-            aria-describedby={errorId}
+            aria-describedby={describedBy}
             className={cn('textarea', className)}
           />
         ) : (
@@ -50,7 +71,7 @@ export const Field = forwardRef<HTMLInputElement | HTMLTextAreaElement, FieldPro
             ref={ref as React.Ref<HTMLInputElement>}
             id={controlId}
             aria-invalid={Boolean(error)}
-            aria-describedby={errorId}
+            aria-describedby={describedBy}
             className={cn(fieldControlClassName, className)}
           />
         )}

@@ -7,7 +7,11 @@ import { Field } from '@lightbridge/ui-web/src/components/field';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
-import { useProvisionAccountScreen, type ProvisionAccountScreen } from './use-provision-account-screen';
+import { useTranslation } from '../i18n/client';
+import {
+  useProvisionAccountScreen,
+  type ProvisionAccountScreen,
+} from './use-provision-account-screen';
 
 /**
  * `/admin/provision-account` (lightbridge-authz#720/#722) — the offboarding kill switch's mirror
@@ -16,6 +20,9 @@ import { useProvisionAccountScreen, type ProvisionAccountScreen } from './use-pr
  * which shares `RefillPolicyFormView` with its list route) — this is the first console screen
  * where an admin types an arbitrary target subject rather than acting on the caller's own
  * identity, so the view is defined inline rather than forced into an unrelated shared component.
+ *
+ * Every user-visible string goes through the `admin` namespace (ADR 0017) — the same rule every
+ * other admin screen carries; nothing here is hard-coded English.
  */
 export function AdminProvisionAccountCentre() {
   const form = useProvisionAccountScreen();
@@ -23,17 +30,15 @@ export function AdminProvisionAccountCentre() {
 }
 
 function ProvisionAccountFormView({ form }: { form: ProvisionAccountScreen }) {
+  const { t } = useTranslation('admin');
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Provision account"
-        subtitle="Create a first account for a Keycloak subject who has no self-service path to one."
-      />
+      <PageHeader title={t('provision-account.title')} subtitle={t('provision-account.subtitle')} />
 
       <Card>
         <Field
-          label="Keycloak subject"
-          placeholder="the subject's JWT sub"
+          label={t('provision-account.subject-label')}
+          placeholder={t('provision-account.subject-placeholder')}
           value={form.subject}
           onChange={(event) => form.onSubjectChange(event.target.value)}
           error={form.subjectError}
@@ -42,22 +47,19 @@ function ProvisionAccountFormView({ form }: { form: ProvisionAccountScreen }) {
         />
 
         <Field
-          label="Email"
-          placeholder="person@example.com"
+          label={t('provision-account.email-label')}
+          placeholder={t('provision-account.email-placeholder')}
           value={form.email}
           onChange={(event) => form.onEmailChange(event.target.value)}
           error={form.emailError}
           autoComplete="off"
           containerClassName="mt-6 max-w-md"
         />
-        <p className="mt-1 text-sm text-muted-foreground">
-          Becomes the billing identity of the account&apos;s default project — must be unique
-          across every project.
-        </p>
+        <p className="text-muted-foreground mt-1 text-sm">{t('provision-account.email-note')}</p>
 
         <Field
-          label="Display name"
-          placeholder="optional"
+          label={t('provision-account.name-label')}
+          placeholder={t('provision-account.name-placeholder')}
           value={form.name}
           onChange={(event) => form.onNameChange(event.target.value)}
           autoComplete="off"
@@ -67,17 +69,21 @@ function ProvisionAccountFormView({ form }: { form: ProvisionAccountScreen }) {
         {form.error ? <ErrorLine message={form.error} className="mt-4" /> : null}
         {form.result ? (
           <InlineStatus className="mt-4">
-            {`Account ${form.result.accountId} provisioned. They can now sign in.`}
+            {t('provision-account.provisioned', { accountId: form.result.accountId })}
           </InlineStatus>
         ) : null}
 
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button type="button" variant="primary" disabled={!form.canSubmit} onClick={form.onProvision}>
-            {form.submitting ? 'Provisioning…' : 'Provision account'}
+          <Button
+            type="button"
+            variant="primary"
+            disabled={!form.canSubmit}
+            onClick={form.onProvision}>
+            {form.submitting ? t('provision-account.submitting') : t('provision-account.submit')}
           </Button>
           {form.result ? (
             <Button type="button" variant="secondary" onClick={form.onProvisionAnother}>
-              Provision another
+              {t('provision-account.another')}
             </Button>
           ) : null}
         </div>

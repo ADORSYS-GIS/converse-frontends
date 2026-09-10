@@ -9,7 +9,7 @@ describe('specSeriesColor', () => {
     expect(specSeriesColor(2)).toBe(SPEC_GREY_RAMP[2]);
   });
 
-  it('clamps chart-core rank 4+ onto the spec ramp\'s last (--line) step', () => {
+  it("clamps chart-core rank 4+ onto the spec ramp's last (--line) step", () => {
     // chart-core's GREY_RAMP has 5 steps; the spec's has 4 ("rank 4+" per §2.4).
     expect(specSeriesColor(3)).toBe(SPEC_GREY_RAMP[3]);
     expect(specSeriesColor(4)).toBe(SPEC_GREY_RAMP[3]);

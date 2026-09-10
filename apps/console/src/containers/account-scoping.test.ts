@@ -37,7 +37,12 @@ import { activeApiKeysCountFilters } from './overview-usage';
 
 const SUB = 'auth0|9f3a2c7e41b0';
 function session(sub: string | null = SUB): SessionResponse {
-  return { authenticated: sub !== null, user: sub === null ? null : { sub, roles: [] }, isAdmin: false };
+  return {
+    authenticated: sub !== null,
+    user: sub === null ? null : { sub, platformUserId: sub, roles: [] },
+    permissions: [],
+    accessVerified: true,
+  };
 }
 
 describe('account-scoping audit — projects option list', () => {
@@ -70,10 +75,16 @@ describe('account-scoping audit — apiKeys list/count queries', () => {
     // through the SAME `apiKeysAccountFilters` builder — `activeApiKeysCountFilters` layers only
     // the `status eq active` clause on top, so the two can never disagree about which projects
     // belong to the scoped account.
-    const ledgerFilters = apiKeysAccountFilters({ projectId: null, accountProjectIds: ['proj_a1'] });
+    const ledgerFilters = apiKeysAccountFilters({
+      projectId: null,
+      accountProjectIds: ['proj_a1'],
+    });
     const statCardFilters = activeApiKeysCountFilters(null, ['proj_a1']);
 
-    expect(statCardFilters).toEqual([...(ledgerFilters ?? []), { field: 'status', operator: 'eq', value: 'active' }]);
+    expect(statCardFilters).toEqual([
+      ...(ledgerFilters ?? []),
+      { field: 'status', operator: 'eq', value: 'active' },
+    ]);
   });
 
   it('never falls back to an unscoped fetch when the account’s own project ids are not known yet', () => {

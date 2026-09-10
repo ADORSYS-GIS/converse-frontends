@@ -14,8 +14,9 @@
 ```
 converse-frontends/
 ├── apps/
-│   ├── console/       # Next.js 16 App Router console (server runtime, OIDC, proxy legs)
-│   └── authz-ui/      # Vite static SPA — authz-idp's human plane, served under /ui
+│   ├── console/           # Next.js 16 App Router console (server runtime, OIDC, proxy legs)
+│   ├── authz-ui/          # Vite static SPA — authz-idp's human plane, served under /ui
+│   └── governance-auth/   # Vite static page — loopback OAuth2 callback embedded into lightbridge-governance
 ├── packages/
 │   ├── ui-web/        # Design system + screen sections + the single theme pipeline
 │   ├── chart-core/    # DOM-free chart math consumed by ui-web
@@ -45,13 +46,14 @@ Mechanics and the lockstep version pin: `rpc-and-codegen.md`.
 
 ## Layering
 
-There is no single layering table any more, because the two apps are different kinds of program.
+There is no single layering table any more, because the apps are different kinds of program.
 Each owns its own, and each is documented where it is enforced:
 
-| App             | Shape                                                                                                                                                                                                                                   | Authoritative source                   |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `apps/console`  | Route (App Router) → container (data/orchestration, refine hooks) → section (presentational, from `ui-web`). Server-only code lives in `src/server/` and never reaches the client bundle                                                | `AGENTS.md` §2, the `console-ui` skill |
-| `apps/authz-ui` | Route component → section (presentational, from `ui-web`). No data layer; native form posts and one cookie-bound fetch. The route set is declared once in `src/routes/route-table.ts` and published to the server as `dist/routes.json` | `apps/authz-ui/README.md`              |
+| App                    | Shape                                                                                                                                                                                                                                   | Authoritative source                   |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `apps/console`         | Route (App Router) → container (data/orchestration, refine hooks) → section (presentational, from `ui-web`). Server-only code lives in `src/server/` and never reaches the client bundle                                                | `AGENTS.md` §2, the `console-ui` skill |
+| `apps/authz-ui`        | Route component → section (presentational, from `ui-web`). No data layer; native form posts and one cookie-bound fetch. The route set is declared once in `src/routes/route-table.ts` and published to the server as `dist/routes.json` | `apps/authz-ui/README.md`              |
+| `apps/governance-auth` | One page → composed only of `ui-web` sections. No router, no data layer, no i18n. The build emits exactly one self-contained `index.html` that `lightbridge-governance` embeds at compile time                                          | `apps/governance-auth/README.md`       |
 
 What holds for **both**, and is the load-bearing part:
 
@@ -62,6 +64,19 @@ What holds for **both**, and is the load-bearing part:
 - **Full-page compositions exist in exactly two places**: Storybook page stories
   (`packages/ui-web/src/pages-stories/`) and the consuming app's own routes.
 - **The shell mounts once**, in the console's persistent layout. Navigating must not remount it.
+- **A dashboard page is DECLARED, not written** (ADR 0015 D1). The route → container → section
+  layering above is the rule for every screen that is _not_ a dashboard. A usage/spend dashboard is
+  an entry in `apps/console/dashboards.yaml` plus a thin route file: the container holds only what a
+  page owns and a panel cannot (its window, its lens, its URL knobs) and calls
+  `useDashboard(route)`. There are **zero** hand-written dashboard containers left, a ratchet keeps
+  it that way, and adding a panel is adding YAML. Adding a panel _type_ is a renderer plus a
+  Storybook story in `packages/ui-web`, never an inline branch in a page. See
+  `apps/console/README.md` § "Declarative dashboards".
+- **The console never re-derives authorization** (ADR 0015 D4). Gates read the permission set
+  `procedure.getMyAccess` resolved server-side, never a role string off the token claim. There is no
+  role → permission map in the console and no `isAdmin`; a ratchet
+  (`apps/console/src/no-role-derived-gates.test.ts`) fails the build if one returns. See
+  `authorization-and-permissions.md`.
 
 ---
 
@@ -83,20 +98,34 @@ Three rules from it that are repo-wide enough to restate:
    `default-src 'self'; frame-ancestors 'none'` with no `data:` allowance, so daisyUI component
    classes — and every `ui-web` component that renders one — are **banned** there; it uses the
    CSP-safe section set instead. Five gates enforce the CSP rule and a sixth covers the routes
-   contract. See `apps/authz-ui/README.md` and the skill's authz-ui section.
+   contract. See `apps/authz-ui/README.md` and the skill's authz-ui section. (`apps/governance-auth`
+   is the opposite edge of the same spectrum: nothing serves it, so it has **no CSP** and may inline
+   its theme script — see its README.)
 
 ---
 
 ## Internationalisation — read this before adding `t()`
 
-**Neither application uses i18n today.** `packages/i18n` has no importer in `apps/`; every
-user-visible string in both apps is a literal. Older documents in this repo (and `AGENTS.md` §1)
-state a "no plain visible text, all copy through `t('key')`" rule — that rule describes the deleted
-Expo app and is **not** the practice of this codebase.
+**Superseded 2026-09-03 by [ADR 0017](../adr/0017-i18n-app-router-i18next.md).** This section used
+to say that no application used i18n and that adding `t()` would half-adopt something nobody had
+decided. That is no longer true, and `packages/i18n` no longer exists (ADR 0017 D7 deleted it with
+the Expo app it served).
 
-Do not half-adopt it. Adding `useTranslation` to one component makes the codebase inconsistent
-without making it translatable. If i18n is wanted for the web surface, it needs a deliberate
-decision (an ADR) covering both apps, the key namespace, and who owns the resource files.
+What now holds:
+
+- **`apps/console` is translated — English and German.** Copy lives in
+  `apps/console/locales/<locale>/<namespace>.json`, resolved per request on the server and
+  synchronously on the client. Use `t()`; do not add a literal.
+- **`packages/ui-web` owns no translations, and never calls `t()`.** Copy arrives as a **prop**, or
+  through **`useCopy()`** for the handful of strings baked into a primitive's own behaviour, each
+  with an English default. There is deliberately no third path.
+- **`apps/authz-ui` and `apps/governance-auth` remain untranslated**, and consume `ui-web` with no
+  i18n runtime — which is exactly why `ui-web` cannot hold one.
+- A **ratchet** (`apps/console/src/i18n-hardcoded-copy.test.ts`) pins the number of remaining
+  hard-coded console strings: it may fall freely, and raising it fails the build.
+
+The how-to — adding a string, adding a language, the parity test — is
+[`i18n.md`](i18n.md) and the `i18n-copy` skill.
 
 ---
 
@@ -106,11 +135,12 @@ decision (an ADR) covering both apps, the key namespace, and who owns the resour
 no `*.spec.ts` browser suite, no Playwright config or dependency. (Both claims appeared in earlier
 versions of these docs; both were false.)
 
-| Surface         | Runner                                                                | Notes                                                                    |
-| --------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `apps/console`  | Vitest, two projects: `node` (`*.test.ts`) and `jsdom` (`*.test.tsx`) | Both set their own `testTimeout` — a root-level timeout is not inherited |
-| `apps/authz-ui` | Vitest (jsdom)                                                        | Plus three build-time verifier scripts chained into `build:web`          |
-| `packages/*`    | Vitest                                                                | `ui-web` additionally treats Storybook stories as the acceptance surface |
+| Surface                | Runner                                                                | Notes                                                                                                               |
+| ---------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `apps/console`         | Vitest, two projects: `node` (`*.test.ts`) and `jsdom` (`*.test.tsx`) | Both set their own `testTimeout` — a root-level timeout is not inherited                                            |
+| `apps/authz-ui`        | Vitest (jsdom)                                                        | Plus three build-time verifier scripts chained into `build:web`                                                     |
+| `apps/governance-auth` | Vitest (jsdom)                                                        | Plus `scripts/verify-single-file.mjs`, which fails the build if the output stops being one self-contained HTML file |
+| `packages/*`           | Vitest                                                                | `ui-web` additionally treats Storybook stories as the acceptance surface                                            |
 
 Conventions:
 
@@ -163,9 +193,10 @@ Separated by blank lines:
 
 Prefer **named exports**. Note that `apps/console` and `apps/authz-ui` import `ui-web` through deep
 subpaths (`@lightbridge/ui-web/src/components/<name>`) as well as the barrel — deliberately, to keep
-the barrel's chart/`cmdk` re-exports out of bundles that never render them. That mapping is
-duplicated in three places per app (`tsconfig` paths, Vite/Next resolution, and the Vitest alias);
-if you add a resolution mode, add it in all three.
+the barrel's chart/`cmdk` re-exports out of bundles that never render them (`apps/governance-auth`
+composes only `ui-web` sections the same way). That mapping is duplicated in three places per app
+(`tsconfig` paths, Vite/Next resolution, and the Vitest alias); if you add a resolution mode, add it
+in all three.
 
 ---
 
@@ -180,6 +211,70 @@ if you add a resolution mode, add it in all three.
   exceptions — hover/focus, pre-submit form drafts, animation/measurement — each carrying a one-line
   justification comment.
 - `packages/ui-web` never imports nuqs: components stay controlled so the app owns their state.
+
+---
+
+## A query key and its payload are declared together
+
+**A TanStack query key is a shared address, not a local label.** Two hooks that build the same key
+share one cache entry, and a disabled `useQuery` still reads whatever already sits under its key —
+so two hooks that build the same key and disagree on the payload shape produce a crash in whichever
+one reads second, on whichever route mounts it.
+
+That is not hypothetical. On 2026-09-03 three console hooks each declared their own
+`['authz', 'resolveUserProfiles']` prefix over the same sorted id list: two cached the unwrapped
+`UserProfile[]`, one cached the `{ profiles: [...] }` envelope. The console shell mounts the refills
+queue on **every** route, so one visit to `/admin/roles` made `data.map is not a function` the first
+thing every page did.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Roles as /admin/roles hook
+    participant QC as QueryClient cache
+    participant Shell as console shell (every route)
+    participant IDB as IndexedDB persister
+
+    Roles->>QC: fetch key ['authz','resolveUserProfiles', ids]
+    QC-->>Roles: writes whatever queryFn returned
+    QC->>IDB: persistClient(buster = QUERY_CACHE_BUSTER)
+    Note over Shell: navigates anywhere — the shell remounts nothing,<br/>but re-reads the SAME key
+    Shell->>QC: getQueryData(same key)
+    QC-->>Shell: the entry Roles wrote
+    alt one declaration (containers/user-profiles-query.ts)
+        Shell->>Shell: UserProfile[] — .map() succeeds
+    else two declarations disagreeing on shape
+        Shell--xShell: TypeError: data.map is not a function
+    end
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Absent: no entry under the key
+    Absent --> Array: any caller writes through the shared helper
+    Array --> Array: another caller re-reads or refetches
+    Array --> Absent: gcTime / maxAge expiry, or a buster change
+    Absent --> Envelope: a SECOND hand-written declaration of the key
+    Envelope --> Crash: any array-shaped consumer reads it
+    Crash --> Crash: survives reload — the entry is persisted
+    Crash --> Absent: only on buster change or 24h maxAge
+    note right of Envelope
+      Unreachable by construction now: the only writer of these
+      keys is containers/user-profiles-query.ts, and a test in
+      user-profiles-query.test.tsx fails the build if a second
+      declaration appears.
+    end note
+```
+
+Two rules follow, both enforced by tests:
+
+1. **One module declares a key and its `queryFn` together**, and every caller spreads it
+   (`useQuery({ ...userProfilesQuery(client, ids), enabled })`). Unwrap the RPC envelope inside that
+   `queryFn`, never at the call site — a key must have exactly one payload type.
+2. **The persisted cache's buster must actually change per deploy.** `QUERY_CACHE_BUSTER` keys on
+   `NEXT_PUBLIC_BUILD_SHA`; keying it on a `package.json` version that never moves (as it did until
+   this incident) means a shape change is never discarded and a poisoned entry outlives every
+   deploy that could have cleared it.
 
 ---
 

@@ -1,7 +1,7 @@
 import { Dialog } from '@base-ui/react/dialog';
 import { Field as BaseField } from '@base-ui/react/field';
 import { Input as BaseInput } from '@base-ui/react/input';
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 
 import { cn } from '../../cn';
 import { formatBillingPlanLimits } from '../../lib/billing-plan-limits';
@@ -13,6 +13,7 @@ import { SegmentedControl } from '../segmented-control';
 import { SelectField } from '../select-field';
 import type { CreateApiKeyDialogProps } from './types';
 import { META_CLASS } from '../../lib/type-roles';
+import { useCopyToClipboard } from '../../lib/use-copy-to-clipboard';
 import {
   DIALOG_ACTIONS_CLASS,
   DIALOG_BACKDROP_CLASS,
@@ -229,38 +230,14 @@ export function CreateApiKeyDialog({
  * "card inside a card" this step exists to stop being. What survives is the accessible wiring —
  * `Field.Description` registers its id on the field, and `Field.Control` folds it into the
  * control's `describedby`, so a screen-reader user hears the "shown once" caption WITH the
- * secret — and the copy affordance (`navigator.clipboard`, a mono "Copied" acknowledgement on
+ * secret — and the copy affordance (`lib/use-copy-to-clipboard`, a mono "Copied" acknowledgement on
  * the button itself, never a toast — ADR 0008).
  */
 function SecretField({ secret }: { secret: string }) {
-  const [copied, setCopied] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
-  async function handleCopy() {
-    // Best-effort, the same contract every other clipboard write in this app follows
-    // (`AccountBadge`'s own `onCopyId`): the write can genuinely fail (permission denied, an
-    // insecure origin), and the secret stays focused/selected either way as the manual-copy
-    // fallback, so a failure here is silent rather than an unhandled rejection — never a claimed
-    // "Copied" for a copy that didn't happen.
-    try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(secret);
-      } else {
-        return;
-      }
-    } catch {
-      return;
-    }
-    setCopied(true);
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setCopied(false), 2000);
-  }
+  // Best-effort, no-throw, never a claimed copy that didn't happen — `lib/use-copy-to-clipboard`,
+  // the one implementation `SecretReveal` and `CommandSnippet` also use.
+  const { copiedKey, copy } = useCopyToClipboard();
+  const copied = copiedKey === secret;
 
   return (
     <BaseField.Root className="fieldset">
@@ -277,7 +254,7 @@ function SecretField({ secret }: { secret: string }) {
           // `cn(fieldControlClassName, 'font-mono')` pattern `SecretReveal` already uses.
           className={cn(fieldControlClassName, 'font-mono')}
         />
-        <Button type="button" variant="primary" onClick={handleCopy}>
+        <Button type="button" variant="primary" onClick={() => void copy(secret)}>
           {copied ? 'Copied' : 'Copy'}
         </Button>
       </div>

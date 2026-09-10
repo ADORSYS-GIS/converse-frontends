@@ -76,7 +76,7 @@ export function computeYDomain(bins: readonly HistogramBin[]): [number, number] 
 export function layoutBars(
   bins: readonly HistogramBin[],
   xScale: ScaleLinear<number, number>,
-  gap = 2,
+  gap = 2
 ): HistogramBar[] {
   return bins.map((bin) => {
     let rawX0: number;
@@ -106,7 +106,7 @@ export function collectXTicks(
   bins: readonly HistogramBin[],
   xScale: ScaleLinear<number, number>,
   format: (value: number) => string,
-  maxTicks = 6,
+  maxTicks = 6
 ): ChartTick[] {
   if (bins.length === 0) {
     return [];

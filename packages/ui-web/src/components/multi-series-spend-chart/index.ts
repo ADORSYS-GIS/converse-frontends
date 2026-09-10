@@ -1,4 +1,5 @@
-export { MultiSeriesSpendChart } from './component';
+export { MultiSeriesSpendChart, scaleAxisCaption } from './component';
+export { buildSummaryCaption } from './domain';
 export type {
   MultiSeriesSpendChartProps,
   MultiSeriesSpendPoint,

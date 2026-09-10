@@ -14,7 +14,7 @@ import {
 } from './fixtures';
 
 const meta: Meta<typeof BudgetPanel> = {
-  title: 'Sections/BudgetPanel',
+  title: 'Sections/Budget/BudgetPanel',
   component: BudgetPanel,
   parameters: { layout: 'fullscreen' },
   args: {
@@ -97,4 +97,3 @@ export const ErrorState: Story = {
     refillRequestStatus: undefined,
   },
 };
-

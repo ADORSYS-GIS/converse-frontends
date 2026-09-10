@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
 
 import { AdminRefillPoliciesCentre } from '../../../../containers/admin-refill-policies-centre';
+import { can } from '../../../../server/access';
 import { readSession } from '../../../../server/session-store';
-import { isAdmin } from '../../../../server/tokens';
+import { PERMISSION } from '../../../../shared/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,13 +14,14 @@ export const dynamic = 'force-dynamic';
  * /admin/refill-policies?create=true or /admin/refill-policies?edit=<id> to create or edit,
  * respectively, /admin/refill-policies?simulate=<id> to simulate." — converse-frontends#368).
  *
- * Gated **server-side** on the `lightbridge-admin` role read from the decrypted session cookie,
- * before any markup is generated — byte-for-byte the same mechanism `admin/overview/page.tsx` and
- * `admin/refills-queue/page.tsx` already use (`admin-refill-policies-route-gate.test.ts` covers
- * this route the same way). `notFound()` rather than a 403: a non-admin should not learn this
- * route exists at all, and the console-ui contract already hides both the settings-area entry
- * (deleted) and the admin area's own "Refill policies" nav row for them. This is still only the
- * UI half — every procedure the screen calls is independently gated server-side
+ * Gated **server-side** on **`budget:policy-write`** — the permission that actually decides
+ * whether this screen's central act (authoring a revision) can succeed — read from the permission
+ * set `getMyAccess` resolved into the decrypted session cookie, before any markup is generated
+ * (converse-frontends#452 replaced the `lightbridge-admin` role check that used to sit here;
+ * `admin-refill-policies-route-gate.test.ts` covers this route and its `create` sibling).
+ * `notFound()` rather than a 403: a caller without it should not learn this route exists at all,
+ * and the chrome already omits the admin area's own "Refill policies" nav row for them. This is
+ * still only the UI half — every procedure the screen calls is independently gated server-side
  * (`budget:policy-read`/`-write`/`-activate`/`-simulate`), so a forged session could at most render
  * an empty/degraded screen.
  *
@@ -30,7 +32,7 @@ export const dynamic = 'force-dynamic';
  */
 export default async function AdminRefillPoliciesRoute() {
   const session = await readSession();
-  if (!session || !isAdmin(session.user.roles)) {
+  if (!session || !can(session, PERMISSION.budgetPolicyWrite)) {
     notFound();
   }
   return <AdminRefillPoliciesCentre />;

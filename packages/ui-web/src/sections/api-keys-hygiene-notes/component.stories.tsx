@@ -6,7 +6,7 @@ import { ApiKeysHygieneNotes } from './component';
 import { apiKeysCleanHygiene, apiKeysHygiene } from './fixtures';
 
 const meta: Meta<typeof ApiKeysHygieneNotes> = {
-  title: 'Sections/ApiKeysHygieneNotes',
+  title: 'Sections/Account/ApiKeysHygieneNotes',
   component: ApiKeysHygieneNotes,
   parameters: { layout: 'padded' },
   args: { hygiene: apiKeysHygiene },

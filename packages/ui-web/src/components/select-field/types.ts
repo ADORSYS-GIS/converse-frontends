@@ -54,5 +54,12 @@ export interface SelectFieldProps {
    * `SelectField` in an error state reads as a `Field` sibling, not a control with its own rule.
    */
   error?: string;
+  /**
+   * A concrete sample of the option an author would usually pick — the identical contract
+   * `Field`'s own `example?: string` carries (issue #445): a muted `meta` line between the label
+   * and the trigger, wired into the trigger's `aria-describedby`, and a `stacked`-layout
+   * affordance only (an `inline` toolbar row has nothing underneath it).
+   */
+  example?: string;
   className?: string;
 }

@@ -1,4 +1,4 @@
-import { Command } from 'cmdk';
+import { Command, useCommandState } from 'cmdk';
 import React from 'react';
 
 import { cn } from '../../cn';
@@ -27,6 +27,31 @@ const KBD_HINT_CLASS = 'kbd kbd-sm';
 // #368: "10px looks good for the command palette" — `OVERLAY_FLOATING_CLASS`, `lib/overlay.ts`),
 // plus the geometry `palette-popup` carries.
 const PALETTE_POPUP_CLASS = cn('palette-popup', 'overlay-pop', OVERLAY_FLOATING_CLASS);
+
+/**
+ * The "nothing matched" line — OUTSIDE `Command.List`, not cmdk's own `Command.Empty` inside it.
+ *
+ * `Command.List` is a `role="listbox"`, whose only permitted owned children are `option` and
+ * `group`. cmdk's `Empty` renders a plain `<div>` inside that listbox, which axe fails as
+ * `aria-required-children` ("Required ARIA children role not present: group, option") — critical
+ * impact, and a real one: a listbox owning a bare div is a structure no assistive tech has a
+ * reading for. Found by the axe sweep in `src/test/setup.ts` (#443).
+ *
+ * Reading the filtered count off cmdk's own store instead (`useCommandState`) leaves the listbox
+ * genuinely childless when nothing matches — which axe treats as "incomplete", not a violation,
+ * and which is the honest structure — and lets the message be a `role="status"` live region, so
+ * the result of typing is ANNOUNCED rather than silently swapped in. `Command.Empty` was never
+ * announced: a listbox's contents are not a live region.
+ */
+function PaletteEmptyLine({ message }: { message: string }) {
+  const matchCount = useCommandState((state) => state.filtered.count);
+  if (matchCount > 0) return null;
+  return (
+    <div role="status" className="palette-empty">
+      {message}
+    </div>
+  );
+}
 
 /**
  * The ⌘K command palette (ADR 0010 Decision 6, the command-palette row of
@@ -84,10 +109,15 @@ export function CommandPalette({
       contentClassName={PALETTE_POPUP_CLASS}>
       <div className="palette-search-row">
         <SearchIcon className="palette-search-icon" />
+        {/* `autoFocus` is correct HERE and nowhere else: this input only mounts when the palette
+            dialog opens, which is itself a deliberate user action (⌘K / a trigger click). WCAG's
+            objection to autofocus is unexpected focus movement on PAGE LOAD; a modal that does not
+            move focus into itself on open is the worse failure (2.4.3 Focus Order), and a command
+            palette whose search box is not focused is unusable. */}
+        {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
         <Command.Input autoFocus placeholder={placeholder} className="input input-ghost" />
       </div>
       <Command.List className="palette-list">
-        <Command.Empty className="palette-empty">{emptyMessage}</Command.Empty>
         {groups.map((group) => (
           <Command.Group
             key={group.key}
@@ -117,6 +147,7 @@ export function CommandPalette({
           </Command.Group>
         ))}
       </Command.List>
+      <PaletteEmptyLine message={emptyMessage} />
       <div className="palette-footer">
         <span className="palette-footer-hint">
           <kbd className={KBD_HINT_CLASS}>↑↓</kbd> navigate

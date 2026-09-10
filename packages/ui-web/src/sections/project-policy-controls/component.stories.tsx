@@ -5,7 +5,7 @@ import { ProjectPolicyControls } from './component';
 import { modelCatalogFixture } from './fixtures';
 
 const meta: Meta<typeof ProjectPolicyControls> = {
-  title: 'Sections/ProjectPolicyControls',
+  title: 'Sections/Account/ProjectPolicyControls',
   component: ProjectPolicyControls,
   parameters: { layout: 'padded' },
   args: {

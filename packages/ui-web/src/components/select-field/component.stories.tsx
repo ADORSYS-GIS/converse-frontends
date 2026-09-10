@@ -8,7 +8,7 @@ const meta: Meta<typeof SelectField> = {
   // `Forms & actions/*`, matching every other control in this group (`Field`, `SegmentedControl`,
   // `ScopeSelect`, the four dialogs) — this component's own title used to be the lone `Forms/*`
   // outlier in the sidebar, one more small inconsistency the unify-select pass (issue #368) closes.
-  title: 'Forms & actions/SelectField',
+  title: 'Primitives/Fields/SelectField',
   component: SelectField,
 };
 
@@ -147,6 +147,25 @@ export const ErrorInFieldLight: Story = {
         ]}
         onChange={() => {}}
         error="Choose a plan before continuing."
+      />
+    </div>
+  ),
+};
+
+// Issue #445 — the example slot, the identical contract `Field` carries: a muted line between the
+// label and the trigger, in the trigger's `aria-describedby`.
+export const WithExample: Story = {
+  render: () => (
+    <div className="bg-surface w-[248px] p-4">
+      <SelectField
+        label="Default effect"
+        example="e.g. Send to manual review, when no rule below matches"
+        value="pro"
+        options={[
+          { value: 'free', label: 'Free' },
+          { value: 'pro', label: 'Pro' },
+        ]}
+        onChange={() => {}}
       />
     </div>
   ),

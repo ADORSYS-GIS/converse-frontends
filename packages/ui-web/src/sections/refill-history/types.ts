@@ -30,10 +30,7 @@ export interface RefillHistoryUnavailable {
 }
 
 export type RefillHistoryState =
-  | RefillHistoryReady
-  | RefillHistoryLoading
-  | RefillHistoryError
-  | RefillHistoryUnavailable;
+  RefillHistoryReady | RefillHistoryLoading | RefillHistoryError | RefillHistoryUnavailable;
 
 export interface RefillHistoryProps {
   state: RefillHistoryState;

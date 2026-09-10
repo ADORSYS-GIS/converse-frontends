@@ -48,13 +48,6 @@ export interface ProjectsLedgerProps {
   error?: string;
   onRetry?: () => void;
 
-  /** The table-scoped search box, leading the toolbar row. */
-  search: string;
-  onSearchChange: (value: string) => void;
-  /** The account/status/budget-state filter cluster, trailing the toolbar row — composed by the
-   *  caller (`ManageControls`) so this section stays generic about what a "filter" is. */
-  filters?: ReactNode;
-
   /** Shown in place of the table when there are no rows at all AND no filter is narrowing the
    *  list — `EmptyState` with a `+ New project` CTA, never a bare "no rows" line. */
   emptyState?: ReactNode;

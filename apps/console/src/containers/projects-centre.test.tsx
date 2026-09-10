@@ -103,6 +103,7 @@ function baseScreen(overrides: Partial<ProjectsScreenData> = {}): ProjectsScreen
     search: '',
     setSearch: vi.fn(),
     filtersActive: false,
+    resetFilters: vi.fn(),
     selectedProject: null,
     selectRow: vi.fn(),
     clearSelection: vi.fn(),

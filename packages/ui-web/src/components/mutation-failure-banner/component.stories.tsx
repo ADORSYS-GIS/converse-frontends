@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { MutationFailureBanner } from './component';
 
 const meta: Meta<typeof MutationFailureBanner> = {
-  title: 'States/MutationFailureBanner',
+  title: 'Primitives/States/MutationFailureBanner',
   component: MutationFailureBanner,
 };
 

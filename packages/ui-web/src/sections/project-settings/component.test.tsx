@@ -156,7 +156,11 @@ describe('ProjectSettings', () => {
   it('distinguishes a search that narrowed the list to nothing from an empty account', () => {
     render(
       <ProjectSettings
-        {...props({ projects: [], search: 'nonexistent', filteredEmptyMessage: 'No projects match “nonexistent”.' })}
+        {...props({
+          projects: [],
+          search: 'nonexistent',
+          filteredEmptyMessage: 'No projects match “nonexistent”.',
+        })}
       />
     );
 

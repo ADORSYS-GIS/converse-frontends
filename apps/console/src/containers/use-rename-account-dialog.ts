@@ -2,12 +2,12 @@
 
 import type { Account } from '@lightbridge/authz-rpc';
 import type { AccountNameDialogProps } from '@lightbridge/ui-web/src/components/account-name-dialog';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { useConsoleAuthzClient } from '../client/rpc-clients';
 import { useConsoleSession } from '../client/session-context';
 import { useConsoleScope } from '../client/use-console-scope';
-import { SETTINGS_DIALOG_OPTIONS, useSettingsParams } from '../client/url-state';
+import { CONSOLE_DIALOGS, useUrlDialog } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { accountScopeLabel } from './account-label';
 import { isAccountOwner } from './account-ownership';
@@ -22,7 +22,7 @@ import { classifyCreateAccountError } from './rpc-field-error';
  * already solves for CREATE, applied to its sibling verb). Mounted exactly once, in
  * `app/(console)/layout.tsx`, so it renders regardless of which route triggered it.
  *
- * The wire flag stays `?account-name=true` (`settingsParsers.accountNameOpen`) — no rename, no new
+ * The wire flag is `?dialog=account-name` (`CONSOLE_DIALOGS`, migrated 2026-09-03) — no new
  * param — only WHO renders the dialog and WHO owns the mutation moved. `/settings/account`
  * (`account-settings-centre.tsx`) no longer mounts `AccountNameDialog` itself; it only calls
  * `useOpenRenameAccountDialog()`, the lightweight trigger half below.
@@ -38,7 +38,7 @@ export function useRenameAccountDialog(): RenameAccountDialogController {
   const scope = useConsoleScope();
   const session = useConsoleSession();
   const client = useConsoleAuthzClient();
-  const [view, setView] = useSettingsParams();
+  const dialog = useUrlDialog(CONSOLE_DIALOGS.accountName);
 
   const scopedAccount =
     scope.allAccounts.find((account) => account.id === scope.value.accountId) ?? null;
@@ -47,19 +47,27 @@ export function useRenameAccountDialog(): RenameAccountDialogController {
   /**
    * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — same clause `use-account-settings-screen.ts`
    * documented before this moved): the rename dialog's typed-but-unsent name.
+   *
+   * Carried WITH the account id it was typed against (`seededFor`) rather than seeded by a
+   * `setState` inside an effect — the same shape `use-budget-schedule-form-screen.ts` already uses
+   * for its prefilled edit form, and for the same two reasons. It keeps the prefill a pure
+   * derivation (an effect that sets state on open is a cascading render, and React's own lint says
+   * so), and it states the invalidation rule in the data instead of in a dependency array: a draft
+   * belongs to ONE open dialog on ONE account, so a mid-edit refetch of the account list cannot
+   * clobber it, and reopening on a different account cannot inherit it.
    */
-  const [nameDraft, setNameDraft] = useState('');
+  const [draft, setDraft] = useState<{ seededFor: string | null; name: string }>({
+    seededFor: null,
+    name: '',
+  });
 
   // Whichever of the two triggers (this screen's own PageHeader/row action, or the rail's) opened
-  // the dialog, this instance is the only one that renders it — so it has to seed its OWN draft
-  // from the scoped account's current name the moment `?account-name=` flips true, rather than
-  // relying on the trigger (which has no access to this state) to have done it.
-  useEffect(() => {
-    if (view.accountNameOpen) setNameDraft(scopedAccount?.name ?? '');
-    // Deliberately keyed on the open transition alone — re-seeding on every `scopedAccount`
-    // change would clobber an in-progress edit if the account list happens to refetch while open.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view.accountNameOpen]);
+  // the dialog, this instance is the only one that renders it — so the draft seeds itself from the
+  // scoped account's current name rather than relying on the trigger, which cannot reach this
+  // state, to have done it.
+  const draftKey = dialog.open ? (scopedAccount?.id ?? 'none') : null;
+  const nameDraft = draft.seededFor === draftKey ? draft.name : (scopedAccount?.name ?? '');
+  const setNameDraft = (name: string) => setDraft({ seededFor: draftKey, name });
 
   const action = useSharedMutation<{ name: string }, Account>({
     mutationKey: ACCOUNT_NAME_MUTATION_KEY,
@@ -73,24 +81,23 @@ export function useRenameAccountDialog(): RenameAccountDialogController {
     onSuccess: () => {
       scope.refetch();
       setNameDraft('');
-      void setView({ accountNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
+      dialog.close();
     },
   });
 
   const fieldErrors = action.errorMessage ? classifyCreateAccountError(action.errorMessage) : {};
 
-  const canSubmit =
-    canRename && normalizeAccountName(nameDraft) !== (scopedAccount?.name ?? null);
+  const canSubmit = canRename && normalizeAccountName(nameDraft) !== (scopedAccount?.name ?? null);
 
   return {
     open: () => {
       if (!canRename) return;
       if (action.errorMessage) action.dismiss();
-      setNameDraft(scopedAccount?.name ?? '');
-      void setView({ accountNameOpen: true }, SETTINGS_DIALOG_OPTIONS);
+      // No seeding here: the draft derives itself from `draftKey` the moment the dialog opens.
+      dialog.openDialog();
     },
     dialog: {
-      open: view.accountNameOpen,
+      open: dialog.open,
       mode: 'rename',
       subjectLabel: scopedAccount ? accountScopeLabel(scopedAccount) : '—',
       currentlyNamed: scopedAccount?.name != null,
@@ -107,7 +114,7 @@ export function useRenameAccountDialog(): RenameAccountDialogController {
       onCancel: () => {
         if (action.errorMessage) action.dismiss();
         setNameDraft('');
-        void setView({ accountNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
+        dialog.close();
       },
     },
   };
@@ -119,8 +126,5 @@ export function useRenameAccountDialog(): RenameAccountDialogController {
  * rail's quick-settings panel.
  */
 export function useOpenRenameAccountDialog(): () => void {
-  const [, setView] = useSettingsParams();
-  return () => {
-    void setView({ accountNameOpen: true }, SETTINGS_DIALOG_OPTIONS);
-  };
+  return useUrlDialog(CONSOLE_DIALOGS.accountName).openDialog;
 }

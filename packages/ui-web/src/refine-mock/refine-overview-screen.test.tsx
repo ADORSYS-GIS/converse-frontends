@@ -10,26 +10,35 @@ describe('RefineOverviewScreen', () => {
     render(
       <RefineMockRoot providerConfig={{ latencyMs: [40, 80] }}>
         <RefineOverviewScreen />
-      </RefineMockRoot>,
+      </RefineMockRoot>
     );
 
     expect(screen.queryByText('$142.55')).not.toBeInTheDocument();
 
     // "$142.55" alone is ambiguous once loaded — BudgetHero echoes the same figure the SPEND THIS
     // MONTH stat card shows (both fixtures use the same mock number), so assert via `getAllByText`.
-    await waitFor(() => expect(screen.getAllByText('$142.55').length).toBeGreaterThan(0), { timeout: 3000 });
+    await waitFor(() => expect(screen.getAllByText('$142.55').length).toBeGreaterThan(0), {
+      timeout: 3000,
+    });
     expect(screen.getByText('Spend this month')).toBeInTheDocument();
   });
 
   it('adapts a custom-endpoint failure into the Overview sections’ error props (ErrorLine per dashboard)', async () => {
     render(
-      <RefineMockRoot providerConfig={{ latencyMs: [10, 20], errorResources: { overview: 'Failed to load overview data.' } }}>
+      <RefineMockRoot
+        providerConfig={{
+          latencyMs: [10, 20],
+          errorResources: { overview: 'Failed to load overview data.' },
+        }}>
         <RefineOverviewScreen />
-      </RefineMockRoot>,
+      </RefineMockRoot>
     );
 
-    await waitFor(() => expect(screen.getAllByText('Failed to load overview data.').length).toBeGreaterThan(0), {
-      timeout: 3000,
-    });
+    await waitFor(
+      () => expect(screen.getAllByText('Failed to load overview data.').length).toBeGreaterThan(0),
+      {
+        timeout: 3000,
+      }
+    );
   });
 });

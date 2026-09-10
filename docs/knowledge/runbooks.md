@@ -3,6 +3,7 @@
 > Sources: `charts/converse-frontend/values.yaml`, `Dockerfile`, `AGENTS.md`, `openapi/`
 
 Actionable, step-by-step instructions for common operational tasks and incidents. Each runbook is:
+
 - Single-purpose (5–10 min to execute)
 - Tied to specific failure modes observable in the system
 - Based on what is defined in this codebase
@@ -46,6 +47,7 @@ helm upgrade converse-frontend ./charts/converse-frontend \
 ```
 
 **3) Diagnosis**
+
 ```bash
 kubectl get pods -n <namespace> -l app=converse-frontend-app
 kubectl describe pod <pod-name> -n <namespace>
@@ -53,6 +55,7 @@ kubectl logs <pod-name> -n <namespace>
 ```
 
 **4) Validation**
+
 - Pods reach `Running` and `Ready` state
 - Health check endpoint responds: `curl http://<pod-ip>/`
 
@@ -66,6 +69,7 @@ kubectl logs <pod-name> -n <namespace>
 The container is crashing on startup. Most likely cause: `entrypoint.sh` fails due to a missing or malformed environment variable.
 
 **2) Diagnosis**
+
 ```bash
 kubectl logs <pod-name> -n <namespace> --previous
 kubectl describe pod <pod-name> -n <namespace>
@@ -76,6 +80,7 @@ Look for: `envsubst` errors, missing `config.template.json`, or nginx startup fa
 **3) Remediation**
 
 Check that all required environment variables are set in the Helm values:
+
 - `EXPO_PUBLIC_BACKEND_URL`
 - `EXPO_PUBLIC_USAGE_URL`
 - `EXPO_PUBLIC_KEYCLOAK_ISSUER`
@@ -86,6 +91,7 @@ kubectl get deployment converse-frontend -n <namespace> -o jsonpath='{.spec.temp
 ```
 
 Fix the missing variable in Helm values, then re-deploy:
+
 ```bash
 helm upgrade converse-frontend ./charts/converse-frontend -n <namespace> -f values-prod.yaml
 ```
@@ -103,6 +109,7 @@ Pod transitions to `Running`. Liveness probe passes.
 The app is loading but using wrong backend URLs or Keycloak config. The `config.json` in the container may be stale or incorrectly generated.
 
 **2) Diagnosis**
+
 ```bash
 # Exec into the running pod
 kubectl exec -it <pod-name> -n <namespace> -- sh
@@ -136,11 +143,13 @@ Re-exec into pod and confirm `config.json` contains the correct values.
 The frontend is sending requests without a valid Bearer token, or the token has expired and refresh failed.
 
 **2) Diagnosis**
+
 - Open browser DevTools → Network tab → inspect request headers for `Authorization: Bearer ...`
 - Check if `accessToken` is present in the browser's IndexedDB: DevTools → Application → IndexedDB → `lightbridge-web-storage` → `auth` → `lightbridge.auth.session`
 - Check if the Keycloak issuer URL is reachable from the browser
 
 **3) Remediation**
+
 - If session is missing: user must log in again
 - If token refresh is failing: verify `EXPO_PUBLIC_KEYCLOAK_ISSUER` is correct and the Keycloak realm is reachable
 - If Keycloak is down: escalate to infrastructure team
@@ -158,11 +167,14 @@ After re-login, API calls succeed with `200 OK`.
 The user is authenticated but not authorized. Most common cause: the user's Keycloak account is not associated with the account/project they are trying to access.
 
 **2) Diagnosis**
+
 - Confirm the user's `sub` (Keycloak user ID) is in the `owners_admins` list of the target account
 - Check via: `GET /api/v1/accounts/{account_id}` → inspect `owners_admins`
 
 **3) Remediation**
+
 - Add the user to `owners_admins` via `PATCH /api/v1/accounts/{account_id}` with:
+
 ```json
 { "owners_admins": ["<existing-ids>", "<new-user-sub>"] }
 ```
@@ -178,11 +190,13 @@ Retry the failing operation — it should return `200`.
 
 **1) Context**
 The user is stuck on the login screen or gets a redirect error. Possible causes:
+
 - Keycloak is unreachable
 - Redirect URI is not registered in the Keycloak client
 - `EXPO_PUBLIC_KEYCLOAK_ISSUER` or `EXPO_PUBLIC_KEYCLOAK_CLIENT_ID` is wrong
 
 **2) Diagnosis**
+
 ```bash
 # Check Keycloak reachability (from inside the cluster or browser)
 curl https://<EXPO_PUBLIC_KEYCLOAK_ISSUER>/.well-known/openid-configuration
@@ -192,6 +206,7 @@ kubectl exec -it <pod-name> -n <namespace> -- cat /usr/share/nginx/html/config.j
 ```
 
 **3) Remediation**
+
 - If Keycloak unreachable: escalate to Keycloak/infra team
 - If wrong redirect URI: register `https://self-service.ai.camer.digital/auth` as a valid redirect URI in the Keycloak client settings
 - If wrong config values: fix Helm values and redeploy
@@ -211,6 +226,7 @@ The Usage tab renders "coming soon" — this is the **expected current state**. 
 **Action:** No incident action needed. This is a known feature gap. Track via the relevant GitHub issue.
 
 **2) If usage is implemented and data is missing:**
+
 - Verify `EXPO_PUBLIC_USAGE_URL` is correctly set
 - Verify the current project ID is set (the hook only fires when `project.id` is available)
 - Check browser DevTools → Network for the `POST /usage/v1/usage/query` request
@@ -240,7 +256,9 @@ docker buildx build \
 ```
 
 **3) Validation**
+
 ```bash
 docker manifest inspect ghcr.io/adorsys-gis/converse-frontends:manual-<sha>
 ```
+
 Confirm both `linux/amd64` and `linux/arm64` manifests are present.

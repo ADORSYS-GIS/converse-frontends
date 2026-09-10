@@ -3,15 +3,9 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ApiKeysControls } from './component';
-import { API_KEY_PROJECT_OPTIONS, API_KEY_STATUS_OPTIONS } from './fixtures';
+import { API_KEY_STATUS_OPTIONS } from './fixtures';
 
 const base = {
-  projectField: {
-    label: 'Project',
-    value: 'gateway-prod',
-    options: API_KEY_PROJECT_OPTIONS,
-    onChange: () => {},
-  },
   statusOptions: API_KEY_STATUS_OPTIONS,
   statusValue: 'all',
   onStatusChange: () => {},
@@ -20,10 +14,9 @@ const base = {
 };
 
 describe('ApiKeysControls', () => {
-  it('renders the project field, the status filter and the search field in one row', () => {
+  it('renders the status filter and the search field', () => {
     render(<ApiKeysControls {...base} />);
 
-    expect(screen.getByLabelText('Project')).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Status filter' })).toBeInTheDocument();
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
   });
@@ -50,10 +43,13 @@ describe('ApiKeysControls', () => {
     expect(onSearchChange).toHaveBeenCalledWith('desktop');
   });
 
-  it('leads with the project selector — on this screen it is a precondition, not a filter', () => {
+  // 2026-09-03 (ADR 0015 amendment A2): SCOPE is not a filter. The project select is its own
+  // `PageControls` group now, parted from these two by a hairline, so `Reset filters` cannot
+  // silently move the reader to a different project.
+  it('renders no project selector — that is scope, and a group of its own', () => {
     render(<ApiKeysControls {...base} />);
 
-    expect(screen.getByLabelText('Project')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Project')).not.toBeInTheDocument();
   });
 
   it('does NOT render an account control — scope is identity, and lives in the sidebar', () => {
@@ -62,11 +58,14 @@ describe('ApiKeysControls', () => {
     expect(screen.queryByLabelText('Account')).not.toBeInTheDocument();
   });
 
-  it('is one landmark region, and a horizontal cluster, not a stacked rail', () => {
-    render(<ApiKeysControls {...base} />);
+  // 2026-09-03 (ADR 0015 amendment A2): this cluster is a FRAGMENT now, not its own landmark. The
+  // `<section aria-label>` and the `flex flex-wrap items-end gap-3` it used to carry are
+  // `PageControls`' — the page-level control row — so four sibling clusters stopped spelling the
+  // same four utilities. What this asserts is that it did NOT keep a wrapper of its own.
+  it('renders no wrapper of its own — `PageControls` owns the row', () => {
+    const { container } = render(<ApiKeysControls {...base} />);
 
-    const region = screen.getByRole('region', { name: 'Filters and actions' });
-    expect(region).toHaveClass('flex-wrap', 'items-end');
-    expect(region).not.toHaveClass('flex-col');
+    expect(container.querySelector('section')).toBeNull();
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
   });
 });

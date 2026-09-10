@@ -16,7 +16,6 @@ vi.mock('@lightbridge/authz-rpc', () => ({
   getAuthzRpcClient: () => ({ projects: { list: listMock } }),
   createId: () => 'test-id',
 }));
-vi.mock('@lightbridge/i18n', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
 import {
   fetchAllProjectsForAccount,

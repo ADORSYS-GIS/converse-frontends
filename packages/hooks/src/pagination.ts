@@ -48,10 +48,7 @@ export function usePagination(options: UsePaginationOptions = {}): UsePagination
   const next = useCallback(() => setPage((current) => current + 1), []);
   const prev = useCallback(() => setPage((current) => Math.max(1, current - 1)), []);
   const reset = useCallback(() => setPage(1), []);
-  const hasMore = useCallback(
-    (returnedCount: number) => returnedCount >= pageSize,
-    [pageSize],
-  );
+  const hasMore = useCallback((returnedCount: number) => returnedCount >= pageSize, [pageSize]);
 
   return useMemo(
     () => ({
@@ -65,6 +62,6 @@ export function usePagination(options: UsePaginationOptions = {}): UsePagination
       reset,
       hasMore,
     }),
-    [page, pageSize, next, prev, reset, hasMore],
+    [page, pageSize, next, prev, reset, hasMore]
   );
 }

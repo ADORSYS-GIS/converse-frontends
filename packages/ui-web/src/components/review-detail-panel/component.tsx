@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { cn } from '../../cn';
 import { DETAIL_LIST_CLASS, DETAIL_ROW_CLASS } from '../../lib/detail-row';
 import { formatUsd } from '../../lib/money';
+import { RequesterLines } from '../../lib/requester-lines';
 import { BODY_CLASS, LABEL_CLASS, METRIC_CLASS } from '../../lib/type-roles';
 import { Button } from '../button';
 import { Field } from '../field';
@@ -54,6 +55,7 @@ const SECTION_CLASS = 'rail-section';
 // `use-admin-screen.ts`'s `decide.mutationFn`), and Decline is blocked client-side on an
 // empty/whitespace-only note before any RPC call, with a `Field` error line naming why.
 export function ReviewDetailPanel({
+  requester,
   projectLabel,
   accountLabel,
   submittedAt,
@@ -98,6 +100,16 @@ export function ReviewDetailPanel({
       </div>
 
       <dl className={cn(DETAIL_LIST_CLASS, SECTION_CLASS)}>
+        {/* converse-frontends#444: the requester leads the block — a reviewer decides about a
+            person, and the project/account they decided under is context for that, not the other
+            way round. Same two-line treatment as the queue's Requester cell (`RequesterLines`), so
+            an id shown as "Unresolved user · usr_…" reads identically in both places. */}
+        <div className={DETAIL_ROW_CLASS}>
+          <dt className={LABEL_CLASS}>Requested by</dt>
+          <dd className={BODY_CLASS}>
+            <RequesterLines requester={requester} />
+          </dd>
+        </div>
         <div className={DETAIL_ROW_CLASS}>
           <dt className={LABEL_CLASS}>Project</dt>
           <dd className={BODY_CLASS}>{projectLabel}</dd>

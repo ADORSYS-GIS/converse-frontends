@@ -30,6 +30,17 @@ import type { ButtonProps } from './types';
 // Base UI also supplies a data-disabled attribute and forces type="button" by default. Neither
 // costs a class: the daisy block in theme.css already keys disabled off :disabled, and the
 // default type is what this component passed by hand anyway.
+//
+// ── `render={<a href="…" />}` and eslint-plugin-jsx-a11y ──────────────────────────────────────
+//
+// The element handed to `render` is a TEMPLATE, not the rendered tree: Base UI's
+// `useRenderElement` clones it and merges this component's own props AND children into the clone,
+// so `<Button render={<a href="/x" />}>Sign out</Button>` renders `<a href="/x" role="button">Sign
+// out</a>`. `jsx-a11y/anchor-has-content` and `jsx-a11y/control-has-associated-label` read the JSX
+// literal instead, see a childless `<a>`, and report. Every call site therefore carries a
+// two-rule `eslint-disable-next-line` pointing back here — that is the ONLY sanctioned reason to
+// disable those two rules in this repo. If a site disables them for any other shape, it is a real
+// finding wearing the wrong excuse. See `docs/knowledge/accessibility.md` § Justified exceptions.
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { className, variant, size, disabled, type = 'button', ...props },
   ref

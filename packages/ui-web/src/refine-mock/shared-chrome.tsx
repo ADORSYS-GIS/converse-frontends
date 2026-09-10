@@ -30,7 +30,7 @@ export interface RefineMockShellProps {
 
 export function RefineMockShell({ active, showAdmin = false, children }: RefineMockShellProps) {
   return (
-    <ConsoleShell sidebar={storySidebar(active, { isAdmin: showAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar(active, { showAdmin })} topBar={storyTopBar()}>
       {children}
     </ConsoleShell>
   );

@@ -28,6 +28,14 @@ node_modules
 !apps/console/.docker-stage/**
 !apps/console/.docker-stage/**/node_modules
 !apps/console/.docker-stage/**/node_modules/**
+
+# apps/lci/.next/standalone is `next build`'s traced runtime bundle (next.config.mjs `output:
+# 'standalone'`) — it embeds its own node_modules (a hoisted pnpm store plus per-workspace-package
+# symlinks into it), which the blanket rules above would otherwise strip from
+# apps/lci/Dockerfile's build context.
+!apps/lci/.next/standalone/**
+!apps/lci/.next/standalone/**/node_modules
+!apps/lci/.next/standalone/**/node_modules/**
 .DS_Store
 **/.turbo
 **/.cache

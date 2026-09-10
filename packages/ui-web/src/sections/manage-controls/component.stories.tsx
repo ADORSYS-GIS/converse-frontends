@@ -5,7 +5,7 @@ import { ManageControls } from './component';
 import { manageBudgetStateOptions, manageStatusOptions } from './fixtures';
 
 const meta: Meta<typeof ManageControls> = {
-  title: 'Sections/ManageControls',
+  title: 'Sections/Account/ManageControls',
   component: ManageControls,
   parameters: { layout: 'padded' },
   args: {

@@ -2,184 +2,25 @@ import { describe, expect, it } from 'vitest';
 
 import type { UsageQueryResponse } from '@lightbridge/api-rest';
 
-import { OVERVIEW_BUCKETS } from '../client/url-state';
 import {
   activeApiKeysCountFilters,
   buildBudgetConsumptionByProjectRequest,
   buildBudgetConsumptionRequest,
-  buildOverviewUsageRequest,
   currentPeriodRange,
-  degenerateChartMessage,
   isUsageResponseTruncated,
   resolveOverviewWindow,
   resolveRangeWindow,
   safeCost,
-  splitUnassignedProjects,
   sumTotalCost,
   toSpendShareSegments,
-  UNASSIGNED_KEY,
   USAGE_QUERY_LIMIT,
 } from './overview-usage';
 
-const WINDOW_7D = {
-  start: new Date(Date.UTC(2026, 7, 22)),
-  end: new Date(Date.UTC(2026, 7, 29)),
-};
-const WINDOW_30D = {
-  start: new Date(Date.UTC(2026, 6, 30)),
-  end: new Date(Date.UTC(2026, 7, 29)),
-};
-const WINDOW_90D = {
-  start: new Date(Date.UTC(2026, 4, 31)),
-  end: new Date(Date.UTC(2026, 7, 29)),
-};
 const NOW = new Date('2026-08-28T12:00:00.000Z');
 
-describe('buildOverviewUsageRequest', () => {
-  it('scopes to the account when no project is selected', () => {
-    const request = buildOverviewUsageRequest({
-      accountId: 'acct_1',
-      projectId: null,
-      window: WINDOW_30D,
-      bucket: 'day',
-      groupBy: 'project_id',
-      model: 'all',
-    });
-
-    expect(request.scope).toBe('account');
-    expect(request.scope_id).toBe('acct_1');
-  });
-
-  it('scopes to the project when one is selected', () => {
-    const request = buildOverviewUsageRequest({
-      accountId: 'acct_1',
-      projectId: 'proj_7',
-      window: WINDOW_30D,
-      bucket: 'day',
-      groupBy: 'project_id',
-      model: 'all',
-    });
-
-    expect(request.scope).toBe('project');
-    expect(request.scope_id).toBe('proj_7');
-  });
-
-  it('carries the resolved window straight through as start_time/end_time', () => {
-    const request = buildOverviewUsageRequest({
-      accountId: 'acct_1',
-      projectId: null,
-      window: WINDOW_7D,
-      bucket: 'hour',
-      groupBy: 'model',
-      model: 'all',
-    });
-
-    expect(request.start_time).toBe(WINDOW_7D.start.toISOString());
-    expect(request.end_time).toBe(WINDOW_7D.end.toISOString());
-  });
-
-  it('sends the group-by param straight through — #312, closed, no bridge table left to translate through', () => {
-    expect(
-      buildOverviewUsageRequest({
-        accountId: 'acct_1',
-        window: WINDOW_30D,
-        bucket: 'day',
-        groupBy: 'project_id',
-        model: 'all',
-      }).group_by
-    ).toEqual(['project_id']);
-
-    expect(
-      buildOverviewUsageRequest({
-        accountId: 'acct_1',
-        window: WINDOW_30D,
-        bucket: 'day',
-        groupBy: 'model',
-        model: 'all',
-      }).group_by
-    ).toEqual(['model']);
-  });
-
-  /**
-   * The bug this suite did not catch: the Overview sent `bucket: 'day'` and every dashboard load
-   * came back `400 Bad request: bucket must look like \`5 minutes\`, \`1 hour\`, or \`1 day\``.
-   *
-   * Asserted against the backend's OWN regex, copied verbatim from
-   * `lightbridge-authz` `crates/lightbridge-authz-usage/src/repo.rs`'s `validate_bucket_interval`,
-   * rather than against a hand-written list of expected strings. A list would happily accept
-   * `'1 week'` -- which reads correct, is what anyone would write for the `week` bucket, and is
-   * explicitly refused by that validator (`validate_bucket_interval_rejects_unexpected_values`
-   * asserts it). This encodes the real contract, so a new bucket option cannot be added without
-   * either mapping it to something the backend accepts or turning this red.
-   */
-  const BACKEND_BUCKET_RE = /^\d+\s+(second|seconds|minute|minutes|hour|hours|day|days)$/;
-
-  it.each(OVERVIEW_BUCKETS)('sends bucket %s as an interval the backend accepts', (bucket) => {
-    const request = buildOverviewUsageRequest({
-      accountId: 'acct_1',
-      window: WINDOW_30D,
-      bucket,
-      groupBy: 'project_id',
-      model: 'all',
-    });
-    expect(request.bucket).toMatch(BACKEND_BUCKET_RE);
-  });
-
-  it('maps each bucket to the expected interval width', () => {
-    const bucketFor = (bucket: (typeof OVERVIEW_BUCKETS)[number]) =>
-      buildOverviewUsageRequest({
-        accountId: 'acct_1',
-        window: WINDOW_30D,
-        bucket,
-        groupBy: 'project_id',
-        model: 'all',
-      }).bucket;
-
-    expect(bucketFor('hour')).toBe('1 hour');
-    expect(bucketFor('day')).toBe('1 day');
-    // NOT '1 week' -- the backend regex has no `week` arm at all.
-    expect(bucketFor('week')).toBe('7 days');
-  });
-
-  it('omits the model filter for the "all" sentinel, sets it otherwise', () => {
-    const allModels = buildOverviewUsageRequest({
-      accountId: 'acct_1',
-      window: WINDOW_30D,
-      bucket: 'day',
-      groupBy: 'model',
-      model: 'all',
-    });
-    expect(allModels.filters).toBeUndefined();
-
-    const oneModel = buildOverviewUsageRequest({
-      accountId: 'acct_1',
-      window: WINDOW_30D,
-      bucket: 'day',
-      groupBy: 'model',
-      model: 'gpt-4o-mini',
-    });
-    expect(oneModel.filters).toEqual({ model: 'gpt-4o-mini' });
-  });
-
-  // 2026-08-31 owner finding fix: the account overview's own "Spend over time" chart now queries
-  // the UNGROUPED total (same summing semantics as the estate overview), built by omitting
-  // `groupBy` entirely rather than passing a dimension through.
-  it('omits group_by entirely when no dimension is given — the ungrouped account-total request', () => {
-    const request = buildOverviewUsageRequest({
-      accountId: 'acct_1',
-      window: WINDOW_30D,
-      bucket: 'day',
-      model: 'all',
-    });
-
-    expect(request.group_by).toBeUndefined();
-  });
-});
-
-/** Dollars -> the micro-USD the usage backend actually sends
- *  (`usage_events.total_cost`; see `microUsdToUsd`'s doc comment). Written out at every call site
- *  so a reader can see the unit boundary the mapping layer exists to cross, instead of inferring
- *  it from a bare number. */
+/** Micro-USD, the unit `total_cost` arrives in on the wire (`usage_events.total_cost`; see
+ *  `microUsdToUsd`'s doc comment). Written out at every call site so a reader can see the unit
+ *  boundary the mapping layer exists to cross, instead of inferring it from a bare number. */
 function usd(dollars: number): number {
   return dollars * 1_000_000;
 }
@@ -197,13 +38,6 @@ function point(overrides: Partial<UsageQueryResponse['points'][number]>) {
   } as UsageQueryResponse['points'][number];
 }
 
-// `toSpendSeries`/`capSeriesWithOther` (the per-project/model TIME SERIES this hook used to feed
-// the account overview's "Spend over time" chart, plus the >4-series capping that fed it) are
-// gone — 2026-08-31 owner-round parity fix, finding #1: that chart now plots the UNGROUPED
-// account total (`use-overview-screen.ts`'s `totalUsageQuery`, via `settings-overview-usage.ts`'s
-// `toAggregateDaySeries`), the same summing semantics the estate overview's own chart already
-// uses. `safeCost`'s malformed-value clamp — previously covered only via `toSpendSeries` — gets
-// its own direct coverage below since that describe block is gone with it.
 describe('safeCost', () => {
   it('clamps a malformed or negative total_cost to 0 rather than crashing or returning NaN', () => {
     expect(safeCost(point({ total_cost: Number.NaN }))).toBe(0);
@@ -218,6 +52,7 @@ describe('safeCost', () => {
 describe('toSpendShareSegments', () => {
   it('sums cost per dimension value across the whole range', () => {
     const response: UsageQueryResponse = {
+      truncated: false,
       points: [
         point({ model: 'gpt-4o-mini', total_cost: usd(3) }),
         point({ model: 'gpt-4o-mini', total_cost: usd(4) }),
@@ -240,6 +75,7 @@ describe('toSpendShareSegments', () => {
     // unsorted list would hand the lightest, most prominent step to whichever key the usage
     // backend happened to mention first rather than to the largest share.
     const response: UsageQueryResponse = {
+      truncated: false,
       points: [
         point({ model: 'small', total_cost: 1 }),
         point({ model: 'largest', total_cost: 9 }),
@@ -253,74 +89,10 @@ describe('toSpendShareSegments', () => {
   });
 });
 
-describe('splitUnassignedProjects', () => {
-  it('excludes the unassigned segment and states its share as a caption', () => {
-    const segments = [
-      { key: 'proj_a', value: 40 },
-      { key: UNASSIGNED_KEY, value: 60 },
-    ];
-
-    const { segments: kept, unassignedCaption } = splitUnassignedProjects(segments);
-
-    expect(kept).toEqual([{ key: 'proj_a', value: 40 }]);
-    expect(unassignedCaption).toContain('60%');
-    expect(unassignedCaption).toContain('$60.00');
-  });
-
-  it('returns no caption at all when nothing was unassigned — never "0% unattributed"', () => {
-    const segments = [{ key: 'proj_a', value: 40 }];
-
-    const { segments: kept, unassignedCaption } = splitUnassignedProjects(segments);
-
-    expect(kept).toEqual(segments);
-    expect(unassignedCaption).toBeNull();
-  });
-
-  it('drops a zero-value unassigned entry silently rather than captioning a non-gap', () => {
-    const segments = [
-      { key: 'proj_a', value: 40 },
-      { key: UNASSIGNED_KEY, value: 0 },
-    ];
-
-    const { segments: kept, unassignedCaption } = splitUnassignedProjects(segments);
-
-    expect(kept).toEqual([{ key: 'proj_a', value: 40 }]);
-    expect(unassignedCaption).toBeNull();
-  });
-});
-
-describe('degenerateChartMessage', () => {
-  it('returns undefined for a genuine 0-segment, no-caption result — the chart´s own empty state handles it', () => {
-    expect(degenerateChartMessage([], 'project', null)).toBeUndefined();
-  });
-
-  it('returns the unassigned caption verbatim when 0 real segments but real spend was excluded', () => {
-    const caption = '$60.00 (60%) of spend is not attributed to a project this period.';
-    expect(degenerateChartMessage([], 'project', caption)).toBe(caption);
-  });
-
-  it('names the single segment when there is exactly one', () => {
-    expect(degenerateChartMessage([{ label: 'gateway-prod' }], 'project', null)).toBe(
-      'Only one project in this window (gateway-prod).'
-    );
-  });
-
-  it('prefers the single-segment message over a stray caption if both were somehow set', () => {
-    // Not a real caller state (unassignedCaption only exists when segments were EXCLUDED down to
-    // 0), but the precedence should still be well-defined: an actual segment beats a caption.
-    expect(degenerateChartMessage([{ label: 'solo' }], 'model', 'ignored')).toBe(
-      'Only one model in this window (solo).'
-    );
-  });
-
-  it('returns undefined once there are >=2 real segments', () => {
-    expect(degenerateChartMessage([{ label: 'a' }, { label: 'b' }], 'project', null)).toBeUndefined();
-  });
-});
-
 describe('sumTotalCost', () => {
   it('sums every point regardless of grouping', () => {
     const response: UsageQueryResponse = {
+      truncated: false,
       points: [point({ total_cost: usd(1.5) }), point({ total_cost: usd(2.25) })],
     };
 
@@ -328,31 +100,31 @@ describe('sumTotalCost', () => {
   });
 
   it('returns 0, not NaN or a thrown error, for an empty response', () => {
-    expect(sumTotalCost({ points: [] })).toBe(0);
+    expect(sumTotalCost({ truncated: false, points: [] })).toBe(0);
   });
 });
 
 describe('isUsageResponseTruncated', () => {
   it('is true only when the response hit the limit exactly', () => {
-    const atLimit: UsageQueryResponse = { points: Array.from({ length: 5 }, () => point({})) };
+    const atLimit: UsageQueryResponse = {
+      truncated: false,
+      points: Array.from({ length: 5 }, () => point({})),
+    };
     expect(isUsageResponseTruncated(atLimit, 5)).toBe(true);
   });
 
   it('is false when the response returned fewer points than the limit', () => {
-    const underLimit: UsageQueryResponse = { points: Array.from({ length: 4 }, () => point({})) };
+    const underLimit: UsageQueryResponse = {
+      truncated: false,
+      points: Array.from({ length: 4 }, () => point({})),
+    };
     expect(isUsageResponseTruncated(underLimit, 5)).toBe(false);
   });
 
+  // Every request builder left in this module sets the limit explicitly — the dashboard's own
+  // builders moved into `resolve-dashboard.ts`, where the YAML makes `limit` a required field and
+  // `dashboard-spec.test.ts` refuses a panel without one.
   it('every real request builder sets the same shared limit', () => {
-    expect(
-      buildOverviewUsageRequest({
-        accountId: 'acct_1',
-        window: WINDOW_30D,
-        bucket: 'day',
-        groupBy: 'model',
-        model: 'all',
-      }).limit
-    ).toBe(USAGE_QUERY_LIMIT);
     expect(buildBudgetConsumptionRequest('acct_1', NOW).limit).toBe(USAGE_QUERY_LIMIT);
     expect(buildBudgetConsumptionByProjectRequest('acct_1', NOW).limit).toBe(USAGE_QUERY_LIMIT);
   });
@@ -492,6 +264,7 @@ describe('resolveOverviewWindow', () => {
 
 describe('series labelling', () => {
   const response: UsageQueryResponse = {
+    truncated: false,
     points: [
       point({ project_id: 'zezxvt21irmoi0kzm22el7gu', total_cost: 5 }),
       point({ project_id: undefined, total_cost: 2 }),

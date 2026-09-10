@@ -5,7 +5,7 @@ import { fn } from 'storybook/test';
 import { AccountNameDialog } from './component';
 
 const meta: Meta<typeof AccountNameDialog> = {
-  title: 'Forms & actions/AccountNameDialog',
+  title: 'Primitives/Overlays/AccountNameDialog',
   component: AccountNameDialog,
   args: {
     open: true,

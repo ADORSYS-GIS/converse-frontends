@@ -31,6 +31,8 @@ import {
   API_KEY_PROJECT_OPTIONS,
   API_KEY_STATUS_OPTIONS,
 } from '../sections/api-keys-controls/fixtures';
+import { SelectField } from '../components/select-field';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import { storySidebar, storyTopBar } from './shell-fixtures';
 
@@ -57,12 +59,13 @@ const PROJECT_CHOICES = API_KEY_PROJECT_OPTIONS.filter((option) => option.value 
 
 // The composition `apps/console`'s `(console)` layout + the `/accounts/[accountId]/api-keys` route perform for real.
 //
-// `showAdmin` is the ledger's own `isAdmin` (ticket #321): the console-side container reads the
-// same `lightbridge-admin` grant to decide whether `Del` renders at all. It no longer changes
-// anything about the sidebar (owner review round 2, 2026-08-31, converse-frontends#368 finding
-// #1) — the account-area rail's Operator/Admin group is deleted outright, not role-gated any
-// more, so `storySidebar('api-keys', { isAdmin: showAdmin })` renders identical nav content
-// either way; only the ledger's own `Del` column differs now.
+// `showAdmin` is the ledger's own `canDelete` (ticket #321; renamed from `isAdmin` by
+// converse-frontends#452, which replaced the `lightbridge-admin` role flag with the `apikey:delete`
+// permission the backend actually enforces). It no longer changes anything about the sidebar
+// (owner review round 2, 2026-08-31, converse-frontends#368 finding #1) — the account-area rail's
+// Operator/Admin group is deleted outright, not gated any more, so
+// `storySidebar('api-keys', { showAdmin })` renders identical nav content either way; only the
+// ledger's own `Del` column differs now.
 function ApiKeysScreen({
   keys = apiKeysFixture,
   initialResult = null,
@@ -98,7 +101,7 @@ function ApiKeysScreen({
   const hygiene = useMemo(() => (keys.length > 0 ? apiKeysHygiene : undefined), [keys.length]);
 
   return (
-    <ConsoleShell sidebar={storySidebar('api-keys', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('api-keys', { showAdmin })} topBar={storyTopBar()}>
       {/* No aside column here either — this screen has no rail content at any tier (owner review
           2026-08-29). Scope is the sidebar's (account) and the toolbar's (project); there is
           nothing left for a rail to hold. Filters live in `PageHeader.controls`; `+ New key` is
@@ -109,21 +112,6 @@ function ApiKeysScreen({
             which disagreed with the nav item sitting right beside it. */}
         <PageHeader
           title="API keys"
-          controls={
-            <ApiKeysControls
-              projectField={{
-                label: 'Project',
-                value: project,
-                options: API_KEY_PROJECT_OPTIONS,
-                onChange: setProject,
-              }}
-              statusOptions={API_KEY_STATUS_OPTIONS}
-              statusValue={statusFilterValue}
-              onStatusChange={setStatusFilterValue}
-              search={search}
-              onSearchChange={setSearch}
-            />
-          }
           action={
             <Button
               type="button"
@@ -134,6 +122,48 @@ function ApiKeysScreen({
               + New key
             </Button>
           }
+        />
+
+        <PageControls
+          onReset={
+            statusFilterValue !== 'all' || search !== ''
+              ? () => {
+                  setStatusFilterValue('all');
+                  setSearch('');
+                }
+              : undefined
+          }
+          groups={[
+            {
+              // SCOPE, not a filter — which project's keys these are. `Reset filters` leaves it
+              // alone (ADR 0015 amendment A2).
+              id: 'scope',
+              label: 'Scope',
+              children: (
+                <SelectField
+                  label="Project"
+                  layout="inline"
+                  hideLabel
+                  value={project}
+                  options={API_KEY_PROJECT_OPTIONS}
+                  onChange={setProject}
+                />
+              ),
+            },
+            {
+              id: 'slice',
+              label: 'Filters',
+              children: (
+                <ApiKeysControls
+                  statusOptions={API_KEY_STATUS_OPTIONS}
+                  statusValue={statusFilterValue}
+                  onStatusChange={setStatusFilterValue}
+                  search={search}
+                  onSearchChange={setSearch}
+                />
+              ),
+            },
+          ]}
         />
 
         {hygiene ? <ApiKeysHygieneNotes hygiene={hygiene} /> : null}
@@ -203,7 +233,7 @@ function ApiKeysScreen({
             revokeTarget={revokeTarget}
             onConfirmRevoke={() => setRevokeTarget(null)}
             onCancelRevoke={() => setRevokeTarget(null)}
-            isAdmin={showAdmin}
+            canDelete={showAdmin}
             onRequestDelete={(row) => setDeleteTarget({ row })}
             deleteTarget={deleteTarget}
             onConfirmDelete={() => setDeleteTarget(null)}
@@ -219,7 +249,7 @@ function ApiKeysScreen({
 }
 
 const meta: Meta<typeof ApiKeysScreen> = {
-  title: 'Pages/ApiKeys',
+  title: 'Pages/Account/ApiKeys',
   component: ApiKeysScreen,
   parameters: { layout: 'fullscreen' },
 };

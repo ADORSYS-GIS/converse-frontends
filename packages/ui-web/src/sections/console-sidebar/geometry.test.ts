@@ -101,7 +101,7 @@ describe('console-sidebar geometry (theme.css cross-check)', () => {
     expect(marginEnd + listGap).toBe(8);
   });
 
-  it('puts ~16px between the previous group\'s last row and the next label', () => {
+  it("puts ~16px between the previous group's last row and the next label", () => {
     const notFirstMatch = groupLabel.match(
       /&:not\(:first-child\)\s*\{\s*margin-block-start:\s*([\d.]+)rem/
     );
@@ -156,7 +156,7 @@ describe('console-sidebar geometry (rendered DOM precondition)', () => {
     { key: 'account', label: 'Account', items: [{ key: 'settings', label: 'Settings' }] },
   ];
 
-  it('keeps both `menu-title` and `sidebar-group-label` on the SAME element — the override\'s precondition', () => {
+  it("keeps both `menu-title` and `sidebar-group-label` on the SAME element — the override's precondition", () => {
     const { container } = render(React.createElement(NavSpine, { groups, layout: 'sidebar' }));
     const labels = container.querySelectorAll('.sidebar-group-label');
     expect(labels).toHaveLength(2);
@@ -169,7 +169,7 @@ describe('console-sidebar geometry (rendered DOM precondition)', () => {
     }
   });
 
-  it('starts every nav row label at the SAME x the group label\'s own padding encodes', () => {
+  it("starts every nav row label at the SAME x the group label's own padding encodes", () => {
     const { container } = render(React.createElement(NavSpine, { groups, layout: 'sidebar' }));
     const navLabels = container.querySelectorAll('.rail-row-label');
     expect(navLabels.length).toBeGreaterThan(0);

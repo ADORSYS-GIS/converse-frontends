@@ -82,4 +82,38 @@ describe('RepositoriesCentre', () => {
 
     expect(pushMock).toHaveBeenCalledWith('/repositories/81');
   });
+
+  // ── The `PageControls` contract (ADR 0015 amendment A2, converse-frontends#504) ──────────────
+  //
+  // Asserted structurally rather than by "the search box exists": it existed before too, inside
+  // the very card it filters. What changed — and what a future edit could silently undo — is WHERE
+  // it is, so the assertions name the row it must be in and the card it must not be in.
+
+  it('puts the search box on the floor, in the controls row, never inside the ledger card', () => {
+    renderCentre({ ok: true, data: basePage({ repositories: [baseRepo()], total: 1 }) });
+
+    const search = screen.getByRole('searchbox', { name: 'Search repositories' });
+    expect(search.closest('.page-controls')).not.toBeNull();
+    expect(search.closest('.console-card')).toBeNull();
+
+    // …and in the group whose accessible name is the only thing a screen-reader reader gets in
+    // place of the hairline a sighted reader sees.
+    expect(screen.getByRole('group', { name: 'Slice' })).toContainElement(search);
+  });
+
+  it('keeps the search box when the query FAILS — the controls that would narrow it outlive the table', () => {
+    renderCentre({ ok: false, reason: 'unavailable' });
+
+    expect(screen.getByRole('searchbox', { name: 'Search repositories' })).toBeInTheDocument();
+    expect(screen.getByText('The control plane is unreachable right now.')).toBeInTheDocument();
+  });
+
+  it('offers Reset filters only while a search is actually narrowing the ledger', () => {
+    const { unmount } = renderCentre({ ok: true, data: basePage() });
+    expect(screen.queryByRole('button', { name: 'Reset filters' })).not.toBeInTheDocument();
+    unmount();
+
+    renderCentre({ ok: true, data: basePage() }, 'kubernetes');
+    expect(screen.getByRole('button', { name: 'Reset filters' })).toBeInTheDocument();
+  });
 });

@@ -10,6 +10,7 @@ import { NO_QUOTA_TIER_LABEL } from '@lightbridge/ui-web/src/lib/quota-tier';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { ZoneHeading } from '@lightbridge/ui-web/src/lib/zone-heading';
 
+import { useTranslation } from '../i18n/client';
 import { useTiersScreen } from './use-tiers-screen';
 
 /**
@@ -25,14 +26,15 @@ import { useTiersScreen } from './use-tiers-screen';
  * other settings list in this console uses.
  */
 export function TiersCentre() {
+  const { t } = useTranslation('settings');
   const screen = useTiersScreen();
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Tier configs" subtitle={screen.scopeLabel} />
+      <PageHeader title={t('tiers.title')} subtitle={screen.scopeLabel} />
 
       <div className="flex flex-col gap-3">
-        <ZoneHeading label="Billing plans" />
+        <ZoneHeading label={t('tiers.billing-plans')} />
         {screen.plansError ? (
           <ErrorLine message={screen.plansError} onRetry={screen.onRetryPlans} />
         ) : screen.plansLoading ? (
@@ -41,14 +43,17 @@ export function TiersCentre() {
             <SkeletonRow columnCount={2} />
           </div>
         ) : screen.plans.length === 0 ? (
-          <InlineStatus>No billing plans are configured.</InlineStatus>
+          <InlineStatus>{t('tiers.no-billing-plans')}</InlineStatus>
         ) : (
           <div className="flex flex-wrap gap-3">
             {screen.plans.map((plan) => (
               <Card key={plan.id} title={plan.name} className="min-w-[220px] flex-1">
                 <div className="settings-list">
-                  <SettingsRow label="Plan id" value={plan.id} valueKind="data" />
-                  <SettingsRow label="Limits" value={formatBillingPlanLimits(plan.limits)} />
+                  <SettingsRow label={t('tiers.plan-id')} value={plan.id} valueKind="data" />
+                  <SettingsRow
+                    label={t('tiers.limits')}
+                    value={formatBillingPlanLimits(plan.limits)}
+                  />
                 </div>
               </Card>
             ))}
@@ -56,14 +61,14 @@ export function TiersCentre() {
         )}
       </div>
 
-      <Card title="Assigned quota tiers">
+      <Card title={t('tiers.assigned-tiers')}>
         {screen.assignedTiersLoading ? (
           <div className="settings-list">
             <SkeletonRow columnCount={2} />
             <SkeletonRow columnCount={2} />
           </div>
         ) : screen.assignedTiers.length === 0 ? (
-          <InlineStatus>Select an account to see its assigned quota tiers.</InlineStatus>
+          <InlineStatus>{t('tiers.no-account-selected')}</InlineStatus>
         ) : (
           <div className="settings-list">
             {screen.assignedTiers.map((row) => (
@@ -76,10 +81,7 @@ export function TiersCentre() {
             ))}
           </div>
         )}
-        <InlineStatus className="mt-4">
-          No quota-tier catalogue exists to pick from yet — only assigned tiers are shown, never a
-          picker (lightbridge-authz#572).
-        </InlineStatus>
+        <InlineStatus className="mt-4">{t('tiers.no-catalogue-note')}</InlineStatus>
       </Card>
     </div>
   );

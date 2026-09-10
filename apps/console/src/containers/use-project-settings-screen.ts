@@ -12,7 +12,12 @@ import { useMemo, useState } from 'react';
 import { useConsoleAuthzClient } from '../client/rpc-clients';
 import { useConsoleSession } from '../client/session-context';
 import { useConsoleScope } from '../client/use-console-scope';
-import { SETTINGS_DIALOG_OPTIONS, useSettingsParams } from '../client/url-state';
+import {
+  CONSOLE_DIALOGS,
+  SETTINGS_DIALOG_OPTIONS,
+  useSettingsParams,
+  useUrlDialog,
+} from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { accountScopeLabel } from './account-label';
 import { isOwnedAccountId } from './account-ownership';
@@ -72,6 +77,7 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
   const session = useConsoleSession();
   const client = useConsoleAuthzClient();
   const [view, setView] = useSettingsParams();
+  const renameDialog = useUrlDialog(CONSOLE_DIALOGS.renameProject);
 
   const filters = useMemo(() => {
     const active = [];
@@ -143,13 +149,14 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
     renameReason = undefined;
   }
 
-  // Phase 9 (Addition C) split what used to be one `?rename=<id>` param in two: `renameProjectId`
-  // (wire key `row`) is the project `DetailSheet` has open — a SELECTION, from clicking a row —
-  // and `projectNameOpen` (wire key `rename`) is whether the rename dialog is stacked on top of
-  // it, targeting the same id. A link to an open sheet reopens on that project; Back closes
-  // whichever of the two is open, innermost first, instead of leaving the screen.
+  // Two separate facts, two separate params — the split Phase 9 (Addition C) introduced, kept
+  // through the 2026-09-03 modal migration. `renameProjectId` (wire key `row`) is the project the
+  // detail surface has open: a SELECTION, which the layout contract renders in the persistent rail
+  // at `lg+` and therefore never a modal. `?dialog=rename-project` is whether the rename MODAL is
+  // stacked on top of it, targeting that same selection — so it carries no `dialog-id` of its own
+  // that could contradict the row. Back closes whichever is open, innermost first.
   const selectedProject = rows.find((row) => row.id === view.renameProjectId) ?? null;
-  const renameTarget = view.projectNameOpen ? selectedProject : null;
+  const renameTarget = renameDialog.open ? selectedProject : null;
 
   const projectAction = useSharedMutation<{ id: string; name: string }, Project>({
     mutationKey: PROJECT_NAME_MUTATION_KEY,
@@ -166,7 +173,7 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
       scope.refetch();
       setProjectNameDraft('');
       // Only the rename dialog closes — the sheet stays open and shows the refreshed name.
-      void setView({ projectNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
+      renameDialog.close();
     },
   });
 
@@ -201,10 +208,8 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
       onNext: () => void setView({ page: view.page + 1 }),
     },
     onSelectRow: (project: ProjectSettingsRow) => {
-      void setView(
-        { renameProjectId: project.id, projectNameOpen: false },
-        SETTINGS_DIALOG_OPTIONS
-      );
+      renameDialog.close();
+      void setView({ renameProjectId: project.id }, SETTINGS_DIALOG_OPTIONS);
     },
     selectedProjectId: view.renameProjectId || undefined,
   };
@@ -213,14 +218,16 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
     open: selectedProject !== null,
     project: selectedProject,
     onOpenChange: (open) => {
-      if (!open)
-        void setView({ renameProjectId: '', projectNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
+      if (!open) {
+        renameDialog.close();
+        void setView({ renameProjectId: '' }, SETTINGS_DIALOG_OPTIONS);
+      }
     },
     onRename: () => {
       if (!renameEligible || selectedProject === null) return;
       if (projectAction.errorMessage) projectAction.dismiss();
       setProjectNameDraft(selectedProject.name);
-      void setView({ projectNameOpen: true }, SETTINGS_DIALOG_OPTIONS);
+      renameDialog.openDialog();
     },
     renameDisabled: !renameEligible,
     renameReason,
@@ -243,7 +250,7 @@ export function useProjectSettingsScreen(): ProjectSettingsScreen {
     onCancel: () => {
       if (projectAction.errorMessage) projectAction.dismiss();
       setProjectNameDraft('');
-      void setView({ projectNameOpen: false }, SETTINGS_DIALOG_OPTIONS);
+      renameDialog.close();
     },
   };
 

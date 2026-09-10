@@ -1,101 +1,53 @@
 'use client';
 
-import { ShareBar } from '@lightbridge/ui-web/src/components/share-bar';
-import { ZoneHeading } from '@lightbridge/ui-web/src/lib/zone-heading';
+import { Card } from '@lightbridge/ui-web/src/components/card';
+import { SkeletonMetric } from '@lightbridge/ui-web/src/components/skeleton-metric';
+import { DashboardGrid } from '@lightbridge/ui-web/src/sections/dashboard-grid';
 import { EstateBudgetPressure } from '@lightbridge/ui-web/src/sections/estate-budget-pressure';
-import { MultiSeriesSpendBoard } from '@lightbridge/ui-web/src/sections/multi-series-spend-board';
 import { OverviewStatRow } from '@lightbridge/ui-web/src/sections/overview-stat-row';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
-import { TopSpendersLedger } from '@lightbridge/ui-web/src/sections/top-spenders-ledger';
 
-const NO_OP = () => undefined;
+import { useTranslation } from '../../../../i18n/client';
 
 /**
- * `/admin/overview` centre — the App Router `loading.tsx` Suspense fallback (route carries
+ * `/admin/overview` centre — the App Router `loading.tsx` Suspense fallback (the route carries
  * `export const dynamic = 'force-dynamic'`, same reasoning `accounts/[accountId]/overview/
- * loading.tsx`'s own doc comment states for its own route). Matches `AdminOverviewCentre`'s real
- * geometry — no `Card` anywhere (this page's own "charts and tables render on the floor" ruling,
- * see that file's doc comment) — with every section driven by its own `loading`/`status="loading"`
- * skeleton rendering (console-ui skill §states). `LatencyStatCards` carries no loading prop of its
- * own (same gap `settings-overview-centre.tsx`'s latency zone already works around), so that one
- * zone renders plain `skeleton` blocks instead.
+ * loading.tsx`'s own doc comment states for its own route).
+ *
+ * **Generic panels, deliberately** (converse-frontends#447, story C4). This fallback used to name
+ * each of the eight boards — its own labels, its own scales, its own row counts — which made it a
+ * third place the page's composition was written down, and the one nobody would remember to update.
+ * The panel list is `dashboards.yaml` data now, read server-side by `page.tsx`, so a fallback
+ * rendered BEFORE that read cannot honestly know how many panels there are or what they are called.
+ * It draws the page's SHAPE instead: the two RPC-backed zones (which are fixed, and are the only
+ * things on this page a fallback can name truthfully) and a grid of neutral panel skeletons at the
+ * real geometry, so the layout does not jump when the document lands.
  */
 export default function AdminOverviewLoading() {
+  const { t } = useTranslation('admin');
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader title="Overview" subtitle="loading estate…" />
+    <div className="flex flex-col gap-6">
+      <PageHeader title={t('overview.title')} subtitle={t('overview.loading')} />
 
-      <MultiSeriesSpendBoard
-        label="Total spend vs previous period"
-        series={[]}
-        scale="linear"
-        onScaleChange={NO_OP}
-        status="loading"
-        fallbackWidth={1120}
-        height={200}
-      />
-      <MultiSeriesSpendBoard
-        label="Spend by account"
-        series={[]}
-        scale="linear"
-        onScaleChange={NO_OP}
-        status="loading"
-        fallbackWidth={1120}
-        height={220}
-      />
-
-      <div>
-        <ZoneHeading label="Spend by model — estate share" />
-        <ShareBar className="mt-4" segments={[]} />
-      </div>
-      <MultiSeriesSpendBoard
-        label="Spend by model over time"
-        series={[]}
-        scale="log"
-        onScaleChange={NO_OP}
-        status="loading"
-        fallbackWidth={1120}
-        height={220}
-      />
-
-      <div>
-        <ZoneHeading label="Top spenders" />
-        <TopSpendersLedger className="mt-4" rows={[]} loading loadingRowCount={8} />
-      </div>
-
-      <EstateBudgetPressure accounts={[]} status="loading" />
-
-      <OverviewStatRow cards={[]} loading />
-
-      <MultiSeriesSpendBoard
-        label="Request volume"
-        series={[]}
-        scale="indexed"
-        onScaleChange={NO_OP}
-        status="loading"
-        fallbackWidth={1120}
-        height={200}
-      />
-
-      <div>
-        <ZoneHeading label="Latency by model" />
-        <div className="mt-4 flex flex-col gap-1">
-          {Array.from({ length: 4 }, (_, row) => (
-            <div key={row} className="skeleton h-[28px]" />
-          ))}
+      <DashboardGrid>
+        <Card data-span="2">
+          <EstateBudgetPressure accounts={[]} status="loading" />
+        </Card>
+        <div data-span="2">
+          <OverviewStatRow cards={[]} loading />
         </div>
-      </div>
+      </DashboardGrid>
 
-      <OverviewStatRow cards={[]} loading />
-      <MultiSeriesSpendBoard
-        label="Active accounts & projects per day"
-        series={[]}
-        scale="linear"
-        onScaleChange={NO_OP}
-        status="loading"
-        fallbackWidth={1120}
-        height={200}
-      />
+      <DashboardGrid>
+        {/* Two full-width panels then four half-width ones — the shape every entry of this page
+            has had since the migration, without claiming to know their titles. */}
+        {[2, 2, 1, 1, 1, 1].map((span, index) => (
+          <Card key={index} data-span={span === 2 ? '2' : undefined}>
+            <div className="skeleton h-4 w-48" />
+            <SkeletonMetric />
+          </Card>
+        ))}
+      </DashboardGrid>
     </div>
   );
 }

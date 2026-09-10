@@ -7,6 +7,7 @@ Offline-capable SAST, linting, and maintainability scanning for the converse-fro
 The quality pipeline replaces SonarQube CE's practical responsibilities by running local, offline scanners on a self-hosted GitHub Actions runner and reporting findings to pull requests via reviewdog.
 
 **Scanners:**
+
 - **ESLint**: Linting and pattern-based SAST
 - **TypeScript**: Type checking
 - **Prettier**: Format verification
@@ -16,6 +17,7 @@ The quality pipeline replaces SonarQube CE's practical responsibilities by runni
 - **jscpd**: Code duplication detection
 
 **Reporting:**
+
 - Individual SARIF reports per tool (`.ci/quality/reports/*.sarif`)
 - Merged SARIF (`.ci/quality/reports/quality.sarif`)
 - Pull request checks via reviewdog (GitHub PR checks)
@@ -166,6 +168,7 @@ event only). It is diff-aware; `gate.sh` is not — that's why the two are
 split. Warnings/notes are reported as annotations without failing.
 
 **PR Behavior:**
+
 - Only NEW findings (added/modified lines) can fail the check, via reviewdog
 - Historical/backlog findings remain visible in the merged SARIF artifact
   and in `gate.sh`'s informational summary, but never fail CI on their own
@@ -251,6 +254,7 @@ jq . .ci/quality/reports/eslint.sarif
 ### reviewdog not reporting findings
 
 Ensure:
+
 - Workflow has `pull-requests: write` permission
 - `REVIEWDOG_GITHUB_API_TOKEN` is set — reviewdog's GitHub reporters read
   this specific variable name, **not** `GITHUB_TOKEN`

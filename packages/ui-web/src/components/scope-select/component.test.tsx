@@ -31,7 +31,7 @@ describe('ScopeSelect', () => {
         projects={projects}
         value={{ accountId: 'adorsys-gis', projectId: 'gateway-prod' }}
         onChange={() => {}}
-      />,
+      />
     );
 
     expect(screen.getByLabelText('Account')).toHaveTextContent('adorsys-gis');
@@ -45,7 +45,7 @@ describe('ScopeSelect', () => {
         projects={projects}
         value={{ accountId: 'adorsys-gis', projectId: 'gateway-prod' }}
         onChange={() => {}}
-      />,
+      />
     );
 
     fireEvent.click(screen.getByLabelText('Project'));
@@ -63,7 +63,7 @@ describe('ScopeSelect', () => {
         projects={projects}
         value={{ accountId: 'adorsys-gis', projectId: 'gateway-prod' }}
         onChange={handleChange}
-      />,
+      />
     );
 
     fireEvent.click(screen.getByLabelText('Account'));
@@ -80,13 +80,16 @@ describe('ScopeSelect', () => {
         projects={projects}
         value={{ accountId: 'adorsys-gis', projectId: null }}
         onChange={handleChange}
-      />,
+      />
     );
 
     fireEvent.click(screen.getByLabelText('Project'));
     selectOption(await screen.findByRole('option', { name: 'gateway-edge' }));
 
-    expect(handleChange).toHaveBeenCalledWith({ accountId: 'adorsys-gis', projectId: 'gateway-edge' });
+    expect(handleChange).toHaveBeenCalledWith({
+      accountId: 'adorsys-gis',
+      projectId: 'gateway-edge',
+    });
   });
 
   it('is a pure controlled component: the trigger label does not change without a value update', async () => {
@@ -96,7 +99,7 @@ describe('ScopeSelect', () => {
         projects={projects}
         value={{ accountId: 'adorsys-gis', projectId: null }}
         onChange={() => {}}
-      />,
+      />
     );
 
     fireEvent.click(screen.getByLabelText('Project'));

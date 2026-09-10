@@ -10,6 +10,48 @@ permissions:
   contents: read
 
 jobs:
+  # The BROWSER half of the accessibility gate (#443). Its own job, not a step on `test`, for one
+  # reason: it needs a real Chromium. Folding it into `Unit tests` would put a ~150 MB Playwright
+  # download on the critical path of a job that runs in seconds, and would merge two distinctly
+  # attributable failures into one red X — the same argument `typecheck` makes below.
+  #
+  # The jsdom half needs nothing extra: it is an `afterEach` inside the ordinary suites and already
+  # runs in `test`. Both halves, plus the eslint-plugin-jsx-a11y half, are mapped in
+  # docs/knowledge/accessibility.md.
+  a11y:
+    name: Accessibility (Storybook, both themes)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `--with-deps` installs the shared libraries headless Chromium needs on a bare
+      # `ubuntu-latest` image; `chromium` alone, because `vitest.storybook.config.mts` asks for
+      # exactly one browser and pulling Firefox and WebKit as well would triple the download for
+      # nothing. The version comes from the lockfile's `playwright`, so the browser and the driver
+      # can never drift apart.
+      - name: Install the Playwright browser
+        run: pnpm --filter @lightbridge/ui-web exec playwright install --with-deps chromium
+
+      # Every story, both themes, `parameters.a11y.test = 'error'`, `color-contrast` ON. The script
+      # compares the result against packages/ui-web/a11y-storybook-baseline.json and fails on any
+      # finding that is not already recorded there — and equally on a recorded finding that has
+      # stopped firing, which is what makes the list a ratchet rather than a graveyard.
+      - name: Storybook accessibility gate
+        run: pnpm --filter @lightbridge/ui-web run test:a11y
+
   test:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -34,8 +76,75 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run tests
-        run: pnpm test
+      # apps/typst-render's golden test shells out to the real compiler — a mocked one would
+      # prove nothing about the only thing that service does. Without the binary the suite skips
+      # (loudly), so this step is what stops a PR from regressing the render path unnoticed
+      # between merges to main. The binary is taken from the exact image
+      # apps/typst-render/Dockerfile pins, so CI tests the Typst that actually ships; $HOME/.local
+      # /bin rather than /usr/local/bin because the latter is root-owned on the hosted runner.
+      - name: Install the pinned Typst binary (apps/typst-render)
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          container="$(podman create ghcr.io/typst/typst:0.15.1)"
+          podman cp "$container:/bin/typst" "$HOME/.local/bin/typst"
+          podman rm "$container"
+          chmod +x "$HOME/.local/bin/typst"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/typst" --version
+
+      # `.ci/test/run.sh`, not a bare `pnpm test`: the recursive runner used to BAIL on the first
+      # failing package, and package order is alphabetical within `apps/*` then `packages/*`. One
+      # broken suite in `apps/lci` (converse-frontends#504's fallout) therefore meant
+      # `apps/console`'s ~1490 tests never executed at all — the check went red for the right
+      # reason and stayed silent about everything it had skipped. The script runs every package
+      # (`--no-bail`, now baked into the root `test` script so local runs match), then ASSERTS each
+      # package that declares a `test` script actually produced a result, and writes the per-package
+      # table to the job summary. It exits non-zero if any package failed OR any expected package
+      # never ran — a gate that silently runs zero suites passes as green as one that runs them all.
+      - name: Run tests (every package, no bail)
+        shell: bash
+        run: bash .ci/test/run.sh
+
+  # `quality.yml` already runs ESLint and Prettier, but only as SARIF-producing
+  # scanners: `gate.sh` fails on a scanner CRASHING, never on the findings a
+  # scanner reports, and reviewdog's `-fail-level=error` only annotates PR
+  # lines — it does not fail the `Code Quality Scan` check itself (converse-
+  # frontends#412). So a real lint error has shipped to `main` unblocked before,
+  # and nothing in CI would stop the next one either. This job is the actual
+  # enforcement point, the same role `typecheck` plays for `tsc` above (see
+  # that job's own comment) — a separate job rather than an extra step on
+  # `test`, so a lint failure and a failing Jest test are two distinctly
+  # attributable red Xs, not one.
+  #
+  # `pnpm lint` is `eslint ... && prettier -c ...` (root package.json). ESLint's
+  # own exit code already gives the "0 errors required, warnings non-fatal"
+  # split for free: it exits 1 only when a rule is configured at `error`
+  # severity and fires, never for a `warning`-severity finding alone (no
+  # `--max-warnings` flag is passed here, so warnings never fail the step).
+  # The 39 warnings currently on `main` are exactly that — findings this job
+  # is meant to leave alone, not a threshold to tune around.
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint (eslint + prettier --check)
+        run: pnpm lint
 
   # tsc is not run by Metro/Expo's bundler (see the `build-web` job below) and
   # nothing else on the pull_request path turns a type error into a failed

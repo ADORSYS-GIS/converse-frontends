@@ -89,7 +89,7 @@ wraps every outgoing RPC `fetch` call:
    essentially never hits a 401 for a merely-stale token.
 2. **Reactive retry-once, on an actual 401.** If a request still comes back `401` (proactive
    refresh missed it, or the token was invalidated some other way), `authenticatedFetch()`
-   refreshes once and retries the *same* request with the new `Authorization` header — not by
+   refreshes once and retries the _same_ request with the new `Authorization` header — not by
    re-invoking the runtime's `headers` callback (which already ran and built the now-stale
    request), but by overwriting the header directly on the retried call.
 
@@ -184,15 +184,15 @@ sequenceDiagram
 
 Defined in `packages/hooks/src/auth/auth-types.ts`:
 
-| Field          | Type     | Required | Description                                                 |
-| -------------- | -------- | -------- | ----------------------------------------------------------- |
-| `accessToken`  | `string` | **Yes**  | Bearer token sent in `Authorization` header to LightBridge  |
-| `refreshToken` | `string` | No       | Used to obtain new access tokens without re-login           |
-| `idToken`      | `string` | No       | OIDC identity token (Keycloak-issued, contains user claims) |
-| `expiresAt`    | `number` | No       | Epoch milliseconds at which `accessToken` expires           |
-| `tokenType`    | `string` | No       | Typically `"Bearer"`                                        |
-| `scope`        | `string` | No       | Space-separated OAuth2 scopes granted                       |
-| `audience`     | `string[]` | No     | `aud` claim(s) extracted from the access token, used for the JWT audience validation described below |
+| Field          | Type       | Required | Description                                                                                          |
+| -------------- | ---------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `accessToken`  | `string`   | **Yes**  | Bearer token sent in `Authorization` header to LightBridge                                           |
+| `refreshToken` | `string`   | No       | Used to obtain new access tokens without re-login                                                    |
+| `idToken`      | `string`   | No       | OIDC identity token (Keycloak-issued, contains user claims)                                          |
+| `expiresAt`    | `number`   | No       | Epoch milliseconds at which `accessToken` expires                                                    |
+| `tokenType`    | `string`   | No       | Typically `"Bearer"`                                                                                 |
+| `scope`        | `string`   | No       | Space-separated OAuth2 scopes granted                                                                |
+| `audience`     | `string[]` | No       | `aud` claim(s) extracted from the access token, used for the JWT audience validation described below |
 
 ---
 

@@ -23,7 +23,7 @@ output is reproducible and cannot be confabulated. Keep AI review as a non-requi
 
 **Every AI-review finding is a claim, not a verdict.** Before acting on one that asserts a specific
 value or behavior, verify it against the actual cited lines. AI reviewers pattern-match known bug
-*shapes* and will confidently assert details about code they did not actually read — especially code
+_shapes_ and will confidently assert details about code they did not actually read — especially code
 in another repository (e.g., a reusable workflow referenced by SHA). The doctrine applies to the
 reviewer too: **AI output is not truth.**
 
@@ -37,7 +37,7 @@ This three-step loop is not busywork; each step does something that silently ign
 
 - **👎 is the only lever that reduces recurrence.** It is the reviewer's feedback channel. Without it,
   the same confabulation fires again every time its trigger reappears — a single false "empty marker"
-  finding recurred *three times* across PRs precisely because it was refuted in prose but never
+  finding recurred _three times_ across PRs precisely because it was refuted in prose but never
   down-voted.
 - **Resolving preserves signal-to-noise.** Real findings get buried under known-false ones if threads
   stay open; resolution stops both humans and the bot from re-litigating settled points.

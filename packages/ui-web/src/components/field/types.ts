@@ -5,6 +5,20 @@ type FieldCommonProps = {
   label: string;
   /** When set, the control's border switches to `primary` and this text renders as a `meta` error line. */
   error?: string;
+  /**
+   * A concrete sample of what belongs in this control — rendered as a muted `meta` line BETWEEN
+   * the label and the control, and wired into the control's `aria-describedby` (issue #445).
+   *
+   * Deliberately not a `placeholder`: a placeholder disappears the moment the first character is
+   * typed, which is exactly when an author authoring an unfamiliar value still wants the sample in
+   * view. Write it as the reader would read it aloud — `e.g. 2, 5, 10, 25` — never a type name.
+   *
+   * STATED LIMIT: this is a `stacked`-layout affordance. `layout="inline"` puts the label and the
+   * control side by side in a single non-wrapping daisy `.label` row with nothing underneath, so
+   * an example is not rendered there — a toolbar control's example belongs in its own copy, not
+   * wedged into the row.
+   */
+  example?: string;
   /** Wrapper className — for spacing between fields, not for styling the control itself. */
   containerClassName?: string;
   /**

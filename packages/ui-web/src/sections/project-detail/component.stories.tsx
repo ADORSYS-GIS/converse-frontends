@@ -5,7 +5,7 @@ import { ProjectDetail } from './component';
 import { selectedProjectFixture, suspendedProjectFixture } from './fixtures';
 
 const meta: Meta<typeof ProjectDetail> = {
-  title: 'Sections/ProjectDetail',
+  title: 'Sections/Account/ProjectDetail',
   component: ProjectDetail,
   parameters: { layout: 'fullscreen' },
 };

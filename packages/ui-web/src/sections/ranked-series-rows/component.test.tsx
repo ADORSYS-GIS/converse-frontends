@@ -100,4 +100,31 @@ describe('RankedSeriesRows', () => {
     fireEvent.click(screen.getByRole('button', { name: /nova-labs/ }));
     expect(selected).toBe('acct_1');
   });
+  // ── hrefFor / options.link (converse-frontends#446, decision D-D) ──────────────────────────
+
+  it('renders a row as a real anchor when hrefFor gives it a destination', () => {
+    render(
+      <RankedSeriesRows
+        rows={rankedRowsEstateAccounts}
+        hrefFor={(row) => `/admin/usage/actors/${row.key}?type=account`}
+      />
+    );
+    const link = screen.getByRole('link', { name: /nova-labs/ });
+    expect(link).toHaveAttribute('href', '/admin/usage/actors/acct_1?type=account');
+  });
+
+  it('leaves a row with no destination a plain row', () => {
+    render(
+      <RankedSeriesRows
+        rows={rankedRowsEstateAccounts}
+        hrefFor={(row) => (row.key === 'acct_1' ? '/x' : undefined)}
+      />
+    );
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+  });
+
+  it('renders no links at all when hrefFor is absent — markup unchanged from today', () => {
+    render(<RankedSeriesRows rows={rankedRowsEstateAccounts} />);
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
+  });
 });

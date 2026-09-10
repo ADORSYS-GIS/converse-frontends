@@ -9,7 +9,7 @@ import {
 } from './fixtures';
 
 const meta: Meta<typeof RefillPolicyLookup> = {
-  title: 'Sections/RefillPolicyLookup',
+  title: 'Sections/Admin/RefillPolicyLookup',
   component: RefillPolicyLookup,
   parameters: { layout: 'fullscreen' },
   args: refillPolicyLookupReady,

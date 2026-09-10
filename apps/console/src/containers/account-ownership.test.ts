@@ -8,8 +8,9 @@ const SUB = 'auth0|9f3a2c7e41b0';
 function session(sub: string | null = SUB): SessionResponse {
   return {
     authenticated: sub !== null,
-    user: sub === null ? null : { sub, roles: [] },
-    isAdmin: false,
+    user: sub === null ? null : { sub, platformUserId: sub, roles: [] },
+    permissions: [],
+    accessVerified: true,
   };
 }
 

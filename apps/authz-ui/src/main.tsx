@@ -24,6 +24,24 @@ applyThemePreference(readStoredThemePreference() ?? 'system');
 // as importantly, does not do.
 registerSW({ immediate: true });
 
+// Dev-time accessibility reporting (#443): axe over the live DOM, findings in the browser console.
+//
+// This app was the one where the answer was NOT obvious — it is the hosted login surface, served
+// by authz-idp under `default-src 'self'` with no `data:` carve-out (#407), and its build runs
+// three verification scripts over the output. So it was checked rather than assumed, and the
+// answer is that it is safe: `import.meta.env.DEV` is a compile-time constant Vite substitutes
+// before Rollup runs, so in `vite build` this reads `if (false)` and the dynamic `import()` — and
+// `axe-core` with it — is eliminated. It is also never a `<link rel=modulepreload>` or a precached
+// entry, because no chunk is emitted for it at all. Proof (a grep of `dist/` for `axe`, plus the
+// three verify scripts green) is recorded in `docs/knowledge/accessibility.md`; re-run it if this
+// import shape ever changes. `@axe-core/react` is not used anywhere — see
+// `packages/ui-web/src/dev/axe-reporter.ts` for the React 19 reason.
+if (import.meta.env.DEV) {
+  void import('@lightbridge/ui-web/src/dev/axe-reporter').then(({ startDevA11yReporter }) =>
+    startDevA11yReporter({ appName: 'authz-ui' })
+  );
+}
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error('authz-ui: #root is missing from index.html');

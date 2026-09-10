@@ -222,14 +222,14 @@ function AdminRefillPoliciesScreen({
   })();
 
   return (
-    <ConsoleShell sidebar={storySidebar('admin', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('admin', { showAdmin })} topBar={storyTopBar()}>
       {body}
     </ConsoleShell>
   );
 }
 
 const meta: Meta<typeof AdminRefillPoliciesScreen> = {
-  title: 'Pages/AdminRefillPolicies',
+  title: 'Pages/Admin/RefillPolicies',
   component: AdminRefillPoliciesScreen,
   parameters: { layout: 'fullscreen' },
 };

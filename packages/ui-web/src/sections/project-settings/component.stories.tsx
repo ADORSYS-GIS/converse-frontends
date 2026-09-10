@@ -5,7 +5,7 @@ import { ProjectSettings, ProjectSettingsDetail } from './component';
 import { defaultProjectFixture, projectSettingsFixture } from './fixtures';
 
 const meta: Meta<typeof ProjectSettings> = {
-  title: 'Sections/ProjectSettings',
+  title: 'Sections/Account/ProjectSettings',
   component: ProjectSettings,
   args: {
     projects: projectSettingsFixture,
@@ -62,7 +62,11 @@ export const WithPagination: Story = {
 
 export const FilteredEmpty: Story = {
   name: 'Search narrowed the list to nothing — distinct from an empty account',
-  args: { projects: [], search: 'nonexistent', filteredEmptyMessage: 'No projects match “nonexistent”.' },
+  args: {
+    projects: [],
+    search: 'nonexistent',
+    filteredEmptyMessage: 'No projects match “nonexistent”.',
+  },
 };
 
 export const MobileBaseTier: Story = {

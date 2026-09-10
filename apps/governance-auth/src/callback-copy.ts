@@ -5,7 +5,7 @@ import type { CallbackStatus } from './callback-status';
  * (`app/governance-auth/src/oauth/callback_page/mod.rs` in `lightbridge-governance`, whose unit
  * tests assert on these exact sentences). Rewording any of it is a two-repo change.
  *
- * Literal English strings, not `t('key')`: `@lightbridge/i18n` has no consumer on the web surface
+ * Literal English strings, not `t('key')`: this page is outside the console's i18n tree (ADR 0017)
  * — neither `apps/console` nor `apps/authz-ui` import it (AGENTS.md §2 calls that out) — and this
  * page renders four sentences on a loopback socket. Adding a translation runtime here would make
  * this the only localised web app in the repo, and every one of its strings would still be the

@@ -13,10 +13,10 @@ import type { CardProps } from './types';
 //
 // Bespoke: a padded panel with no interactive state of its own has nothing for Base UI to own
 // (`scripts/base-ui-adoption.ts` records the `null`).
-export function Card({ title, actions, children, className }: CardProps) {
+export function Card({ title, actions, children, className, ref, ...rest }: CardProps) {
   const hasHead = Boolean(title || actions);
   return (
-    <section className={cn('console-card', className)}>
+    <section ref={ref} className={cn('console-card', className)} {...rest}>
       {hasHead ? (
         <div className="card-head">
           {title ? <h2 className={SECTION_TITLE_CLASS}>{title}</h2> : null}

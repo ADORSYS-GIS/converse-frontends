@@ -80,6 +80,15 @@ export function RailResizer({
     }
   };
 
+  // A FOCUSABLE `role="separator"` is the ARIA window-splitter pattern: with `aria-valuenow`/
+  // `-valuemin`/`-valuemax` present, `separator` is a widget role and MUST be in the tab order and
+  // MUST answer arrow keys — both of which this does (`handleKeyDown`, Arrow/Home/End). jsx-a11y
+  // treats `separator` as structural in every case, so it reports both the tabIndex and the
+  // handlers; axe, which reads the valuenow trio, does not. A block disable rather than two
+  // `-next-line`s because the two findings land on different lines of the same element (the
+  // element's own line and the `tabIndex` attribute's), and a comment cannot sit inside a JSX
+  // attribute list.
+  /* eslint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
   return (
     <div
       role="separator"
@@ -94,4 +103,5 @@ export function RailResizer({
       className={cn('rail-resizer', className)}
     />
   );
+  /* eslint-enable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
 }

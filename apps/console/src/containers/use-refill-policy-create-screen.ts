@@ -1,7 +1,13 @@
 'use client';
 
 import { getApiErrorMessage } from '@lightbridge/hooks/api-error';
-import { createBlankRuleSet, toRuleDataJson, validateRuleSet } from '@lightbridge/ui-web';
+import {
+  createBlankRuleSet,
+  createExampleRuleSet,
+  EXAMPLE_POLICY_SET_ID,
+  toRuleDataJson,
+  validateRuleSet,
+} from '@lightbridge/ui-web';
 import type { RuleSetValue } from '@lightbridge/ui-web';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -50,6 +56,14 @@ export function useRefillPolicyCreateScreen(): AdminRefillPoliciesFormScreen {
   const [savedRevision, setSavedRevision] = useState<
     { revisionId: string; policyRevision: string } | undefined
   >(undefined);
+  // SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — a pre-submit draft's own dirty bit and an
+  // ephemeral confirmation flag; neither belongs in a URL or in history). "Start from example
+  // policy" (issue #445): `touched` is a plain boolean flipped by the two change handlers rather
+  // than a deep compare against `createBlankRuleSet()`, because the draft's rule rows carry
+  // per-mount React keys (`RuleValue.key`, a fresh UUID) that would make a structural comparison
+  // lie the moment a rule row is added and removed again.
+  const [touched, setTouched] = useState(false);
+  const [exampleConfirmOpen, setExampleConfirmOpen] = useState(false);
 
   const ruleSetErrors = validateRuleSet(ruleSet);
   const canSubmit =
@@ -96,15 +110,42 @@ export function useRefillPolicyCreateScreen(): AdminRefillPoliciesFormScreen {
       });
   };
 
+  // Fills BOTH the policy set id and the whole rule set from the one exported sample
+  // (`createExampleRuleSet`, which `example-policy.test.ts` asserts `validateRuleSet` accepts
+  // unchanged — so this button can never hand an admin a draft the form itself rejects). Any
+  // stale outcome from a previous submit is cleared: those messages describe the draft that has
+  // just been replaced.
+  const applyExamplePolicy = () => {
+    setPolicySetId(EXAMPLE_POLICY_SET_ID);
+    setRuleSet(createExampleRuleSet());
+    setSavedRevision(undefined);
+    setActivateError(undefined);
+    setSaveRevisionError(undefined);
+    setTouched(true);
+    setExampleConfirmOpen(false);
+  };
+
   return {
     mode: 'create',
+    startFromExample: {
+      // Pristine form: fill straight away, there is nothing to lose. Dirty form: ask first —
+      // this overwrites every field, including the id.
+      onStart: () => (touched ? setExampleConfirmOpen(true) : applyExamplePolicy()),
+      confirmOpen: exampleConfirmOpen,
+      onConfirm: applyExamplePolicy,
+      onCancelConfirm: () => setExampleConfirmOpen(false),
+    },
     policySetId,
-    onPolicySetIdChange: setPolicySetId,
+    onPolicySetIdChange: (value) => {
+      setPolicySetId(value);
+      setTouched(true);
+    },
     policySetIdReadOnly: false,
     ruleSet,
     onRuleSetChange: (value) => {
       setRuleSet(value);
       setSavedRevision(undefined);
+      setTouched(true);
     },
     ruleSetErrors,
     canSubmit,

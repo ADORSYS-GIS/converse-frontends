@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { useConsoleAuthzClient } from '../client/rpc-clients';
 import { useConsoleSession } from '../client/session-context';
 import { useConsoleScope } from '../client/use-console-scope';
-import { useCreateProjectDialogParams } from '../client/url-state';
+import { CONSOLE_DIALOGS, useUrlDialog } from '../client/url-state';
 import { useSharedMutation } from '../client/use-shared-mutation';
 import { accountScopeLabel } from './account-label';
 import { isOwnedAccountId } from './account-ownership';
@@ -89,13 +89,13 @@ export function useCreateProjectDialog(): CreateProjectDialogController {
   const scope = useConsoleScope();
   const client = useConsoleAuthzClient();
   const invalidate = useInvalidate();
-  const [params, setParams] = useCreateProjectDialogParams();
+  const urlDialog = useUrlDialog(CONSOLE_DIALOGS.createProject);
   const { eligible, reason } = useCreateProjectEligibility();
 
   /**
    * SANCTIONED LOCAL STATE (ADR 0011 Decision 3 — same clause `use-projects-screen.ts` documented
    * before this moved): the create-project dialog's typed-but-unsent name/billing identity/plan.
-   * `?new-project=true` — WHETHER the dialog is showing — is real view state and lives in the
+   * `?dialog=create-project` — WHETHER the dialog is showing — is real view state and lives in the
    * URL; this is its CONTENTS, which are not.
    */
   const [draft, setDraft] = useState<CreateProjectDraft>(emptyProjectDraft);
@@ -141,7 +141,7 @@ export function useCreateProjectDialog(): CreateProjectDialogController {
     onSuccess: () => {
       void invalidate({ resource: 'projects', invalidates: ['list'] });
       resetDraft();
-      void setParams({ open: false });
+      urlDialog.close();
     },
   });
 
@@ -166,10 +166,10 @@ export function useCreateProjectDialog(): CreateProjectDialogController {
       if (!eligible) return;
       if (action.errorMessage) action.dismiss();
       resetDraft();
-      void setParams({ open: true });
+      urlDialog.openDialog();
     },
     dialog: {
-      open: params.open,
+      open: urlDialog.open,
       accountLabel: activeAccount ? accountScopeLabel(activeAccount) : scope.value.accountId || '—',
       name: draft.name,
       onNameChange: (name) => setDraft((prev) => ({ ...prev, name })),
@@ -196,7 +196,7 @@ export function useCreateProjectDialog(): CreateProjectDialogController {
         // `use-api-keys-screen.ts`'s `createKeyDialog.onCancel`.
         if (action.errorMessage) action.dismiss();
         resetDraft();
-        void setParams({ open: false });
+        urlDialog.close();
       },
     },
   };
@@ -212,7 +212,7 @@ export function useOpenCreateProjectDialog(): {
   eligible: boolean;
   reason: string | undefined;
 } {
-  const [, setParams] = useCreateProjectDialogParams();
+  const urlDialog = useUrlDialog(CONSOLE_DIALOGS.createProject);
   const { eligible, reason } = useCreateProjectEligibility();
 
   return {
@@ -220,7 +220,7 @@ export function useOpenCreateProjectDialog(): {
     reason,
     open: () => {
       if (!eligible) return;
-      void setParams({ open: true });
+      urlDialog.openDialog();
     },
   };
 }

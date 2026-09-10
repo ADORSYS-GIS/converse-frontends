@@ -7,13 +7,7 @@ import type { ApiKeysHygieneNotesProps } from './types';
 /** One hygiene fact, tone-graded by how actionable it is — `primary` only for the one that needs
  *  attention (an expiry, never as decoration), `META_CLASS` for the two that are merely notable
  *  or audit residue. */
-function Part({
-  text,
-  tone,
-}: {
-  text: string;
-  tone: 'primary' | 'meta';
-}) {
+function Part({ text, tone }: { text: string; tone: 'primary' | 'meta' }) {
   return (
     <span className={tone === 'primary' ? cn(META_CLASS, 'text-primary') : META_CLASS}>{text}</span>
   );

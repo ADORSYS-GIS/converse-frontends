@@ -196,10 +196,7 @@ describe('LedgerTable', () => {
   });
 
   it('renders a sortable column as a real button and marks aria-sort="none" until active', () => {
-    const sortableColumns: LedgerColumn<Row>[] = [
-      { ...columns[0], sortable: true },
-      columns[1],
-    ];
+    const sortableColumns: LedgerColumn<Row>[] = [{ ...columns[0], sortable: true }, columns[1]];
     render(<LedgerTable columns={sortableColumns} data={rows} rowKey={(row) => row.id} />);
 
     const header = screen.getByRole('columnheader', { name: 'Name' });
@@ -261,7 +258,9 @@ describe('LedgerTable', () => {
   });
 
   it('gets role="grid" only when rows are selectable, making aria-selected valid', () => {
-    const { rerender } = render(<LedgerTable columns={columns} data={rows} rowKey={(row) => row.id} />);
+    const { rerender } = render(
+      <LedgerTable columns={columns} data={rows} rowKey={(row) => row.id} />
+    );
     expect(screen.getByRole('table')).not.toHaveAttribute('role');
 
     rerender(
@@ -299,5 +298,81 @@ describe('LedgerTable', () => {
 
     expect(screen.queryByText('ci-deploy')).not.toBeInTheDocument();
     expect(container.querySelectorAll('[aria-hidden="true"]')).toHaveLength(3);
+  });
+  // ── rowHref (converse-frontends#446, decision D-D) ─────────────────────────────────────────
+
+  it('leaves the markup unchanged when rowHref is absent', () => {
+    const { container } = render(
+      <LedgerTable columns={columns} data={rows} rowKey={(row) => row.id} />
+    );
+    expect(container.querySelectorAll('a')).toHaveLength(0);
+  });
+
+  it('renders the label cell as a REAL anchor when rowHref supplies one', () => {
+    render(
+      <LedgerTable
+        columns={columns}
+        data={rows}
+        rowKey={(row) => row.id}
+        rowHref={(row) => `/admin/usage/actors/${row.id}`}
+      />
+    );
+
+    const link = screen.getByRole('link', { name: 'ci-deploy' });
+    expect(link).toHaveAttribute('href', '/admin/usage/actors/a');
+    // A real anchor is what makes cmd-click / middle-click / "open in new tab" work at all — a
+    // router `onClick` push silently breaks all three.
+    expect(link.tagName).toBe('A');
+  });
+
+  it('links ONLY the identity column — a `$` figure is not a destination', () => {
+    render(
+      <LedgerTable
+        columns={columns}
+        data={rows}
+        rowKey={(row) => row.id}
+        rowHref={(row) => `/x/${row.id}`}
+      />
+    );
+    expect(screen.queryByRole('link', { name: '$12.50' })).not.toBeInTheDocument();
+  });
+
+  it('leaves a row with no destination exactly as it was', () => {
+    render(
+      <LedgerTable
+        columns={columns}
+        data={rows}
+        rowKey={(row) => row.id}
+        rowHref={(row) => (row.id === 'a' ? '/x/a' : undefined)}
+      />
+    );
+    expect(screen.getByRole('link', { name: 'ci-deploy' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'gateway-edge' })).not.toBeInTheDocument();
+  });
+
+  /** The AC: "a row action does NOT trigger navigation." Structurally guaranteed — the anchor is
+   *  the label cell and never contains the actions column — rather than by a stopPropagation a
+   *  future action could forget. */
+  it('keeps row actions outside the anchor, so pressing one never navigates', () => {
+    const onRotate = vi.fn();
+    const { container } = render(
+      <LedgerTable
+        columns={columns}
+        data={rows}
+        rowKey={(row) => row.id}
+        rowHref={(row) => `/x/${row.id}`}
+        renderRowActions={(row) => (
+          <button type="button" onClick={onRotate}>
+            Rotate {row.name}
+          </button>
+        )}
+      />
+    );
+
+    const action = screen.getByRole('button', { name: 'Rotate ci-deploy' });
+    expect(action.closest('a')).toBeNull();
+    fireEvent.click(action);
+    expect(onRotate).toHaveBeenCalledTimes(1);
+    expect(container.querySelectorAll('a')).toHaveLength(2);
   });
 });

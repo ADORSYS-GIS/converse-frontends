@@ -64,7 +64,13 @@ async function loadRpc() {
  * cheap object allocation per guard check, not a connection.
  */
 
-async function authzClient(accessToken: string) {
+/**
+ * Exported (converse-frontends#452) so `server/access.ts` can call `procedure.getMyAccess` on the
+ * session-build path through the SAME lazily-imported, per-call runtime this module already
+ * documents at length above — rather than standing up a second copy of that reasoning (and a
+ * second chance to get the lazy-import boundary wrong) next door.
+ */
+export async function authzClient(accessToken: string) {
   const { AuthzRpcRuntime, LightbridgeAuthzRpcClient, ensureCborCodecReady } = await loadRpc();
   await ensureCborCodecReady();
   const env = serverEnv();

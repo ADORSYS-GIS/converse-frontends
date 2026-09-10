@@ -15,6 +15,21 @@ export interface MultiSeriesSpendSeries {
   /** This series has breached a configured ceiling — always renders in the accent, regardless of
    *  hover/selection, same contract as `SpendSeriesChart.series[].breached`. */
   breached?: boolean;
+  /**
+   * Draw this line dashed rather than solid.
+   *
+   * Exactly one meaning, and it is the reason this exists: **this series is not the period the
+   * page is about.** A comparison overlay (`compare: true` in `dashboards.yaml` — the previous
+   * window, re-based forward so it sits under the current one) must be distinguishable from the
+   * current period at a glance and WITHOUT a legend, which this console does not have
+   * (`component.tsx`'s "values on hover, never a static per-series list" ruling). Colour alone
+   * cannot carry it: rank-2 grey is also what an ordinary second account or model gets.
+   *
+   * Deliberately not a general styling hook — nothing here reads it except the line's own
+   * `stroke-dasharray`, and no caller should set it to mean "de-emphasise", which is what
+   * hover dimming already does.
+   */
+  dashed?: boolean;
 }
 
 /**
@@ -61,5 +76,32 @@ export interface MultiSeriesSpendChartProps {
    *  `use-usage-overview-screen.ts`'s `truncationCaption` ("Showing the top 25 of 61 accounts."),
    *  omitted entirely when nothing was truncated. */
   truncationCaption?: string;
+  /**
+   * Whether the plotted quantity can be ADDED UP across buckets and series — `true` (money,
+   * requests, tokens) and the caption states the period total; `false` and it does not
+   * (converse-frontends#449).
+   *
+   * The one caller that sets it false is the latency board, and the reason is not stylistic: a sum
+   * of per-bucket p50s is not a duration, not a percentile and not any quantity a reader could act
+   * on. A caption that printed one would be the most confident sentence on the page and the only
+   * false one.
+   */
+  summable?: boolean;
+  /**
+   * Print/export mode (converse-frontends#453, the Typst report pipeline): the component renders
+   * a STANDALONE `<svg>` as its root element — no wrapper `<div>`, no captions, no pointer
+   * hit-regions, no hover/selection state and **no Floating UI tooltip** — so
+   * `renderToStaticMarkup` yields a document that can be written straight to an `.svg` file and
+   * embedded by `image()` in a `.typ` template.
+   *
+   * It is a MODE, not a styling flag: everything it removes is an interaction the paper cannot
+   * carry. The two captions it drops (the log/indexed axis note and the period-total summary) are
+   * real content, so they are NOT lost — `scaleAxisCaption` and `buildSummaryCaption` are exported
+   * for the caller to place in the report's own chrome, which is where the Typst template puts
+   * them.
+   *
+   * Never toggled at runtime: a chart is either on screen or in a report.
+   */
+  static?: boolean;
   className?: string;
 }

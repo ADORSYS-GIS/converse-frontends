@@ -7,7 +7,7 @@ import { Button } from '../button';
 import { SettingsRow } from './component';
 
 const meta: Meta<typeof SettingsRow> = {
-  title: 'Data display/SettingsRow',
+  title: 'Primitives/Data/SettingsRow',
   component: SettingsRow,
   args: {
     label: 'Account name',

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { useSharedMutation } from './use-shared-mutation';
 
-function wrapper({ children }: { children: React.ReactNode }) {
+function Wrapper({ children }: { children: React.ReactNode }) {
   const [client] = React.useState(() => new QueryClient());
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
@@ -33,7 +33,7 @@ describe('useSharedMutation error surfacing', () => {
             });
           },
         }),
-      { wrapper }
+      { wrapper: Wrapper }
     );
 
     act(() => result.current.mutate(undefined));
@@ -55,7 +55,7 @@ describe('useSharedMutation error surfacing', () => {
             throw new Error('Select a project before creating a key.');
           },
         }),
-      { wrapper }
+      { wrapper: Wrapper }
     );
 
     act(() => result.current.mutate(undefined));

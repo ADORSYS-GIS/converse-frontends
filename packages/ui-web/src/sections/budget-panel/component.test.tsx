@@ -96,4 +96,43 @@ describe('BudgetPanel', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Failed to load budget consumption.');
     expect(screen.queryByText('Not wired')).not.toBeInTheDocument();
   });
+
+  // ── next reset (converse-frontends#451, story C8) ────────────────────────────────────────
+  it('states the next reset under the hero when a schedule covers the account', () => {
+    render(
+      <BudgetPanel
+        budget={overviewBudget}
+        nextReset={{ status: 'scheduled', label: 'Next reset in 3 days → $2.00 (reset)' }}
+      />
+    );
+
+    expect(screen.getByText('Next reset in 3 days → $2.00 (reset)')).toBeInTheDocument();
+  });
+
+  // The story's own negative acceptance criterion: an explicit line, never blank space — blank
+  // space beside a balance reads as "it will be topped up somehow".
+  it('states that no reset is scheduled rather than rendering nothing', () => {
+    render(<BudgetPanel budget={overviewBudget} nextReset={{ status: 'none' }} />);
+
+    expect(screen.getByText('No reset scheduled')).toBeInTheDocument();
+  });
+
+  it('says nothing at all while the schedule read is still in flight', () => {
+    render(<BudgetPanel budget={overviewBudget} nextReset={{ status: 'loading' }} />);
+
+    expect(screen.queryByText('No reset scheduled')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Next reset/)).not.toBeInTheDocument();
+  });
+
+  it('states an unreadable schedule as its own case, never as "none"', () => {
+    render(
+      <BudgetPanel
+        budget={overviewBudget}
+        nextReset={{ status: 'unavailable', caption: 'Reset schedules need budget:read.' }}
+      />
+    );
+
+    expect(screen.getByText('Reset schedules need budget:read.')).toBeInTheDocument();
+    expect(screen.queryByText('No reset scheduled')).not.toBeInTheDocument();
+  });
 });

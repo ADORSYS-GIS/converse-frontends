@@ -38,6 +38,24 @@ export interface LedgerTableProps<T> {
   rowKey: (row: T) => string;
   /** 44px rows by default; 52px for review queues (Mercury). */
   density?: 'default' | 'review';
+  /**
+   * Turns the LABEL cell — the first column — into a real `<a href>` (converse-frontends#446,
+   * decision D-D: the top-spenders ledger's rows become navigable). Return `undefined` for a row
+   * that has no destination; that row's label renders exactly as it does today.
+   *
+   * It is deliberately the CELL and not the row:
+   *  - an `<a>` cannot wrap a `<tr>` and stay valid table markup, and
+   *  - a whole-row link would swallow the row-actions column, so pressing an action would
+   *    navigate instead of acting. The AC ("a row action does not trigger navigation") is
+   *    satisfied structurally by the anchor never containing the action buttons, not by an
+   *    `event.stopPropagation()` that a future action could forget.
+   *
+   * Because it is a real anchor, ⌘-click / middle-click / "open in new tab" and keyboard
+   * activation all work — none of which a router `onClick` push provides. It composes with
+   * `onSelectRow` (clicking elsewhere in the row still opens the detail sheet) and with
+   * `renderRowActions`.
+   */
+  rowHref?: (row: T) => string | undefined;
   selectedRowKeys?: string[];
   onSelectRow?: (row: T) => void;
   /** Trailing lifecycle actions, always visible — `subtle` at rest, strengthening to `ink` on row

@@ -132,6 +132,11 @@ export interface ProjectsScreen {
    *  "no matches" line, same "empty collection vs empty result" split `ProjectsLedger`'s own doc
    *  comment draws). */
   filtersActive: boolean;
+  /** Clears search, status and budget state, and returns to page 1 — `PageControls`' own trailing
+   *  affordance, rendered only while {@link ProjectsScreen.filtersActive}. Account SCOPE is not
+   *  touched: it is owned by the sidebar's workspace switcher, and "reset filters" must not
+   *  silently move the reader to a different account. */
+  resetFilters: () => void;
   selectedProject: ProjectRow | null;
   selectRow: (row: ProjectRow) => void;
   /** Closes the row-detail surface (rail at `lg`+, `BottomSheet` below it) — clears `?row=`. */
@@ -147,12 +152,12 @@ export interface ProjectsScreen {
     onPrev: () => void;
     onNext: () => void;
   };
-  /** `ManageControls` — the table-scoped status/budget-state filter cluster, rendered in
-   *  `ProjectsLedger`'s own toolbar now (2026-08-30: moved off `PageHeader.controls`, where phase
-   *  3 had put it, alongside the ledger's own search field). No longer carries an Account field
-   *  (live findings #6, 2026-08-30) — that duplicated the sidebar workspace switcher, which owns
-   *  account scope exclusively now. */
-  filters: Omit<ManageControlsProps, 'className'>;
+  /** `ManageControls` — the status/budget-state filter cluster. A `PageControls` group on the
+   *  floor since 2026-09-03 (ADR 0015 amendment A2 — filters are outside cards); it was
+   *  `ProjectsLedger`'s own in-card toolbar before that, and `PageHeader.controls` before that. No
+   *  Account field (live findings #6, 2026-08-30) — that duplicated the sidebar workspace switcher,
+   *  which owns account scope exclusively. */
+  filters: ManageControlsProps;
   /** `ReportExportDialog` — opened from the `Monthly report` button in `PageHeader.action`
    *  (shell revamp phase 3: replaces the deleted right rail's MONTHLY REPORT section). */
   report: ReportExportDialogProps;
@@ -252,9 +257,10 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
    * every `format === 'pdf'` press — an honest refusal, but the defect was never the message: the
    * UI offered PDF as a peer of CSV (the `ReportExportPanel` format toggle, taken from Coinbase's
    * download-report pattern in `docs/design/console-redesign/README.md` §1.2) and then refused
-   * every second choice. The route now renders the same project × model report as a paginated PDF
-   * server-side (`server/consumption-pdf.ts`), so `format` is passed straight through instead of
-   * being intercepted here.
+   * every second choice. The route now renders the same project × model report as a PDF
+   * server-side — since converse-frontends#453, through the `typst-render` sidecar and
+   * `templates/reports/consumption/report.typ` (`server/reports/consumption-report.ts`) — so
+   * `format` is passed straight through instead of being intercepted here.
    */
   const reportAction = useSharedMutation<ReportExportParams, void>({
     mutationKey: REPORT_MUTATION_KEY,
@@ -262,8 +268,13 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
       if (!scope.value.accountId) {
         throw new Error('Select an account before generating a report.');
       }
+      // `period` is OPTIONAL on `ReportExportParams` since converse-frontends#453 (a dashboard-page
+      // export has no month to pick). This dialog always renders the month picker, so the fallback
+      // is a type guard, not a real branch — and it falls back to the SAME value the picker is
+      // bound to, so it can never query a month other than the shown one.
+      const month = params.period ?? view.period;
       const query = new URLSearchParams({
-        month: params.period,
+        month,
         account: scope.value.accountId,
         format: params.format,
       });
@@ -284,7 +295,7 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
       const blob = await response.blob();
       const filename =
         filenameFromContentDisposition(response.headers.get('content-disposition')) ??
-        `consumption-${params.period}.${params.format}`;
+        `consumption-${month}.${params.format}`;
       downloadBlob(blob, filename);
     },
   });
@@ -312,6 +323,9 @@ export function useProjectsScreen(scopeSlot: ReactNode): ProjectsScreen {
     },
     filtersActive:
       Boolean(view.search.trim()) || view.status !== 'all' || view.budgetState !== 'all',
+    resetFilters: () => {
+      void setView({ search: '', status: 'all', budgetState: 'all', page: 1 });
+    },
     selectedProject,
     selectRow: (row) => {
       void setView({ selectedProjectId: row.id }, MANAGE_SELECTION_OPTIONS);

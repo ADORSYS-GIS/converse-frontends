@@ -39,37 +39,46 @@ export function AuthScreen({
 }: AuthScreenProps) {
   const redirecting = status === 'redirecting';
   const hasError = status === 'error';
-  const primaryLabel = redirecting ? 'Redirecting…' : hasError ? 'Try again' : 'Continue to sign in';
+  const primaryLabel = redirecting
+    ? 'Redirecting…'
+    : hasError
+      ? 'Try again'
+      : 'Continue to sign in';
   const handlePrimaryClick = hasError ? (onRetry ?? onSignIn) : onSignIn;
 
   return (
-    <div className={cn('flex min-h-screen flex-col bg-muted px-6', className)}>
+    <div className={cn('bg-muted flex min-h-screen flex-col px-6', className)}>
       <div className="flex items-center gap-3 pt-6">
         {logoSrc ? (
           <img src={logoSrc} alt={logoAlt} className="h-5 w-5 rounded-[2px]" />
         ) : (
           <span
             aria-hidden="true"
-            className="flex h-5 w-5 items-center justify-center rounded-[2px] bg-raised"
-          >
+            className="bg-raised flex h-5 w-5 items-center justify-center rounded-[2px]">
             <svg width="10" height="10" viewBox="0 0 10 10">
-              <path d="M1 9 L5 1 L9 9 Z" fill="none" stroke="currentColor" className="text-subtle" />
+              <path
+                d="M1 9 L5 1 L9 9 Z"
+                fill="none"
+                stroke="currentColor"
+                className="text-subtle"
+              />
             </svg>
           </span>
         )}
         {/* The wordmark — sans, sentence case, matching `header-wordmark`'s own treatment (phase
             9 consistency pass: this used to be mono/tracked, the pre-revamp header band's face). */}
-        <span className="font-sans text-xs text-ink">{wordmark}</span>
+        <span className="text-ink font-sans text-xs">{wordmark}</span>
       </div>
 
       <div className="flex flex-1 items-center justify-center py-12">
         <div className="flex w-full max-w-[360px] flex-col gap-6">
           <div className="flex flex-col gap-2">
             {/* A heading — sans, like every other page heading (phase 9 consistency pass). */}
-            <h1 className="font-sans text-[22px] leading-[1.25] text-ink">Sign in to Lightbridge</h1>
-            <p className="font-sans text-[11px] leading-[1.45] text-soft">
-              Sign-in happens at your identity provider — you&rsquo;ll be redirected there and
-              back.
+            <h1 className="text-ink font-sans text-[22px] leading-[1.25]">
+              Sign in to Lightbridge
+            </h1>
+            <p className="text-soft font-sans text-[11px] leading-[1.45]">
+              Sign-in happens at your identity provider — you&rsquo;ll be redirected there and back.
             </p>
           </div>
 
@@ -86,8 +95,7 @@ export function AuthScreen({
             variant="primary"
             className="w-full"
             disabled={redirecting}
-            onClick={handlePrimaryClick}
-          >
+            onClick={handlePrimaryClick}>
             {primaryLabel}
           </Button>
 
@@ -96,8 +104,7 @@ export function AuthScreen({
               href={supportHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-sans text-[11px] leading-[1.45] text-subtle hover:text-soft"
-            >
+              className="text-subtle hover:text-soft font-sans text-[11px] leading-[1.45]">
               Need help signing in?
             </a>
           ) : null}

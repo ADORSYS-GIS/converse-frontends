@@ -1,0 +1,109 @@
+{
+  "area": {
+    "title": "Einstellungen",
+    "loading": "Wird geladen…"
+  },
+  "info": {
+    "title": "Info",
+    "subtitle": "Build, Konfiguration und Sitzungsdiagnose",
+    "console-entry": {
+      "label": "Konsole",
+      "description": "diese Anwendung"
+    },
+    "backend": {
+      "title": "Backend-Konfiguration",
+      "backend-path": "Backend-API-Pfad",
+      "budget-path": "Guthaben-API-Pfad",
+      "usage-backend": "Nutzungs-Backend",
+      "not-configured": "Nicht konfiguriert"
+    },
+    "session": {
+      "title": "Sitzung",
+      "signed-in-as": "Angemeldet als",
+      "subject": "Subject",
+      "roles": "Rollen",
+      "no-roles": "Keine"
+    },
+    "client": {
+      "title": "Client-Zustand",
+      "theme-preference": "Design-Einstellung",
+      "active-theme": "Aktives Design",
+      "language": "Sprache",
+      "connectivity": "Verbindung",
+      "online": "Online",
+      "offline": "Offline · zwischengespeicherte Daten"
+    }
+  },
+  "tiers": {
+    "title": "Tarifstufen",
+    "billing-plans": "Abrechnungstarife",
+    "no-billing-plans": "Es sind keine Abrechnungstarife konfiguriert.",
+    "plan-id": "Tarif-ID",
+    "limits": "Limits",
+    "assigned-tiers": "Zugewiesene Kontingentstufen",
+    "no-account-selected": "Wählen Sie ein Konto aus, um dessen zugewiesene Kontingentstufen zu sehen.",
+    "no-catalogue-note": "Es gibt noch keinen Katalog von Kontingentstufen zur Auswahl — angezeigt werden ausschließlich zugewiesene Stufen, niemals eine Auswahlliste (lightbridge-authz#572)."
+  },
+  "policies": {
+    "title": "Projektrichtlinien"
+  },
+  "accounts": {
+    "title": "Konten",
+    "count_one": "{{count}} Konto",
+    "count_other": "{{count}} Konten",
+    "new-account": "+ Neues Konto",
+    "detail": {
+      "fallback-title": "Konto",
+      "budget": "Guthaben",
+      "ceiling-line": "{{ceiling}} Guthabengrenze in dieser Periode",
+      "request-refill": "Aufladung anfragen…",
+      "members": "Mitglieder"
+    },
+    "projects": {
+      "title": "Projekte",
+      "loading": "Konto wird geladen…"
+    },
+    "request-refill": {
+      "title": "Guthaben-Aufladung anfragen",
+      "loading": "Kontext wird geladen…"
+    }
+  },
+  "overview": {
+    "lens": {
+      "account": "Kontoübersicht",
+      "project": "Projektübersicht",
+      "user": "Ihre Nutzung"
+    },
+    "no-project-selected": "Kein Projekt ausgewählt",
+    "project-field": {
+      "label": "Projekt",
+      "placeholder": "Projekt auswählen…"
+    },
+    "select-project": "Wählen Sie oben ein Projekt aus, um dessen Nutzung zu sehen.",
+    "resolving-identity": "Ihre Identität wird ermittelt…",
+    "burn-down": {
+      "label": "Guthabenverbrauch in dieser Periode",
+      "caption": "Gemessen über die Abrechnungsperiode, nicht über den oben gewählten Zeitraum — eine Guthabengrenze ist eine Tatsache über diesen Kalendermonat.",
+      "series": "Dieses Konto"
+    },
+    "pressure": {
+      "label": "Guthaben-Auslastung",
+      "note": "Jeder Balken zeigt den Anteil des Projekts an der einzigen Guthabengrenze des Kontos in dieser Abrechnungsperiode. Projekte haben keine eigene Grenze — das Kontingent eines Projekts ist eine Governance-Stufe, kein Geldbetrag —, daher wird hier die Auslastung eingeordnet und kein projektbezogener Spielraum berichtet."
+    },
+    "hygiene": {
+      "title": "Schlüsselhygiene",
+      "caveat": "Gezählt über die ersten {{shown}} von {{total}} Schlüsseln in diesem Konto — die übrigen liegen jenseits dieser Seite."
+    },
+    "unassigned": "Nicht zugeordnet"
+  },
+  "usage-overview": {
+    "title": "Nutzungsübersicht",
+    "subtitle": "Ihre Kontofamilie · {{range}} · {{timezone}}",
+    "family-truncated": "Angezeigt werden die {{cap}} größten von {{total}} Konten.",
+    "account-only-zones": "Guthaben, Ablauf von API-Schlüsseln und Aufladungen gelten je Konto und stehen nicht auf dieser Seite: eine Guthabengrenze gehört zur Guthabenperiode eines einzelnen Kontos, eine Kontofamilie hat dafür also keine einzelne Zahl. Öffnen Sie dafür die Übersicht des jeweiligen Kontos."
+  },
+  "resolver": {
+    "load-failed": "Ihre Konten konnten nicht geladen werden.",
+    "finding-account": "Ihr Konto wird gesucht…"
+  }
+}

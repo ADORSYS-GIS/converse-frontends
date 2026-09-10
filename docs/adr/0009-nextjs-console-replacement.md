@@ -113,7 +113,7 @@ sequenceDiagram
     K-->>N: tokens (aud validated)
     N-->>B: Set-Cookie (encrypted, httpOnly) + 302 /
     B->>N: POST /api/rpc/{op_id} (cookie)
-    N->>N: decrypt session; refresh if expiresAt − now ≤ 60s
+    N->>N: decrypt session, refresh if expiresAt − now ≤ 60s
     N->>A: POST /rpc/{op_id} (Bearer, CBOR)
     A-->>N: CBOR response
     N-->>B: response (+ rotated cookie when refreshed)

@@ -1,0 +1,457 @@
+{
+  "admin-overview": {
+    "estate-spend": {
+      "title": "Gesamtkosten gegenüber der Vorperiode",
+      "subtitle": "Jedes Konto mit Nutzung in diesem Zeitraum. Die gestrichelte Linie ist die Vorperiode, darunter gelegt."
+    },
+    "spend-by-account": {
+      "title": "Kosten nach Konto",
+      "subtitle": "Die zwölf Konten mit den höchsten Kosten. Werte beim Überfahren."
+    },
+    "spend-by-model": {
+      "title": "Kosten nach Modell im Zeitverlauf",
+      "subtitle": "Tageskosten, aufgeteilt nach Modell. Die Balkenhöhe ist die Tagessumme; alles jenseits der fünf größten Modelle wird zu einem summierten Segment „Andere“ zusammengefasst und niemals verworfen."
+    },
+    "model-mix-share": {
+      "title": "Kosten nach Modell — Anteil im Bestand"
+    },
+    "top-spender-users": {
+      "title": "Größte Kostenverursacher — Benutzer",
+      "subtitle": "Name und E‑Mail, sofern das Verzeichnis die Kennung auflösen konnte; eine nicht auflösbare Kennung behält ihre Zeile unter dem Rohwert und wird niemals verworfen. Zeilen öffnen die Nutzung der jeweiligen Person.",
+      "rowLabel": "Benutzer",
+      "unit": "Benutzer"
+    },
+    "top-spender-accounts": {
+      "title": "Größte Kostenverursacher — Konten",
+      "rowLabel": "Konto",
+      "unit": "Konten"
+    },
+    "top-spender-projects": {
+      "title": "Größte Kostenverursacher — Projekte",
+      "subtitle": "Kosten, die das Backend keinem Projekt zugeordnet hat, werden in einer beschrifteten Zeile „Nicht zugeordnet“ zusammengefasst und niemals verworfen.",
+      "rowLabel": "Projekt",
+      "unit": "Projekte"
+    },
+    "request-volume": {
+      "title": "Anfragevolumen",
+      "subtitle": "Die Fehlerquote wird nicht angezeigt — Nutzungsereignisse tragen heute kein Fehler- oder Statussignal (lightbridge-authz#597)."
+    },
+    "latency-by-model": {
+      "title": "Latenz nach Modell",
+      "subtitle": "Perzentile werden vom Nutzungs-Backend je Intervall berechnet; jede Karte nennt das SCHLECHTESTE Intervall in diesem Zeitraum, niemals einen Mittelwert von Perzentilen. p99 wird unterhalb von 100 Messwerten ausgeblendet."
+    },
+    "active-accounts": {
+      "title": "Aktive Konten",
+      "subtitle": "Zählt ausschließlich Konten mit Nutzung in diesem Zeitraum — ein Konto ohne Nutzung erscheint in einer bestandsweiten Nutzungsabfrage überhaupt nicht."
+    },
+    "active-projects": {
+      "title": "Aktive Projekte",
+      "subtitle": "Gleicher Zeitraum und gleiches Limit; Kosten ohne Projektzuordnung zählen nicht als Projekt."
+    },
+    "adoption-over-time": {
+      "title": "Aktive Konten & Projekte pro Tag",
+      "subtitle": "Verschiedene Konten und Projekte mit mindestens einer Anfrage je Intervall."
+    }
+  },
+  "admin-usage": {
+    "total-cost": {
+      "title": "Gesamtkosten",
+      "subtitle": "Jedes Konto mit Nutzung in diesem Zeitraum"
+    },
+    "total-requests": {
+      "title": "Anfragen gesamt",
+      "subtitle": "Die Fehlerquote wird nicht angezeigt — Nutzungsereignisse tragen kein Fehler- oder Statussignal (lightbridge-authz#597)."
+    },
+    "accounts-by-plan": {
+      "title": "Konten mit Nutzung, nach Tarif",
+      "subtitle": "Verschiedene Konten, die in diesem Zeitraum etwas verbraucht haben. Ein Konto ohne Nutzung erscheint in einer Nutzungsabfrage überhaupt nicht, dies ist also keine Bestandsaufnahme aller Konten."
+    },
+    "plan-in-use": {
+      "title": "Genutzte Tarife",
+      "subtitle": "Kosten je Abrechnungstarif, nach Rang."
+    },
+    "avg-cost-per-million-tokens": {
+      "title": "Durchschnittliche Kosten pro Million Token",
+      "subtitle": "Ein Gedankenstrich statt 0,00 $, wenn der Zeitraum keine Token-Zahlen enthält — ein Embeddings- oder Bildaufruf hat keine, und „kostenlos“ wäre eine erfundene Aussage."
+    },
+    "active-actors": {
+      "title": "Aktive Akteure",
+      "subtitle": "Zählt ausschließlich Akteure mit Nutzung in diesem Zeitraum. Folgt der Perspektive."
+    },
+    "cost-by-model": {
+      "title": "Kosten je Periode nach Modell",
+      "subtitle": "Die Balkenhöhe sind die Gesamtkosten der Periode; die Segmente sind die fünf größten Modelle plus ein summiertes „Andere“.",
+      "linkAll": "Modelle ansehen"
+    },
+    "cost-by-actor": {
+      "title": "Kosten je Periode nach Akteur",
+      "subtitle": "Folgt der Perspektive oben — Nutzer, Konten oder Projekte."
+    },
+    "tokens-by-model": {
+      "title": "Token je Periode nach Modell",
+      "linkAll": "Modelle ansehen"
+    },
+    "tokens-by-actor": {
+      "title": "Token je Periode nach Akteur"
+    },
+    "cost-by-channel": {
+      "title": "Kosten nach Kanal",
+      "subtitle": "Über welchen OAuth-Client die Kosten eingegangen sind. Zeilen öffnen den Kanal."
+    },
+    "model-cost-share": {
+      "title": "Welche Modelle",
+      "subtitle": "Kostenanteil über den Zeitraum"
+    },
+    "top-actor-cost": {
+      "title": "Größte Akteure nach Kosten",
+      "subtitle": "Zeilen öffnen die Nutzung dieses Akteurs. Folgt der Perspektive."
+    },
+    "chat-completions-count": {
+      "title": "Chat-Antworten",
+      "subtitle": "Anfragen an die chat-artigen Schnittstellen — /v1/chat/completions, /v1/responses und /v1/messages."
+    },
+    "model-distribution-requests": {
+      "title": "Modellverteilung — Anfragen",
+      "subtitle": "Anfragen nach Modell"
+    },
+    "model-distribution-cost": {
+      "title": "Modellverteilung — Kosten"
+    },
+    "model-distribution-tokens": {
+      "title": "Modellverteilung — Token"
+    },
+    "actors-table": {
+      "title": "Akteure",
+      "subtitle": "Kosten, Anfragen, Token und letzte Aktivität je Akteur. Zeilen öffnen den Akteur. Die letzte Aktivität ist der Beginn des jüngsten Intervalls mit Nutzung, kein Ereigniszeitstempel.",
+      "rowLabel": "Akteur",
+      "unit": "Akteure"
+    },
+    "channels-table": {
+      "title": "Kanäle",
+      "subtitle": "Kosten und Anfragen je OAuth-Client. Zeilen öffnen den Kanal.",
+      "rowLabel": "Kanal",
+      "unit": "Kanäle"
+    }
+  },
+  "admin-usage-actors-actorId": {
+    "actor-total-cost": {
+      "title": "Gesamtkosten",
+      "subtitle": "Die eigenen Kosten dieses Akteurs im oben gewählten Zeitraum, nicht in der Guthabenperiode."
+    },
+    "actor-total-requests": {
+      "title": "Anfragen gesamt",
+      "subtitle": "Die Fehlerquote wird nicht angezeigt — Nutzungsereignisse tragen kein Fehler- oder Statussignal (lightbridge-authz#597)."
+    },
+    "actor-cost-by-model": {
+      "title": "Kosten je Periode nach Modell",
+      "subtitle": "Standardmäßig logarithmische Achse — ein dominantes Modell drückt auf einer linearen Achse jede andere Linie flach."
+    },
+    "actor-cost-by-channel": {
+      "title": "Kosten nach Kanal",
+      "subtitle": "Über welchen OAuth-Client die Kosten dieses Akteurs eingegangen sind. Zeilen öffnen den Kanal."
+    },
+    "actor-model-cost-share": {
+      "title": "Welche Modelle",
+      "subtitle": "Kostenanteil über den Zeitraum"
+    },
+    "actor-chat-completions-count": {
+      "title": "Chat-Antworten",
+      "subtitle": "Anfragen an die chat-artigen Schnittstellen — /v1/chat/completions, /v1/responses und /v1/messages."
+    },
+    "actor-model-distribution-requests": {
+      "title": "Modellverteilung — Anfragen",
+      "subtitle": "Anfragen nach Modell"
+    },
+    "actor-model-distribution-cost": {
+      "title": "Modellverteilung — Kosten"
+    },
+    "actor-model-distribution-tokens": {
+      "title": "Modellverteilung — Token"
+    }
+  },
+  "admin-usage-channels-channelId": {
+    "channel-total-cost": {
+      "title": "Gesamtkosten",
+      "subtitle": "Kosten, die über diesen OAuth-Client eingegangen sind, über alle Konten hinweg."
+    },
+    "channel-total-requests": {
+      "title": "Anfragen gesamt",
+      "subtitle": "Die Fehlerquote wird nicht angezeigt — Nutzungsereignisse tragen kein Fehler- oder Statussignal (lightbridge-authz#597)."
+    },
+    "channel-cost-by-model": {
+      "title": "Kosten je Periode nach Modell",
+      "subtitle": "Standardmäßig logarithmische Achse — ein dominantes Modell drückt auf einer linearen Achse jede andere Linie flach."
+    },
+    "channel-model-cost-share": {
+      "title": "Welche Modelle",
+      "subtitle": "Kostenanteil über den Zeitraum"
+    },
+    "channel-chat-completions-count": {
+      "title": "Chat-Antworten",
+      "subtitle": "Anfragen an die chat-artigen Schnittstellen — /v1/chat/completions, /v1/responses und /v1/messages."
+    },
+    "channel-actors": {
+      "title": "Akteure auf diesem Kanal",
+      "subtitle": "Kosten je Nutzer auf diesem Client. Zeilen öffnen den Akteur."
+    },
+    "channel-requests-by-operation": {
+      "title": "Anfragen nach Operation",
+      "subtitle": "Welche API-Schnittstelle dieser Client aufruft."
+    }
+  },
+  "admin-usage-models-model": {
+    "model-total-cost": {
+      "title": "Gesamtkosten",
+      "subtitle": "Kosten für dieses Modell, über alle Konten der Installation hinweg."
+    },
+    "model-total-requests": {
+      "title": "Anfragen gesamt",
+      "subtitle": "Eine Fehlerquote wird nicht angezeigt — Nutzungsereignisse tragen kein Fehler-/Statussignal (lightbridge-authz#597)."
+    },
+    "model-total-tokens": {
+      "title": "Token gesamt",
+      "subtitle": "Prompt und Completion zusammen — die Menge, nach der dieses Modell abgerechnet wird."
+    },
+    "model-cost-over-time": {
+      "title": "Kosten je Periode",
+      "subtitle": "Eine Linie, denn diese Seite ist ein Modell. Lineare Achse — die Zahl ist die Aussage."
+    },
+    "model-actors": {
+      "title": "Wer es nutzt",
+      "subtitle": "Kosten je Nutzer für dieses Modell. Zeilen öffnen den jeweiligen Akteur."
+    },
+    "model-channels": {
+      "title": "Woher es kommt",
+      "subtitle": "Kosten je OAuth-Client (azp). Zeilen öffnen den jeweiligen Kanal."
+    },
+    "model-latency": {
+      "title": "Latenz",
+      "subtitle": "p50 und p95 über die Zeitfenster dieses Bereichs, mit der jeweiligen Stichprobenzahl — leer, wenn die Installation überhaupt keine Latenz aufzeichnet."
+    },
+    "model-requests-by-operation": {
+      "title": "Anfragen nach Operation",
+      "subtitle": "Über welche API-Oberfläche dieses Modell aufgerufen wird."
+    }
+  },
+  "admin-usage-chats": {
+    "chat-latency-series": {
+      "title": "Chat-Latenz im Zeitverlauf",
+      "subtitle": "p50 und p95 je Intervall, vom Nutzungs-Backend zur Abfragezeit berechnet — niemals ein Mittelwert von Perzentilen. Das Gateway sendet keine TTFT, daher fehlt die Zeit bis zum ersten Token, statt geschätzt zu werden."
+    },
+    "chat-latency-cards": {
+      "title": "Latenz nach Modell",
+      "subtitle": "Jede Karte nennt das SCHLECHTESTE Intervall in diesem Zeitraum, niemals einen Mittelwert von Perzentilen. p99 wird unterhalb von 100 Messwerten ausgeblendet."
+    },
+    "chat-total-count": {
+      "title": "Chat-Anfragen",
+      "subtitle": "Anfragen an /v1/chat/completions, /v1/responses und /v1/messages."
+    },
+    "chat-requests-by-operation": {
+      "title": "Anfragen je Periode nach Operation",
+      "subtitle": "Die drei Chat-Schnittstellen getrennt dargestellt — eine Migration von der einen zur anderen ist hier und sonst nirgends sichtbar."
+    },
+    "chat-cost-by-model": {
+      "title": "Chat-Kosten je Periode nach Modell",
+      "subtitle": "Standardmäßig logarithmische Achse — ein dominantes Modell drückt auf einer linearen Achse jede andere Linie flach."
+    }
+  },
+  "accounts-accountId-overview": {
+    "spend-total": {
+      "title": "Kosten in diesem Zeitraum",
+      "subtitle": "Der oben gewählte Zeitraum, nicht die Guthabenperiode, die die Guthaben-Karte nennt."
+    },
+    "request-total": {
+      "title": "Anfragen in diesem Zeitraum"
+    },
+    "spend-over-time": {
+      "title": "Kosten im Zeitverlauf",
+      "subtitle": "Die Kontosumme, mit der Vorperiode gestrichelt darunter."
+    },
+    "spend-by-project": {
+      "title": "Kosten nach Projekt",
+      "subtitle": "Kosten, die das Backend keinem Projekt zugeordnet hat, erscheinen als beschriftete Zeile „Nicht zugeordnet“ und werden niemals verworfen."
+    },
+    "model-share": {
+      "title": "Kosten nach Modell — Anteil"
+    },
+    "spend-by-model": {
+      "title": "Kosten nach Modell im Zeitverlauf",
+      "subtitle": "Die Balkenhöhe ist die Tagessumme dieses Kontos; die Segmente sind die fünf größten Modelle plus ein summiertes „Andere“."
+    },
+    "latency-by-model": {
+      "title": "Latenz nach Modell",
+      "subtitle": "Perzentile werden vom Nutzungs-Backend je Intervall berechnet; jede Karte nennt das SCHLECHTESTE Intervall in diesem Zeitraum, niemals einen Mittelwert von Perzentilen. p99 wird unterhalb von 100 Messwerten ausgeblendet."
+    },
+    "spend-by-api-key": {
+      "title": "Kosten nach API-Schlüssel",
+      "subtitle": "Kosten, die das Backend keinem Schlüssel zugeordnet hat, erscheinen als beschriftete Zeile „Nicht zugeordnet“."
+    },
+    "account-cost-by-channel": {
+      "title": "Kosten nach Kanal",
+      "subtitle": "Über welchen OAuth-Client (azp) die Kosten eingegangen sind. Auf dem Bildschirm stehen die Werte im Tooltip, in einem exportierten Bericht in der eigenen Tabelle des Panels."
+    },
+    "account-tokens-by-channel": {
+      "title": "Token nach Kanal",
+      "subtitle": "Token nach OAuth-Client (azp) — derselbe Zeitraum und dieselbe Abfrage wie beim Kostenring."
+    },
+    "account-requests-by-channel": {
+      "title": "Anfragen nach Kanal",
+      "subtitle": "Anfragen nach OAuth-Client (azp) — ein Kanal kann einen großen Anteil der Aufrufe und einen kleinen Anteil der Kosten ausmachen."
+    },
+    "account-cost-by-project": {
+      "title": "Kosten nach Projekt",
+      "subtitle": "Die Aufteilung nach Projekten derselben Kosten, die die Rangliste oben ordnet, aus derselben Abfrage. Auf dem Bildschirm stehen die Werte im Tooltip, in einem exportierten Bericht in der eigenen Tabelle des Panels."
+    }
+  },
+  "settings-overview-usage": {
+    "family-requests": {
+      "title": "Anfragen"
+    },
+    "family-cost": {
+      "title": "Kosten",
+      "subtitle": "Jedes Konto Ihrer Kontofamilie, summiert über den oben gewählten Zeitraum. Daneben steht keine Guthabenzahl für die Familie — eine Guthabengrenze gilt je Konto."
+    },
+    "family-cost-per-request": {
+      "title": "Kosten / Anfrage",
+      "subtitle": "Leer, wenn der Zeitraum überhaupt keine Anfragen enthält — ein Mittelwert über nichts ist keine Zahl."
+    },
+    "family-accounts": {
+      "title": "Konten",
+      "subtitle": "Nur Konten mit Nutzung in diesem Zeitraum — ein Konto, das nichts verbraucht hat, erscheint in einer Nutzungsabfrage überhaupt nicht."
+    },
+    "family-spend": {
+      "title": "Kosten im Zeitverlauf",
+      "subtitle": "Jedes Konto Ihrer Kontofamilie, summiert. Die gestrichelte Linie ist die Vorperiode."
+    },
+    "spend-by-account": {
+      "title": "Kosten nach Konto",
+      "subtitle": "Eine Linie je Konto, Werte beim Überfahren."
+    },
+    "family-spend-by-project": {
+      "title": "Kosten nach Projekt",
+      "subtitle": "Über jedes Konto Ihrer Kontofamilie hinweg. Die Projekte zweier Konten sind verschiedene Projekte, auch wenn sie denselben Namen tragen. Kosten ohne Projektzuordnung erscheinen als beschriftete Zeile „Nicht zugeordnet“ und werden niemals verworfen."
+    },
+    "family-model-share": {
+      "title": "Kosten nach Modell — Anteil",
+      "subtitle": "Der Anteil über jedes Konto Ihrer Kontofamilie. Kosten, die das Backend keinem Modell zugeordnet hat, erscheinen als beschriftetes Segment „Nicht zugeordnet“ und werden niemals verworfen."
+    },
+    "family-spend-by-model": {
+      "title": "Kosten nach Modell im Zeitverlauf",
+      "subtitle": "Die Balkenhöhe ist die Tagessumme über jedes Konto Ihrer Kontofamilie; die Segmente sind die fünf größten Modelle plus ein summiertes „Andere“."
+    },
+    "family-latency-by-model": {
+      "title": "Latenz nach Modell",
+      "subtitle": "Perzentile werden vom Nutzungs-Backend je Intervall berechnet; jede Karte nennt das SCHLECHTESTE Intervall in diesem Zeitraum über Ihre gesamte Kontofamilie hinweg, niemals einen Mittelwert von Perzentilen. p99 wird unterhalb von 100 Messwerten ausgeblendet."
+    },
+    "family-spend-by-api-key": {
+      "title": "Kosten nach API-Schlüssel",
+      "subtitle": "Über jedes Konto Ihrer Kontofamilie hinweg. Kosten, die das Backend keinem Schlüssel zugeordnet hat, erscheinen als beschriftete Zeile „Nicht zugeordnet“."
+    },
+    "family-cost-by-channel": {
+      "title": "Kosten nach Kanal",
+      "subtitle": "Über welchen OAuth-Client (azp) die Kosten eingegangen sind, über Ihre gesamte Kontofamilie hinweg. Auf dem Bildschirm stehen die Werte im Tooltip, in einem exportierten Bericht in der eigenen Tabelle des Panels."
+    },
+    "family-tokens-by-channel": {
+      "title": "Token nach Kanal",
+      "subtitle": "Token nach OAuth-Client (azp) — derselbe Zeitraum und dieselbe Auffächerung wie beim Kostenring."
+    },
+    "family-requests-by-channel": {
+      "title": "Anfragen nach Kanal",
+      "subtitle": "Anfragen nach OAuth-Client (azp) — ein Kanal kann einen großen Anteil der Aufrufe und einen kleinen Anteil der Kosten ausmachen."
+    },
+    "family-cost-by-project": {
+      "title": "Kosten nach Projekt",
+      "subtitle": "Die Aufteilung nach Projekten derselben Kosten, die die Rangliste oben ordnet, aus derselben Auffächerung. Projekte werden nicht zwischen Konten geteilt, eine Familie mit 25 Konten hat hier also 25 disjunkte Projektmengen."
+    },
+    "family-cost-by-account": {
+      "title": "Kosten nach Konto",
+      "subtitle": "Die Aufteilung der Familiensumme oben nach Konten — die Auswertung, für die es diese Seite gibt, und die eine, für die die Übersicht eines einzelnen Kontos keine Zeilen zeichnen kann."
+    }
+  },
+  "settings-overview-account": {
+    "requests": {
+      "title": "Anfragen"
+    },
+    "cost": {
+      "title": "Kosten"
+    },
+    "cost-per-request": {
+      "title": "Kosten / Anfrage",
+      "subtitle": "Leer, wenn der Zeitraum überhaupt keine Anfragen enthält — ein Mittelwert über nichts ist keine Zahl."
+    },
+    "models-in-use": {
+      "title": "Genutzte Modelle"
+    },
+    "spend-over-time": {
+      "title": "Kosten im Zeitverlauf",
+      "subtitle": "Die Kontosumme über alle Projekte und Modelle."
+    },
+    "spend-by-model": {
+      "title": "Kosten nach Modell"
+    },
+    "spend-by-project": {
+      "title": "Kosten nach Projekt",
+      "subtitle": "Kosten, die das Backend keinem Projekt zugeordnet hat, erscheinen als beschriftete Zeile „Nicht zugeordnet“ und werden niemals verworfen."
+    },
+    "latency-by-model": {
+      "title": "Latenz nach Modell",
+      "subtitle": "Perzentile werden vom Nutzungs-Backend je Intervall berechnet; jede Karte nennt das SCHLECHTESTE Intervall in diesem Zeitraum, niemals einen Mittelwert von Perzentilen. p99 wird unterhalb von 100 Messwerten ausgeblendet."
+    }
+  },
+  "settings-overview-project": {
+    "requests": {
+      "title": "Anfragen"
+    },
+    "cost": {
+      "title": "Kosten"
+    },
+    "cost-per-request": {
+      "title": "Kosten / Anfrage",
+      "subtitle": "Leer, wenn der Zeitraum überhaupt keine Anfragen enthält — ein Mittelwert über nichts ist keine Zahl."
+    },
+    "models-in-use": {
+      "title": "Genutzte Modelle"
+    },
+    "spend-over-time": {
+      "title": "Kosten im Zeitverlauf",
+      "subtitle": "Die Summe dieses Projekts über alle Schlüssel und Modelle."
+    },
+    "spend-by-model": {
+      "title": "Kosten nach Modell"
+    },
+    "spend-by-api-key": {
+      "title": "Kosten nach API-Schlüssel",
+      "subtitle": "Kosten, die das Backend keinem Schlüssel zugeordnet hat, erscheinen als beschriftete Zeile „Nicht zugeordnet“ und werden niemals verworfen."
+    },
+    "latency-by-model": {
+      "title": "Latenz nach Modell",
+      "subtitle": "Perzentile werden vom Nutzungs-Backend je Intervall berechnet; jede Karte nennt das SCHLECHTESTE Intervall in diesem Zeitraum, niemals einen Mittelwert von Perzentilen. p99 wird unterhalb von 100 Messwerten ausgeblendet."
+    }
+  },
+  "settings-overview-user": {
+    "requests": {
+      "title": "Anfragen"
+    },
+    "cost": {
+      "title": "Kosten"
+    },
+    "cost-per-request": {
+      "title": "Kosten / Anfrage",
+      "subtitle": "Leer, wenn der Zeitraum überhaupt keine Anfragen enthält — ein Mittelwert über nichts ist keine Zahl."
+    },
+    "models-in-use": {
+      "title": "Genutzte Modelle"
+    },
+    "spend-over-time": {
+      "title": "Kosten im Zeitverlauf",
+      "subtitle": "Ihre eigene Nutzung über alle Konten und Projekte, aus denen Sie Leistungen bezogen haben."
+    },
+    "spend-by-model": {
+      "title": "Kosten nach Modell"
+    },
+    "latency-by-model": {
+      "title": "Latenz nach Modell",
+      "subtitle": "Perzentile werden vom Nutzungs-Backend je Intervall berechnet; jede Karte nennt das SCHLECHTESTE Intervall in diesem Zeitraum, niemals einen Mittelwert von Perzentilen. p99 wird unterhalb von 100 Messwerten ausgeblendet."
+    }
+  }
+}

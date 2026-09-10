@@ -2,6 +2,8 @@
 
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
+
+import { useTranslation } from '../../../../i18n/client';
 import { ReviewQueue } from '@lightbridge/ui-web/src/sections/review-queue';
 
 /**
@@ -19,9 +21,10 @@ import { ReviewQueue } from '@lightbridge/ui-web/src/sections/review-queue';
  * query is in flight.
  */
 export default function RefillsQueueLoading() {
+  const { t } = useTranslation('admin');
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Budget refill review" subtitle="loading queue…" />
+      <PageHeader title={t('refills-queue.title')} subtitle={t('refills-queue.loading')} />
 
       <Card>
         <ReviewQueue pending={[]} loading loadingRowCount={6} onSelectRequest={() => undefined} />

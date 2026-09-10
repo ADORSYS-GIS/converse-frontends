@@ -1,0 +1,50 @@
+# DELIBERATELY INVALID — the fixture behind `dashboard-spec.test.ts`'s "an invalid file fails the
+# test" acceptance criterion, and behind `load-dashboards.test.ts`'s fail-loud startup assertion.
+#
+# Four independent problems, one per panel, so the error message is asserted to name EVERY
+# offending panel rather than bailing at the first. Do not "fix" this file.
+pages:
+  - route: /admin/broken
+    filters: []
+    panels:
+      # `span` is 1 or 2. A third column does not exist in `DashboardGrid`.
+      - id: bad-span
+        type: stat
+        title: Three columns please
+        span: 3
+        metric: cost
+        query:
+          scope: all
+          limit: 100
+
+      # Not in `DASHBOARD_PANEL_TYPES` — a type with no renderer must be a validation error, never
+      # a blank card (owner ruling 2026-09-02: rings are allowed, but `pie` is not a type).
+      - id: unknown-type
+        type: pie
+        title: A filled disk
+        span: 1
+        metric: cost
+        query:
+          scope: all
+          limit: 100
+
+      # `derived:` names are a closed list — an unimplemented one must not resolve to `undefined`
+      # at render time and draw an empty panel.
+      - id: unknown-derived
+        type: stat
+        title: Something invented
+        span: 1
+        metric: derived:vibes
+        query:
+          scope: all
+          limit: 100
+
+      # `limit` is mandatory: an unbounded query over a wide window is a real unknown, and the
+      # console-ui skill requires every usage request to set one explicitly.
+      - id: no-limit
+        type: stat
+        title: Unbounded
+        span: 1
+        metric: cost
+        query:
+          scope: all

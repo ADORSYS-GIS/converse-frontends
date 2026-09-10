@@ -2,6 +2,8 @@
 
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
+
+import { useTranslation } from '../../../../../../i18n/client';
 import { RefillHistory } from '@lightbridge/ui-web/src/sections/refill-history';
 import { RefillRequestForm } from '@lightbridge/ui-web/src/sections/refill-request-form';
 
@@ -14,9 +16,13 @@ import { RefillRequestForm } from '@lightbridge/ui-web/src/sections/refill-reque
  * `useRefillScreen()`'s real queries once mounted.
  */
 export default function RefillLoading() {
+  const { t } = useTranslation('settings');
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Request a budget refill" subtitle="loading scope…" />
+      <PageHeader
+        title={t('accounts.request-refill.title')}
+        subtitle={t('accounts.request-refill.loading')}
+      />
 
       <Card>
         <RefillRequestForm state={{ status: 'loading' }} />

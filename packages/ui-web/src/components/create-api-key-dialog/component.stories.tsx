@@ -23,7 +23,7 @@ const PROJECT_OPTIONS = [
 ];
 
 const meta: Meta<typeof CreateApiKeyDialog> = {
-  title: 'Forms & actions/CreateApiKeyDialog',
+  title: 'Primitives/Overlays/CreateApiKeyDialog',
   component: CreateApiKeyDialog,
   args: {
     open: true,

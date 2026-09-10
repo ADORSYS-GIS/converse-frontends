@@ -2,7 +2,6 @@ import React from 'react';
 
 import { cn } from '../../cn';
 import { ErrorLine } from '../../components/error-line';
-import { Field } from '../../components/field';
 import { InlineStatus } from '../../components/inline-status';
 import { LedgerTable } from '../../components/ledger-table';
 import type { LedgerColumn } from '../../components/ledger-table';
@@ -18,9 +17,14 @@ const statusTextClass = (status: ProjectRow['status']): string =>
   status === 'suspended' ? 'text-primary' : status === 'unknown' ? 'text-subtle' : 'text-soft';
 
 // Contract: docs/design/console-redesign/README.md §5.3 (manage-projects.svg) — the centre zone
-// of the Projects screen (renamed from Manage, 2026-08-30 revamp brief): a toolbar (search left,
-// filters right), the projects ledger, and the pager, all inside ONE `Card` — `projects-
-// centre.tsx` supplies the card, this section supplies its contents.
+// of the Projects screen (renamed from Manage): the projects ledger and its pager inside ONE
+// `Card` — `projects-centre.tsx` supplies the card, this section supplies its contents.
+//
+// 2026-09-03 (owner directive "filters are outside cards", ADR 0015 amendment A2): THE TOOLBAR IS
+// GONE. The search box this section used to draw above the table, and the `filters` slot beside it
+// that `ManageControls` filled, are both `PageControls` groups now — the page-level control row on
+// the floor between `PageHeader` and this card. That supersedes ADR 0012 D3's "toolbar + table +
+// pager inside one Card" clause for every ledger in the console; a `Card` holds content.
 //
 // Divergence from `manage-projects.svg`, all still true: the mockup draws MEMBERS, KEYS, CEILING
 // and USED as numeric columns. None of the four have a real source — MEMBERS/KEYS aren't returned
@@ -41,9 +45,6 @@ export function ProjectsLedger({
   loadingRowCount = 6,
   error,
   onRetry,
-  search,
-  onSearchChange,
-  filters,
   emptyState,
   filteredEmptyMessage,
   sort,
@@ -104,18 +105,6 @@ export function ProjectsLedger({
 
   return (
     <div className={cn('flex flex-col gap-4', className)}>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <Field
-          label="Search"
-          layout="inline"
-          hideLabel
-          placeholder="Find a project…"
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-        />
-        {filters}
-      </div>
-
       {error ? (
         <ErrorLine message={error} onRetry={onRetry} />
       ) : isEmpty && emptyState ? (

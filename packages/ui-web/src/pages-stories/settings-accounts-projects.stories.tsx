@@ -31,6 +31,7 @@ import { CreateProjectDialog } from '../components/create-project-dialog';
 import type { CreateProjectPlanOption } from '../components/create-project-dialog';
 import { BottomSheet } from '../components/bottom-sheet';
 import { EmptyState } from '../components/empty-state';
+import { Field } from '../components/field';
 import type { LedgerSort } from '../components/ledger-table';
 import { ReportExportDialog } from '../components/report-export-dialog';
 import type { ReportExportFormat, ReportIncludeToggle } from '../components/report-export-panel';
@@ -51,6 +52,7 @@ import {
   scopeProjects,
   scopeSelectValue,
 } from '../components/scope-select/fixtures';
+import { PageControls } from '../sections/page-controls';
 import { PageHeader } from '../sections/page-header';
 import { storySidebar, storyTopBar } from './shell-fixtures';
 
@@ -139,7 +141,7 @@ function ProjectsScreen({
   );
 
   return (
-    <ConsoleShell sidebar={storySidebar('settings', { isAdmin: showAdmin })} topBar={storyTopBar()}>
+    <ConsoleShell sidebar={storySidebar('settings', { showAdmin })} topBar={storyTopBar()}>
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Projects"
@@ -206,24 +208,56 @@ function ProjectsScreen({
           }}
         />
 
+        {/* Filters on the floor, above the card (ADR 0015 amendment A2) — the ledger's own
+            toolbar is gone. */}
+        <PageControls
+          onReset={
+            filtersActive
+              ? () => {
+                  setSearch('');
+                  setStatusValue('all');
+                  setBudgetStateValue('all');
+                }
+              : undefined
+          }
+          groups={[
+            {
+              id: 'search',
+              label: 'Scope',
+              children: (
+                <Field
+                  label="Search"
+                  layout="inline"
+                  hideLabel
+                  placeholder="Find a project…"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+              ),
+            },
+            {
+              id: 'slice',
+              label: 'Filters',
+              children: (
+                <ManageControls
+                  statusOptions={manageStatusOptions}
+                  statusValue={statusValue}
+                  onStatusChange={setStatusValue}
+                  budgetStateValue={budgetStateValue}
+                  budgetStateOptions={manageBudgetStateOptions}
+                  onBudgetStateChange={setBudgetStateValue}
+                />
+              ),
+            },
+          ]}
+        />
+
         <Card>
           <ProjectsLedger
             projects={projects}
             loading={loading}
             error={error}
             onRetry={() => {}}
-            search={search}
-            onSearchChange={setSearch}
-            filters={
-              <ManageControls
-                statusOptions={manageStatusOptions}
-                statusValue={statusValue}
-                onStatusChange={setStatusValue}
-                budgetStateValue={budgetStateValue}
-                budgetStateOptions={manageBudgetStateOptions}
-                onBudgetStateChange={setBudgetStateValue}
-              />
-            }
             emptyState={
               filtersActive ? undefined : (
                 <EmptyState
@@ -336,11 +370,11 @@ export const ErrorState: Story = {
   render: () => <ProjectsScreen projects={[]} error="Failed to load projects for this account." />,
 };
 
-// Owner review round 2 (2026-08-31, converse-frontends#368 finding #1): the settings rail's own
-// isAdmin-gated "Admin" row (`settingsNavGroups`), not an "Operator group" any more — that group
-// is deleted outright from the account-area rail (`console-chrome.tsx`'s `navGroups`).
+// The settings rail carries no permission-gated row at all any more (owner directive, 2026-09-03
+// — the Admin row moved to the account rail's Operator group, the Roles row was removed outright),
+// so this story pins that an admin's settings rail is identical to a viewer's.
 export const AdminNav: Story = {
-  name: 'Nav — admin (Admin row visible)',
+  name: 'Nav — admin (settings rail is unchanged by permission)',
   render: () => <ProjectsScreen showAdmin />,
 };
 

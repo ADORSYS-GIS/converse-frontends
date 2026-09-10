@@ -23,7 +23,9 @@ describe('RefillRequestForm', () => {
   });
 
   it('disables the submit action while submitting, and shows the pending label', () => {
-    render(<RefillRequestForm state={{ ...refillFormReady, submitting: true, canSubmit: false }} />);
+    render(
+      <RefillRequestForm state={{ ...refillFormReady, submitting: true, canSubmit: false }} />
+    );
 
     expect(screen.getByRole('button', { name: 'Requesting…' })).toBeDisabled();
   });

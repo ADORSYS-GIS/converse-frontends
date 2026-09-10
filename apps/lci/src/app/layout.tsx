@@ -2,11 +2,13 @@ import { CONSOLE_THEME_NO_FLASH_SCRIPT } from '@lightbridge/ui-web/src/lib/theme
 import type { Metadata, Viewport } from 'next';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 
+import { LciServiceWorker } from '../client/serwist-provider';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Lightbridge Code Intelligence',
   description: 'Repository-aware code review and Q&A across Lightbridge repositories.',
+  manifest: '/manifest.json',
 };
 
 export const viewport: Viewport = {
@@ -29,7 +31,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: CONSOLE_THEME_NO_FLASH_SCRIPT }} />
       </head>
       <body>
-        <NuqsAdapter>{children}</NuqsAdapter>
+        <LciServiceWorker>
+          <NuqsAdapter>{children}</NuqsAdapter>
+        </LciServiceWorker>
       </body>
     </html>
   );

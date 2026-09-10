@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { ErrorLine } from './component';
 
 const meta: Meta<typeof ErrorLine> = {
-  title: 'States/ErrorLine',
+  title: 'Primitives/States/ErrorLine',
   component: ErrorLine,
 };
 
@@ -21,8 +21,8 @@ export const NonRetryable: Story = {
 
 export const InPlaceOfAStatCardMetric: Story = {
   render: () => (
-    <div className="flex w-[209px] flex-col gap-2 rounded-[2px] bg-surface p-4">
-      <span className="font-mono text-[10px] uppercase tracking-[.09em] text-subtle">
+    <div className="bg-surface flex w-[209px] flex-col gap-2 rounded-[2px] p-4">
+      <span className="text-subtle font-mono text-[10px] tracking-[.09em] uppercase">
         SPEND THIS MONTH
       </span>
       <ErrorLine message="Failed to load" onRetry={() => {}} />

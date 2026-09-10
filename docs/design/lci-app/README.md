@@ -23,17 +23,17 @@ and `packages/chart-core`, alongside `apps/console`
 spine, chart-colour rule and table treatment stay exactly as locked by
 [ADR 0008](../../adr/0008-console-shell-inversion-and-visual-direction.md) and
 [ADR 0010](../../adr/0010-ui-primitive-stack-and-theming.md) — `apps/lci` is a second consumer of
-those decisions, not an occasion to reopen them. What follows is the *application* of that
+those decisions, not an occasion to reopen them. What follows is the _application_ of that
 direction to LCI's screens, plus the per-primitive gap list in
 [`PRIMITIVES.md`](PRIMITIVES.md), which is the actual deliverable this document supports.
 
 Companion documents:
 
-| File | What it is |
-| --- | --- |
-| [`PRIMITIVES.md`](PRIMITIVES.md) | The gap list — every LCI UI element mapped to its `ui-web` fate |
-| [ADR 0014](../../adr/0014-lci-app-scaffolding-and-code-graph.md) | App name, chart name, and the code-graph build decision |
-| ~~`repositories.svg`, `code-graph.svg`, `runs.svg`~~ | **Deleted** — drew a right-rail shell ADR 0012 D1 removed; see the notice at the top of this file and §2 below |
+| File                                                             | What it is                                                                                                     |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [`PRIMITIVES.md`](PRIMITIVES.md)                                 | The gap list — every LCI UI element mapped to its `ui-web` fate                                                |
+| [ADR 0014](../../adr/0014-lci-app-scaffolding-and-code-graph.md) | App name, chart name, and the code-graph build decision                                                        |
+| ~~`repositories.svg`, `code-graph.svg`, `runs.svg`~~             | **Deleted** — drew a right-rail shell ADR 0012 D1 removed; see the notice at the top of this file and §2 below |
 
 ## Where this plan and the shipped app diverge
 
@@ -61,7 +61,7 @@ Honesty check before the rest of this document is read as more authoritative tha
 - **No Refero research was run for this pass.** The console-redesign spec's research (style and
   screen references, scanned-vs-retrieved counts) was produced with the Refero MCP tool available
   in that session; it was **not available** in this one. Nothing in this document should be read
-  as "research confirmed X" — the screen layouts below are derived directly from LCI's *existing*
+  as "research confirmed X" — the screen layouts below are derived directly from LCI's _existing_
   shipped UI (read from `lightbridge-code-intelligence@d46d6b4`, `main`) reinterpreted under
   ADR 0008/0010's rules, not from a fresh comparative survey of the field the way the console's
   spec was. Whoever picks this phase back up should treat a real Refero pass — the same style/
@@ -82,18 +82,18 @@ Honesty check before the rest of this document is read as more authoritative tha
 Ten routes exist in LCI's current `apps/web/app/dashboard/`. Every one gets a design decision
 below; three get a wireframe.
 
-| Route | Purpose | `ui-web` primitives (see `PRIMITIVES.md` for the full mapping) | Wireframe |
-| --- | --- | --- | --- |
-| `/sign-in` | Auth | Out of scope for this pass — auth flow, not a dashboard screen | — |
-| `/dashboard` | Landing / insights overview | `stat-card`, `spend-series-chart`/`histogram-chart` family (repurposed for run/review metrics, not spend) | §3.1 |
-| `/dashboard/repositories` | Repo list | `ledger-table`, `rail-select` (preset picker), `search-input`→`field` | `repositories.svg` |
-| `/dashboard/repositories/[id]` | Repo detail shell | `sub-nav` (Overview/Graph/Settings tabs), floor content (no `Card`) | `repositories.svg` |
-| `/dashboard/repositories/[id]/graph` | **Code graph** | app-local (see ADR 0012) — not a `ui-web` primitive | `code-graph.svg` |
-| `/dashboard/repositories/[id]/settings` | Repo config | new settings-section primitive (see `PRIMITIVES.md`), `status-text` (provenance) | §3.1 |
-| `/dashboard/runs` | Review runs list | `ledger-table`, `status-text` (run status), `rail-select`/pagination | `runs.svg` |
-| `/dashboard/runs/[id]` | Review result detail | `review-detail-panel` (evaluate reuse vs. new — different domain than budget review), `error-line`/`inline-status` | `runs.svg` |
-| `/dashboard/admin` | Admin actions | Needs confirmation — see §4 open question | §3.2 |
-| `/dashboard/settings` | App-level settings | Same new settings-section primitive as repo settings | §3.2 |
+| Route                                   | Purpose                     | `ui-web` primitives (see `PRIMITIVES.md` for the full mapping)                                                     | Wireframe          |
+| --------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------ |
+| `/sign-in`                              | Auth                        | Out of scope for this pass — auth flow, not a dashboard screen                                                     | —                  |
+| `/dashboard`                            | Landing / insights overview | `stat-card`, `spend-series-chart`/`histogram-chart` family (repurposed for run/review metrics, not spend)          | §3.1               |
+| `/dashboard/repositories`               | Repo list                   | `ledger-table`, `rail-select` (preset picker), `search-input`→`field`                                              | `repositories.svg` |
+| `/dashboard/repositories/[id]`          | Repo detail shell           | `sub-nav` (Overview/Graph/Settings tabs), floor content (no `Card`)                                                | `repositories.svg` |
+| `/dashboard/repositories/[id]/graph`    | **Code graph**              | app-local (see ADR 0012) — not a `ui-web` primitive                                                                | `code-graph.svg`   |
+| `/dashboard/repositories/[id]/settings` | Repo config                 | new settings-section primitive (see `PRIMITIVES.md`), `status-text` (provenance)                                   | §3.1               |
+| `/dashboard/runs`                       | Review runs list            | `ledger-table`, `status-text` (run status), `rail-select`/pagination                                               | `runs.svg`         |
+| `/dashboard/runs/[id]`                  | Review result detail        | `review-detail-panel` (evaluate reuse vs. new — different domain than budget review), `error-line`/`inline-status` | `runs.svg`         |
+| `/dashboard/admin`                      | Admin actions               | Needs confirmation — see §4 open question                                                                          | §3.2               |
+| `/dashboard/settings`                   | App-level settings          | Same new settings-section primitive as repo settings                                                               | §3.2               |
 
 ---
 
@@ -180,9 +180,9 @@ LCI's `states.tsx` `StatusLine`/`ApiErrorLine` already render as inline mono lin
 ### 4.2 Empty — a real, unresolved conflict
 
 LCI's `states.tsx` documents its own house rule (ADR-0016, in `lightbridge-code-intelligence`):
-*"The first-run empty is the one place a centered placard is right (the screen has nothing else
-to do)."* `ui-web`'s rule has no such exception: *"Never a centered placard, never an
-illustration."*
+_"The first-run empty is the one place a centered placard is right (the screen has nothing else
+to do)."_ `ui-web`'s rule has no such exception: _"Never a centered placard, never an
+illustration."_
 
 This design pass does not resolve it — it's flagged here rather than defaulted, because both
 sides are a real, considered position, not an oversight:
@@ -191,7 +191,7 @@ sides are a real, considered position, not an oversight:
   in `ui-web`. Con: an empty `/dashboard/repositories` (a user's very first visit, before they've
   connected any repo) becomes an inline line above an empty table — arguably less inviting for a
   genuine zero-to-one moment than LCI's current centered prompt-with-action.
-- **Keep LCI's first-run exception, scoped narrowly**: only for the *true* first-run case (zero
+- **Keep LCI's first-run exception, scoped narrowly**: only for the _true_ first-run case (zero
   repositories connected, zero runs ever), never for "no results match this filter" (which stays
   inline in both proposals). Con: `ui-web` gains a second empty-state shape, which the console
   itself doesn't have and didn't ask for.

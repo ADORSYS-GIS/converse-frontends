@@ -33,7 +33,7 @@ export const AllPreferencesLight: Story = {
   name: 'All preferences — wireframe (light)',
   globals: { theme: 'wireframe' },
   render: () => (
-    <div className="flex items-center gap-2 bg-chrome p-4">
+    <div className="bg-chrome flex items-center gap-2 p-4">
       <ThemeToggle preference="black" onPreferenceChange={fn()} />
       <ThemeToggle preference="wireframe" onPreferenceChange={fn()} />
       <ThemeToggle preference="system" onPreferenceChange={fn()} />
@@ -44,7 +44,7 @@ export const AllPreferencesLight: Story = {
 export const AllPreferences: Story = {
   name: 'All preferences',
   render: () => (
-    <div className="flex items-center gap-2 bg-chrome p-4">
+    <div className="bg-chrome flex items-center gap-2 p-4">
       <ThemeToggle preference="black" onPreferenceChange={fn()} />
       <ThemeToggle preference="wireframe" onPreferenceChange={fn()} />
       <ThemeToggle preference="system" onPreferenceChange={fn()} />
@@ -57,9 +57,9 @@ export const AllPreferences: Story = {
 function InteractiveCycle() {
   const [preference, setPreference] = useState<ThemeTogglePreference>('black');
   return (
-    <div className="flex items-center gap-3 bg-chrome p-4">
+    <div className="bg-chrome flex items-center gap-3 p-4">
       <ThemeToggle preference={preference} onPreferenceChange={setPreference} />
-      <span className="font-mono text-xs text-soft">{preference}</span>
+      <span className="text-soft font-mono text-xs">{preference}</span>
     </div>
   );
 }

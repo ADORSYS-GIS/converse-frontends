@@ -112,6 +112,11 @@ components:
         error:
           type: string
     UsageGroupBy:
+      description: >-
+        The dimensions a usage query may group by. `azp`, `operation` and `billing_plan` are the
+        bridge columns lightbridge-authz#648 added to `usage_events` (PR #652) — the OAuth client
+        a request arrived on, which API surface was called, and the plan Authorino stamped on it.
+        Order mirrors the backend enum exactly.
       type: string
       enum:
         - account_id
@@ -122,6 +127,23 @@ components:
         - model
         - metric_name
         - signal_type
+        - azp
+        - operation
+        - billing_plan
+    UsageOperation:
+      description: >-
+        The closed `usage_events.operation` vocabulary (lightbridge-authz#648, `USAGE_OPERATIONS`).
+        `other` is a real, storable value — the request carried a path and it was not one of the
+        four known surfaces — and is NOT the same as `null`, which means the signal carried no path
+        key at all. `null` is therefore deliberately absent: it is the absence of a value, not a
+        filterable one.
+      type: string
+      enum:
+        - chat_completions
+        - responses
+        - messages
+        - embeddings
+        - other
     UsageQueryFilters:
       type: object
       properties:
@@ -133,6 +155,16 @@ components:
           type:
             - string
             - 'null'
+        azp:
+          description: Equality filter on `usage_events.azp` — the OAuth client the request arrived on.
+          type:
+            - string
+            - 'null'
+        billing_plan:
+          description: Equality filter on `usage_events.billing_plan`.
+          type:
+            - string
+            - 'null'
         metric_name:
           type:
             - string
@@ -141,6 +173,29 @@ components:
           type:
             - string
             - 'null'
+        operation:
+          description: >-
+            Equality filter on `usage_events.operation`. For "any of several operations" use
+            `operation_in` rather than issuing one query per value.
+          oneOf:
+            - $ref: '#/components/schemas/UsageOperation'
+            - type: 'null'
+        operation_in:
+          description: >-
+            Set-membership filter on `usage_events.operation` (`AND operation = ANY($1)`, one bound
+            `text[]`). Exists because the console's chat view is inherently a three-value question
+            (`chat_completions`, `responses`, `messages`) and three separate queries would triple
+            the load AND silently disagree with themselves whenever a bucket boundary or the
+            `truncated` limit fell differently between them. An UNKNOWN value is a 400, never a
+            quietly empty result set; an EMPTY list is refused too (`= ANY('{}')` is false for every
+            row, so it could only ever lie about the estate having no usage). Combines with
+            `operation` by AND, like every other filter pair here.
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/UsageOperation'
+          minItems: 1
         project_id:
           type:
             - string
@@ -196,25 +251,44 @@ components:
       type: object
       required:
         - points
+        - truncated
       properties:
         points:
           type: array
           items:
             $ref: '#/components/schemas/UsageSeriesPoint'
+        truncated:
+          type: boolean
+          description: >-
+            lightbridge-authz#578: `true` when more than `limit` DISTINCT `bucket_start` values
+            matched the query and the OLDEST one was dropped WHOLE to fit. `limit` bounds the
+            BUCKET count, not `points.len()` — with a non-empty `group_by`, `points` can hold more
+            entries than `limit` (one per series per surviving bucket), and every surviving bucket
+            keeps its FULL series set rather than an arbitrary subset. `false` means every matching
+            bucket is present. The console surfaces this as an explicit per-panel truncation
+            caption naming the limit (ADR 0013 D5) — never as a silently short chart.
     UsageScope:
       type: string
       description: >-
         Primary scoping dimension for a usage query, and its own authorization rule
-        (lightbridge-authz#605, composing on #603). `account`/`project` require the bearer
-        token's subject to own the account, or own/roster-member the project (`authz-opa`'s
-        `authorize_usage_scope`). `user` is allowed ONLY when `scope_id` equals the caller's own
-        validated token subject (self-ownership, checked from the token directly, no remote
-        call) — any other subject is refused. `api_key` has no resolvable ownership authority at
-        all and is refused unconditionally. `all` is estate-wide — no `account_id`/`project_id`/
+        (lightbridge-authz#605, composing on #603; widened by #648/PR#652). `account`/`project`
+        require the bearer token's subject to own the account, or own/roster-member the project
+        (`authz-opa`'s `authorize_usage_scope`). `user` is allowed when `scope_id` equals the
+        caller's own validated token subject (self-ownership, checked from the token directly, no
+        remote call). `api_key` has no resolvable ownership authority at all and is refused
+        unconditionally, for every caller. `all` is estate-wide — no `account_id`/`project_id`/
         `user_id`/`api_key_id` filter is added at all — and requires the bearer token to hold the
         `usage:read-all` permission (granted to `lightbridge-admin` by default,
         `oauth2.rbac.role_permissions` elsewhere); `scope_id` is ignored for this scope and
         should be sent as `""`.
+
+
+        A token holding `usage:read-all` may additionally read ANY `scope_id` under
+        `user`/`project`/`account`: without that widening those three scopes would be strictly
+        NARROWER than `all` already is wide — the same permission already returns every row in the
+        estate through `scope: all`, so refusing a single actor's slice of it protects nothing and
+        only forces the console to fetch the estate and filter client-side. `api_key` is untouched
+        by this: no amount of permission conjures an ownership authority that has never existed.
       enum:
         - user
         - api_key
@@ -238,6 +312,20 @@ components:
             - string
             - 'null'
         api_key_id:
+          type:
+            - string
+            - 'null'
+        azp:
+          description: >-
+            The OAuth client the requests in this bucket arrived on. Present when `group_by`
+            includes `azp`, null otherwise — exactly like every other dimension echo here.
+          type:
+            - string
+            - 'null'
+        billing_plan:
+          description: >-
+            The billing plan stamped on the requests in this bucket. Present when `group_by`
+            includes `billing_plan`, null otherwise.
           type:
             - string
             - 'null'
@@ -290,6 +378,14 @@ components:
           type:
             - string
             - 'null'
+        operation:
+          description: >-
+            Which API surface was called, from the closed `UsageOperation` vocabulary. Present when
+            `group_by` includes `operation`, null otherwise. A null here WHEN `operation` is grouped
+            is a real value: those rows carried no request path at all.
+          oneOf:
+            - $ref: '#/components/schemas/UsageOperation'
+            - type: 'null'
         project_id:
           type:
             - string

@@ -132,7 +132,13 @@ describe('section class budget', () => {
     ['spend-dashboard', 7],
     ['budget-panel', 23],
     ['ranked-series-rows', 1],
-    ['latency-stat-cards', 4],
+    // 4 -> 0 (2026-09-03, the owner's "those numbers should appear clear" pass): the card's own
+    // `bg-surface rounded-[2px] p-4` plus its two `mt-*` rhythm offsets moved into `theme.css`'s
+    // `latency-card` part and its three descendant hooks, which is the sanctioned destination
+    // rather than a saving trick — the block also had to grow real internal structure (a
+    // three-track figure grid, a baseline value row) that would have been four more hand-written
+    // utilities at the call site. Pinned at the honest 0 it now measures.
+    ['latency-stat-cards', 0],
     ['refill-history', 1],
     ['refill-request-form', 3],
     ['policy-simulator', 13],
@@ -142,6 +148,43 @@ describe('section class budget', () => {
     ['refill-scenario-form', 8],
     ['refill-policy-manual', 13],
     ['refill-policy-status-strip', 2],
+    // ── the page's two chrome rows (ADR 0015 amendment A2 — filters are outside cards) ───────
+    //
+    // Both at ZERO, measured not guessed, and both deliberately pinned there: they are the two
+    // rows EVERY console screen opens with, so the first hand-written utility in either is worth a
+    // visible diff on this file.
+    //
+    // `page-controls` is the new one (2026-09-03) — the screen's parameter row, standing on the
+    // floor between `PageHeader` and the first `Card`. Its geometry, its group hairlines and its
+    // trailing-edge rule are all the `page-controls` `@utility` and its two named descendant parts
+    // in `theme.css`, which is the sanctioned destination; the component writes no class of its
+    // own. That is also what let four sibling `*Controls` sections DROP a hand-written `flex
+    // flex-wrap items-end gap-3` each — the row they were all describing is this one now.
+    //
+    // `page-header` is pinned for the first time in the same change, because the same change is
+    // what emptied it: the `controls` slot is gone and `page-header-controls` became the singular
+    // `page-header-action`. It hand-writes nothing either.
+    ['page-controls', 0],
+    ['page-header', 0],
+    // ── declarative dashboard engine (converse-frontends#446) ────────────────────────────────
+    //
+    // Both come in at ZERO hand-written utilities, which is the bar this file exists to hold, not
+    // a fluke: every one of their paints is a named `@utility` in `theme.css` (`dashboard-grid`,
+    // `dashboard-panel` and its two descendant hooks, `dashboard-expanded-popup`), and the modal
+    // chrome is `lib/dialog.ts`'s shared constants rather than a fourth hand-typed copy. Pinned at
+    // 0 deliberately: these two are the wrapper every future dashboard panel renders through, so
+    // the first utility written into either is worth a visible diff on this file.
+    ['dashboard-grid', 0],
+    ['dashboard-panel', 0],
+    // `dashboard-panels` (the nine-entry renderer registry) is NOT pinned, and the omission is
+    // deliberate rather than an oversight: `auditComponent` reads `component.tsx` / `cva.ts` /
+    // `*-classes.ts` only, and that section has none of those — its files are
+    // `panel-renderers.tsx`, `sizes.ts`, `types.ts` and `fixtures.ts`. A pin there would measure
+    // an empty set and read as "0 utilities, verified" when nothing was verified at all. What
+    // keeps it honest instead is that its one wrapper class is the named `dashboard-panel-chart`
+    // part, and every other class it renders belongs to a primitive it composes. Widening the
+    // counter's file pattern would re-measure every existing section at once and is its own piece
+    // of work, not a side effect of adding this engine.
   ])('%s stays at or under the %d it was left at', (section, budget) => {
     const { utils } = auditComponent(join(import.meta.dirname, 'sections', section), THEME);
     expect(

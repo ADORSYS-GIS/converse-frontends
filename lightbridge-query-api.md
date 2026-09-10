@@ -47,29 +47,29 @@ The request is JSON and matches the `UsageQueryRequest` model.
 
 #### Top-level fields
 
-| Field | Type | Required | Default | Meaning |
-|---|---|---:|---|---|
-| `scope` | enum: `user` \| `project` \| `account` | yes | none | Primary scoping dimension. Adds a mandatory equality filter based on `scope_id`. |
-| `scope_id` | string | yes | none | The ID value for the chosen `scope`. Must be non-empty. |
-| `start_time` | RFC3339 datetime | yes | none | Inclusive start of the time window (`observed_at >= start_time`). |
-| `end_time` | RFC3339 datetime | yes | none | Exclusive end of the time window (`observed_at < end_time`). Must be after `start_time`. |
-| `bucket` | string interval | no | `"1 hour"` | Bucket size for time aggregation. Must match `^\d+\s+(second|seconds|minute|minutes|hour|hours|day|days)$`. Examples: `"5 minutes"`, `"1 hour"`, `"30 days"`. |
-| `filters` | object | no | `{}` | Additional AND-filters (all equality matches). See below. |
-| `group_by` | array of enums | no | `[]` | Adds grouping dimensions beyond time bucket. See below. |
-| `limit` | integer (`u32`) | no | `1000` | Maximum number of rows returned after grouping. Must be > 0. |
+| Field        | Type                                   | Required | Default    | Meaning                                                                                  |
+| ------------ | -------------------------------------- | -------: | ---------- | ---------------------------------------------------------------------------------------- |
+| `scope`      | enum: `user` \| `project` \| `account` |      yes | none       | Primary scoping dimension. Adds a mandatory equality filter based on `scope_id`.         |
+| `scope_id`   | string                                 |      yes | none       | The ID value for the chosen `scope`. Must be non-empty.                                  |
+| `start_time` | RFC3339 datetime                       |      yes | none       | Inclusive start of the time window (`observed_at >= start_time`).                        |
+| `end_time`   | RFC3339 datetime                       |      yes | none       | Exclusive end of the time window (`observed_at < end_time`). Must be after `start_time`. |
+| `bucket`     | string interval                        |       no | `"1 hour"` | Bucket size for time aggregation. Must match `^\d+\s+(second                             | seconds | minute | minutes | hour | hours | day | days)$`. Examples: `"5 minutes"`, `"1 hour"`, `"30 days"`. |
+| `filters`    | object                                 |       no | `{}`       | Additional AND-filters (all equality matches). See below.                                |
+| `group_by`   | array of enums                         |       no | `[]`       | Adds grouping dimensions beyond time bucket. See below.                                  |
+| `limit`      | integer (`u32`)                        |       no | `1000`     | Maximum number of rows returned after grouping. Must be > 0.                             |
 
 #### `filters` object
 
 `filters` are optional equality constraints that are applied in addition to the `scope` filter.
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| `account_id` | string | no | Adds `AND account_id = <value>` |
-| `project_id` | string | no | Adds `AND project_id = <value>` |
-| `user_id` | string | no | Adds `AND user_id = <value>` |
-| `model` | string | no | Adds `AND model = <value>` |
-| `metric_name` | string | no | Adds `AND metric_name = <value>` |
-| `signal_type` | string | no | Adds `AND signal_type = <value>` |
+| Field         | Type   | Required | Meaning                          |
+| ------------- | ------ | -------: | -------------------------------- |
+| `account_id`  | string |       no | Adds `AND account_id = <value>`  |
+| `project_id`  | string |       no | Adds `AND project_id = <value>`  |
+| `user_id`     | string |       no | Adds `AND user_id = <value>`     |
+| `model`       | string |       no | Adds `AND model = <value>`       |
+| `metric_name` | string |       no | Adds `AND metric_name = <value>` |
+| `signal_type` | string |       no | Adds `AND signal_type = <value>` |
 
 Notes:
 
@@ -129,21 +129,21 @@ Each point is an aggregate across matching `usage_events` rows for:
 - any optional `filters`
 - grouped by `bucket_start` and any chosen `group_by` dimensions
 
-| Field | Type | Always present | Meaning |
-|---|---|---:|---|
-| `bucket_start` | RFC3339 datetime | yes | Start of the bucket produced by Postgres `date_bin`.
-| `account_id` | string or null | yes | Present when `group_by` includes `account_id`, else null.
-| `project_id` | string or null | yes | Present when `group_by` includes `project_id`, else null.
-| `user_id` | string or null | yes | Present when `group_by` includes `user_id`, else null.
-| `model` | string or null | yes | Present when `group_by` includes `model`, else null.
-| `metric_name` | string or null | yes | Present when `group_by` includes `metric_name`, else null.
-| `signal_type` | string or null | yes | Present when `group_by` includes `signal_type`, else null.
-| `requests` | int64 | yes | `SUM(request_count)`.
-| `usage_value` | float64 | yes | `SUM(usage_value)`.
-| `total_cost` | float64 | yes | `SUM(total_cost)`.
-| `prompt_tokens` | int64 | yes | `SUM(prompt_tokens)`.
-| `completion_tokens` | int64 | yes | `SUM(completion_tokens)`.
-| `total_tokens` | int64 | yes | `SUM(total_tokens)`.
+| Field               | Type             | Always present | Meaning                                                    |
+| ------------------- | ---------------- | -------------: | ---------------------------------------------------------- |
+| `bucket_start`      | RFC3339 datetime |            yes | Start of the bucket produced by Postgres `date_bin`.       |
+| `account_id`        | string or null   |            yes | Present when `group_by` includes `account_id`, else null.  |
+| `project_id`        | string or null   |            yes | Present when `group_by` includes `project_id`, else null.  |
+| `user_id`           | string or null   |            yes | Present when `group_by` includes `user_id`, else null.     |
+| `model`             | string or null   |            yes | Present when `group_by` includes `model`, else null.       |
+| `metric_name`       | string or null   |            yes | Present when `group_by` includes `metric_name`, else null. |
+| `signal_type`       | string or null   |            yes | Present when `group_by` includes `signal_type`, else null. |
+| `requests`          | int64            |            yes | `SUM(request_count)`.                                      |
+| `usage_value`       | float64          |            yes | `SUM(usage_value)`.                                        |
+| `total_cost`        | float64          |            yes | `SUM(total_cost)`.                                         |
+| `prompt_tokens`     | int64            |            yes | `SUM(prompt_tokens)`.                                      |
+| `completion_tokens` | int64            |            yes | `SUM(completion_tokens)`.                                  |
+| `total_tokens`      | int64            |            yes | `SUM(total_tokens)`.                                       |
 
 ### Error behaviour
 

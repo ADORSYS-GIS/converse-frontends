@@ -13,7 +13,7 @@ import type { ConsoleSidebarProps } from './types';
 // below `md`, fixed to the viewport's bottom edge regardless of where this component sits in the
 // DOM) — so a page never has to remember to mount the dock itself.
 //
-// `SIDEBAR_CLASS` (lib/shell-grid.ts) owns the column's own geometry (240px, `chrome` fill, the
+// `SIDEBAR_CLASS` (lib/shell-grid.ts) owns the column's own geometry (296px, `chrome` fill, the
 // trailing hairline, sticky, its own scroll, hidden below `md`) — this component owns only its
 // five internal rows, top to bottom: brand, workspace switcher, the nav list, a spacer, and the
 // footer stack. `ConsoleShell` places the whole thing as one `sidebar` slot.

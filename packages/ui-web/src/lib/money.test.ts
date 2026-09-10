@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { USD_DISPLAY_FLOOR, formatUsd, formatUsdAxis, formatUsdOf } from './money';
+import {
+  USD_DISPLAY_FLOOR,
+  formatUsd,
+  formatUsdAxis,
+  formatUsdOf,
+  getMoneyLocale,
+  setMoneyLocale,
+  type MoneyLocale,
+} from './money';
 
 const THIN_SPACE = ' ';
+const NON_BREAKING_SPACE = ' ';
 
 // The exact production figures that forced the adaptive ladder (see `money.ts`'s header): an
 // account whose real spend is $0.006338 against a $12.00 ceiling. Under the previous fixed-2dp
@@ -138,5 +147,65 @@ describe('formatUsdAxis', () => {
 
   it('keeps the display floor', () => {
     expect(formatUsdAxis(0.0000004)).toBe('<$0.000001');
+  });
+});
+
+/**
+ * German notation (ADR 0017 — i18n). The LADDER is unchanged: the same decimal count is chosen for
+ * both locales and only rendered differently, which is the whole of the claim `money.ts`'s own
+ * header makes. What varies is the group separator (`.`), the decimal mark (`,`) and the symbol's
+ * side — DIN 5008 — and the CURRENCY does not vary at all, by owner ruling: every figure is USD in
+ * both languages, because a German-reading operator and an English-reading one are looking at the
+ * same ledger and this console has no exchange rate to apply.
+ */
+describe('formatUsd — German notation', () => {
+  it('groups with a dot, marks decimals with a comma, and trails the symbol', () => {
+    expect(formatUsd(1131.8, 'de')).toBe(`1.131,80${NON_BREAKING_SPACE}$`);
+    expect(formatUsd(12.4, 'de')).toBe(`12,40${NON_BREAKING_SPACE}$`);
+    expect(formatUsd(0, 'de')).toBe(`0,00${NON_BREAKING_SPACE}$`);
+  });
+
+  it('applies the SAME adaptive ladder as English — only the rendering differs', () => {
+    // The production sub-cent figure, at the same four decimals `formatUsd(x)` gives in English.
+    expect(formatUsd(PRODUCTION_SPEND, 'de')).toBe(`0,0063${NON_BREAKING_SPACE}$`);
+    expect(formatUsd(0.1, 'de')).toBe(`0,10${NON_BREAKING_SPACE}$`);
+  });
+
+  it('keeps the display floor honest, with the comparison operator outside the notation', () => {
+    expect(formatUsd(USD_DISPLAY_FLOOR / 2, 'de')).toBe(`<0,000001${NON_BREAKING_SPACE}$`);
+    expect(formatUsd(-USD_DISPLAY_FLOOR / 2, 'de')).toBe(`>-0,000001${NON_BREAKING_SPACE}$`);
+  });
+
+  it('renders an axis tick with the German decimal mark and a trailing symbol', () => {
+    expect(formatUsdAxis(0, 'de')).toBe(`0${NON_BREAKING_SPACE}$`);
+    expect(formatUsdAxis(1200, 'de')).toBe(`1,2k${NON_BREAKING_SPACE}$`);
+    expect(formatUsdAxis(2_250_000, 'de')).toBe(`2,25M${NON_BREAKING_SPACE}$`);
+  });
+
+  it('takes the joining word as a parameter — this package owns no translations', () => {
+    expect(formatUsdOf(PRODUCTION_SPEND, PRODUCTION_CEILING)).toBe('$0.0063 of $12.00');
+    expect(formatUsdOf(PRODUCTION_SPEND, PRODUCTION_CEILING, { locale: 'de', ofWord: 'von' })).toBe(
+      `0,0063${NON_BREAKING_SPACE}$ von 12,00${NON_BREAKING_SPACE}$`
+    );
+  });
+
+  it('falls back to English for a locale it does not know, rather than throwing', () => {
+    expect(formatUsd(12.4, 'fr' as MoneyLocale)).toBe('$12.40');
+  });
+});
+
+describe('the ambient money locale', () => {
+  it('is what an un-parameterised call renders in, and is restorable', () => {
+    const previous = setMoneyLocale('de');
+    try {
+      expect(getMoneyLocale()).toBe('de');
+      expect(formatUsd(1131.8)).toBe(`1.131,80${NON_BREAKING_SPACE}$`);
+      // An EXPLICIT locale still wins over the ambient one — which is what lets the report
+      // pipeline stay correct while serving concurrent requests.
+      expect(formatUsd(1131.8, 'en')).toBe(`$1${THIN_SPACE}131.80`);
+    } finally {
+      setMoneyLocale(previous);
+    }
+    expect(getMoneyLocale()).toBe('en');
   });
 });

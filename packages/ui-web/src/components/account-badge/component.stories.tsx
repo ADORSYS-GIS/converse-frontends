@@ -7,7 +7,7 @@ import { AccountBadge } from './component';
 const ACCOUNT_ID = '49534505-4c60-4550-83dd-7af22152cec6';
 
 const meta: Meta<typeof AccountBadge> = {
-  title: 'Components/AccountBadge',
+  title: 'Primitives/Data/AccountBadge',
   component: AccountBadge,
   parameters: { layout: 'padded' },
   args: { accountId: ACCOUNT_ID, name: 'adorsys-gis', onCopyId: () => {} },

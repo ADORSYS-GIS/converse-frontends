@@ -1,4 +1,5 @@
 import { AuthView } from '../../../containers/auth-view';
+import { getServerTranslation } from '../../../i18n/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -6,20 +7,23 @@ export const dynamic = 'force-dynamic';
  * Login-failure reasons, rendered as sentences.
  *
  * The `reason` in the URL is a fixed vocabulary set by `/auth/callback`, and it is mapped through
- * this table rather than printed: a raw OIDC error code is both meaningless to the reader (the
- * `AuthScreen` contract forbids it) and a reflected-content risk if it were echoed verbatim. Anything
- * unrecognised falls back to the generic sentence.
+ * this CLOSED LIST rather than printed: a raw OIDC error code is both meaningless to the reader
+ * (the `AuthScreen` contract forbids it) and a reflected-content risk if it were echoed verbatim.
+ * Anything unrecognised falls back to the generic sentence.
+ *
+ * ADR 0017 moved the sentences themselves into `locales/<locale>/auth.json`, but the list stays
+ * HERE and stays closed — `t(\`error.${reason}\`)` with an unchecked `reason` would be a URL
+ * parameter used as a lookup key, which is the same reflected-content hazard in a new place. The
+ * membership test happens first; only then is a key built.
  */
-const REASONS: Record<string, string> = {
-  discovery: 'The identity provider could not be reached. Try again in a moment.',
-  missing_state: 'That sign-in link has expired. Start again.',
-  invalid_state: 'That sign-in link could not be verified. Start again.',
-  audience: 'Your account is not authorised for this console.',
-  exchange: 'The identity provider rejected the sign-in. Try again.',
-  access_denied: 'Sign-in was cancelled.',
-};
-
-const FALLBACK = 'Sign-in did not complete. Try again.';
+const REASONS = [
+  'discovery',
+  'missing_state',
+  'invalid_state',
+  'audience',
+  'exchange',
+  'access_denied',
+] as const;
 
 /**
  * The provider's `error_description`, relayed by `/auth/callback` as `detail`. It is untrusted URL
@@ -39,12 +43,18 @@ export default async function AuthErrorRoute({
   searchParams: Promise<{ reason?: string; detail?: string }>;
 }) {
   const { reason, detail } = await searchParams;
-  const sentence = (reason && REASONS[reason]) || FALLBACK;
+  const { t } = await getServerTranslation(undefined, 'auth');
+  const known = REASONS.find((candidate) => candidate === reason);
+  const sentence = known ? t(`error.${known}`) : t('error.fallback');
   const providerDetail = sanitizeDetail(detail);
   return (
     <AuthView
       status="error"
-      errorMessage={providerDetail ? `${sentence} (provider: ${providerDetail})` : sentence}
+      errorMessage={
+        providerDetail
+          ? t('error.with-provider-detail', { sentence, detail: providerDetail })
+          : sentence
+      }
     />
   );
 }

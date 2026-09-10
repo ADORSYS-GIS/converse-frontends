@@ -7,6 +7,7 @@ import { SelectField } from '../../components/select-field';
 import type { SelectFieldOption } from '../../components/select-field';
 import { LABEL_CLASS, META_CLASS } from '../../lib/type-roles';
 import { ZoneHeading } from '../../lib/zone-heading';
+import { ruleSetFieldExample } from './field-examples';
 import { createBlankRule, createBlankThreshold, isMoneyField } from './rule-set-validation';
 import type {
   ComparisonOperator,
@@ -65,6 +66,47 @@ function thresholdValueLabel(field: ThresholdField): string {
   return isMoneyField(field) ? 'Value (USD)' : 'Value (count)';
 }
 
+/**
+ * A muted example line for a GROUP of controls rather than a single one — the refill ladder and a
+ * rule's condition row, whose own controls render with hidden labels (`hideLabel`) and so have no
+ * label of their own to sit under. The group is a real `role="group"` labelled by its heading and
+ * described by this line, which is how the example reaches assistive tech without repeating the
+ * same `aria-describedby` on every control in the row (issue #445).
+ */
+function FieldGroup({
+  label,
+  example,
+  children,
+  className,
+}: {
+  label: string;
+  example: string | undefined;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const id = React.useId();
+  const labelId = `${id}-label`;
+  const exampleId = example ? `${id}-example` : undefined;
+
+  return (
+    <div
+      role="group"
+      aria-labelledby={labelId}
+      aria-describedby={exampleId}
+      className={cn('flex flex-col gap-2', className)}>
+      <div id={labelId} className={LABEL_CLASS}>
+        {label}
+      </div>
+      {exampleId ? (
+        <p id={exampleId} className={META_CLASS}>
+          {example}
+        </p>
+      ) : null}
+      {children}
+    </div>
+  );
+}
+
 export function RuleSetForm({ value, onChange, errors, className }: RuleSetFormProps) {
   const patch = (next: Partial<typeof value>) => onChange({ ...value, ...next });
 
@@ -96,13 +138,13 @@ export function RuleSetForm({ value, onChange, errors, className }: RuleSetFormP
       <div className="mt-4 flex flex-col gap-5">
         <Field
           label="Policy revision"
+          example={ruleSetFieldExample('policyRevision')}
           value={value.policyRevision}
           onChange={(event) => patch({ policyRevision: event.target.value })}
           error={errors?.policyRevision}
         />
 
-        <div className="flex flex-col gap-2">
-          <div className={LABEL_CLASS}>Refill ladder</div>
+        <FieldGroup label="Refill ladder" example={ruleSetFieldExample('allowedAmounts')}>
           <p className={META_CLASS}>
             The self-service amounts a caller may request, strictly ascending.
           </p>
@@ -135,11 +177,12 @@ export function RuleSetForm({ value, onChange, errors, className }: RuleSetFormP
           {errors?.allowedAmountsSummary ? (
             <p className={cn(LABEL_CLASS, 'text-primary')}>{errors.allowedAmountsSummary}</p>
           ) : null}
-        </div>
+        </FieldGroup>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field
             label="Starting amount (USD)"
+            example={ruleSetFieldExample('startingAmount')}
             inputMode="decimal"
             value={value.startingAmount}
             onChange={(event) => patch({ startingAmount: event.target.value })}
@@ -147,6 +190,7 @@ export function RuleSetForm({ value, onChange, errors, className }: RuleSetFormP
           />
           <Field
             label="Fail-closed floor (USD)"
+            example={ruleSetFieldExample('failClosedFloorAmount')}
             inputMode="decimal"
             value={value.failClosedFloorAmount}
             onChange={(event) => patch({ failClosedFloorAmount: event.target.value })}
@@ -155,18 +199,19 @@ export function RuleSetForm({ value, onChange, errors, className }: RuleSetFormP
         </div>
         <p className={META_CLASS}>
           Starting amount is what a brand-new account begins with; the fail-closed floor is the
-          fallback used only when a lookup fails outright — it can never exceed the starting
-          amount.
+          fallback used only when a lookup fails outright — it can never exceed the starting amount.
         </p>
 
         <SelectField
           label="Default effect"
+          example={ruleSetFieldExample('defaultEffect')}
           value={value.defaultEffect}
           options={EFFECT_OPTIONS}
           onChange={(next) => patch({ defaultEffect: next as RuleEffect })}
         />
         <Field
           label="Default reason code"
+          example={ruleSetFieldExample('defaultReasonCode')}
           value={value.defaultReasonCode}
           onChange={(event) => patch({ defaultReasonCode: event.target.value })}
           error={errors?.defaultReasonCode}
@@ -239,12 +284,14 @@ function RuleRow({ index, rule, errors, onChange, onRemove }: RuleRowProps) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field
           label="Rule id"
+          example={ruleSetFieldExample('ruleId')}
           value={rule.id}
           onChange={(event) => patch({ id: event.target.value })}
           error={errors?.id}
         />
         <SelectField
           label="Effect"
+          example={ruleSetFieldExample('ruleEffect')}
           value={rule.effect}
           options={EFFECT_OPTIONS}
           onChange={(next) => patch({ effect: next as RuleEffect })}
@@ -254,6 +301,7 @@ function RuleRow({ index, rule, errors, onChange, onRemove }: RuleRowProps) {
       {rule.effect === 'auto_approve_capped' ? (
         <Field
           label="Cap amount (USD)"
+          example={ruleSetFieldExample('ruleCapAmount')}
           inputMode="decimal"
           value={rule.capAmount}
           onChange={(event) => patch({ capAmount: event.target.value })}
@@ -263,23 +311,27 @@ function RuleRow({ index, rule, errors, onChange, onRemove }: RuleRowProps) {
 
       <Field
         label="Reason code"
+        example={ruleSetFieldExample('ruleReasonCode')}
         value={rule.reasonCode}
         onChange={(event) => patch({ reasonCode: event.target.value })}
         error={errors?.reasonCode}
       />
 
-      <div className="flex flex-col gap-2">
-        <div className={LABEL_CLASS}>Conditions</div>
+      <FieldGroup label="Conditions" example={ruleSetFieldExample('ruleCondition')}>
         {rule.condition.thresholds.length > 1 ? (
           <SelectField
             label="Match"
             value={rule.condition.combinator}
             options={COMBINATOR_OPTIONS}
-            onChange={(next) => updateCondition({ ...rule.condition, combinator: next as 'all' | 'any' })}
+            onChange={(next) =>
+              updateCondition({ ...rule.condition, combinator: next as 'all' | 'any' })
+            }
           />
         ) : null}
         {rule.condition.thresholds.map((threshold, thresholdIndex) => (
-          <div key={thresholdIndex} className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+          <div
+            key={thresholdIndex}
+            className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
             <SelectField
               label="Field"
               hideLabel
@@ -329,7 +381,7 @@ function RuleRow({ index, rule, errors, onChange, onRemove }: RuleRowProps) {
             + Add condition
           </Button>
         </div>
-      </div>
+      </FieldGroup>
     </div>
   );
 }

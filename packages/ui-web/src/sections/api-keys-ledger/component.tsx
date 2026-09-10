@@ -14,10 +14,16 @@ const statusTone = (status: ApiKeyRow['status']): 'active' | 'muted' | 'attentio
   status === 'active' ? 'active' : status === 'expiring' ? 'attention' : 'muted';
 
 // Contract: docs/design/console-redesign/README.md §5.2 (api-keys.svg) — the centre zone of the
-// Api-Keys screen: the key ledger (with its compact-tier FILTERS trigger and per-row actions) and
-// the pager, meant to sit inside ONE `Card` (`api-keys-centre.tsx` supplies it). The revoke and
-// delete gates — a `TypedConfirmDialog` retargeted to one row each — belong to this zone too,
-// since they are the row actions that open them.
+// API-keys screen: the key ledger (with its per-row actions) and the pager, meant to sit inside
+// ONE `Card` (`api-keys-centre.tsx` supplies it). The revoke and delete gates — a
+// `TypedConfirmDialog` retargeted to one row each — belong to this zone too, since they are the
+// row actions that open them.
+//
+// 2026-09-03 (owner directive "filters are outside cards", ADR 0015 amendment A2): `toolbarActions`
+// is DELETED. It was the in-card slot the compact-tier FILTERS trigger sat in — a control row
+// inside the same card as the table it filtered, which is exactly the shape the directive rules
+// out. Every parameter this screen has is a `PageControls` group on the floor now, at every tier;
+// there is no compact-tier variant of the row to trigger, so the trigger has nothing left to open.
 //
 // Addition D (2026-08-30 owner round, "a card inside a card?") — the one-time secret strip used
 // to render here, nested inside this section's own tree and therefore inside the `Card` that
@@ -33,12 +39,13 @@ const statusTone = (status: ApiKeyRow['status']): 'active' | 'muted' | 'attentio
 // the table outright, same "no shape left to teach" call `ProjectsLedger` makes.
 //
 // Delete (ticket #321): the LIFECYCLE rail states delete is "admin only, behind typed
-// confirmation" — `Del` now actually is both. `isAdmin` hides the row action entirely for a
-// non-admin rather than rendering it disabled with no explanation (the rail's own "admin only"
-// copy is the stated reason, console-ui skill §states); this is presentation only, not a
-// security boundary (see `isAdmin`'s doc comment in `types.ts`). Delete is no longer disabled for
-// `revoked` keys — ADR 0003 states delete is exactly the cleanup step for a key once it is
-// revoked or expired, so blocking it there inverted the design.
+// confirmation" — `Del` now actually is both. `canDelete` (`apikey:delete`, converse-frontends#452
+// — it was `isAdmin` before) hides the row action entirely rather than rendering it disabled with
+// no explanation (the rail's own "admin only" copy is the stated reason, console-ui skill §states);
+// this is presentation only, not a security boundary (see `canDelete`'s doc comment in
+// `types.ts`). Delete is no longer disabled for `revoked` keys — ADR 0003 states delete is exactly
+// the cleanup step for a key once it is revoked or expired, so blocking it there inverted the
+// design.
 //
 // Presentational only: every row action is a callback prop, and each dialog's open state is the
 // caller's `revokeTarget`/`deleteTarget`, not local state.
@@ -54,7 +61,7 @@ export function ApiKeysLedger({
   revokeTarget,
   onConfirmRevoke,
   onCancelRevoke,
-  isAdmin,
+  canDelete,
   onRequestDelete,
   deleteTarget,
   onConfirmDelete,
@@ -64,7 +71,6 @@ export function ApiKeysLedger({
   sort,
   onSortChange,
   pagination,
-  toolbarActions,
   className,
 }: ApiKeysLedgerProps) {
   const columns: LedgerColumn<ApiKeyRow>[] = [
@@ -74,7 +80,13 @@ export function ApiKeysLedger({
       width: '220px',
       accessor: (row) => <span className="text-ink">{row.name}</span>,
     },
-    { key: 'prefix', header: 'Prefix', width: '160px', kind: 'data', accessor: (row) => row.prefix },
+    {
+      key: 'prefix',
+      header: 'Prefix',
+      width: '160px',
+      kind: 'data',
+      accessor: (row) => row.prefix,
+    },
     {
       key: 'status',
       header: 'Status',
@@ -115,8 +127,7 @@ export function ApiKeysLedger({
   return (
     <div className={cn('flex flex-col gap-6', className)}>
       {error ? (
-        // Ahead of the table toolbar's own compact-tier trigger — a genuine fetch failure takes
-        // the whole row.
+        // In place of the table — a genuine fetch failure takes the whole card.
         <ErrorLine message={error} onRetry={onRetry} />
       ) : isEmpty && emptyState ? (
         // A true empty collection replaces the table outright, same "no shape left to teach" call
@@ -124,8 +135,6 @@ export function ApiKeysLedger({
         emptyState
       ) : (
         <>
-          {toolbarActions ? <div className="flex justify-end">{toolbarActions}</div> : null}
-
           <LedgerTable
             columns={columns}
             data={keys}
@@ -152,8 +161,8 @@ export function ApiKeysLedger({
                     onClick: () => onRequestRevoke(row),
                     emphasis: 'strong',
                   },
-                  // Omitted (not disabled) for a non-admin — see the file-level contract note above.
-                  ...(isAdmin
+                  // Omitted (not disabled) without `apikey:delete` — see the file-level contract note above.
+                  ...(canDelete
                     ? [
                         {
                           key: 'del',

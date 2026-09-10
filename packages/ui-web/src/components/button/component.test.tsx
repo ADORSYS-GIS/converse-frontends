@@ -92,7 +92,15 @@ describe('Button', () => {
 
   it('composes through `render`, keeping the daisy paint on the substituted element', () => {
     render(
-      <Button variant="secondary" size="sm" nativeButton={false} render={<a href="/keys" />}>
+      <Button
+        variant="secondary"
+        size="sm"
+        nativeButton={false}
+        render={
+          // The template/clone split this very test asserts — see `component.tsx`'s note.
+          // eslint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label
+          <a href="/keys" />
+        }>
         Manage keys
       </Button>
     );

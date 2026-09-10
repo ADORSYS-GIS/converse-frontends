@@ -39,8 +39,7 @@ export function Sparkline({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       className={cn('text-border', className)}
-      aria-hidden="true"
-    >
+      aria-hidden="true">
       <polyline
         points={points.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ')}
         fill="none"

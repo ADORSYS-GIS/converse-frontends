@@ -244,6 +244,10 @@ describe('adminRouteFromPathname', () => {
     expect(adminRouteFromPathname('/admin/refill-policies')).toBe('refill-policies');
   });
 
+  it('matches /admin/provision-account by its own prefix', () => {
+    expect(adminRouteFromPathname('/admin/provision-account')).toBe('provision-account');
+  });
+
   it('defaults to overview for the bare /admin segment (mid-redirect) or anything unrecognised', () => {
     expect(adminRouteFromPathname('/admin')).toBe('overview');
     expect(adminRouteFromPathname('/admin/overview')).toBe('overview');
@@ -251,17 +255,19 @@ describe('adminRouteFromPathname', () => {
 });
 
 describe('adminNavGroups', () => {
-  it('lists all three admin destinations, dashboard first', () => {
+  it('lists all four admin destinations, dashboard first', () => {
     const [group] = adminNavGroups('overview');
 
     expect(group.items.map((item) => item.key)).toEqual([
       'overview',
       'refills-queue',
       'refill-policies',
+      'provision-account',
     ]);
     expect(group.items[0]?.href).toBe('/admin/overview');
     expect(group.items[1]?.href).toBe('/admin/refills-queue');
     expect(group.items[2]?.href).toBe('/admin/refill-policies');
+    expect(group.items[3]?.href).toBe('/admin/provision-account');
   });
 
   it('marks the active row off the given AdminRoute', () => {
@@ -295,5 +301,13 @@ describe('adminNavGroups', () => {
 
     expect(refillPolicies?.active).toBe(true);
     expect(refillPolicies?.count).toBeUndefined();
+  });
+
+  it('marks provision-account active off the given AdminRoute, and carries no count', () => {
+    const [group] = adminNavGroups('provision-account', 4);
+    const provisionAccount = group.items.find((item) => item.key === 'provision-account');
+
+    expect(provisionAccount?.active).toBe(true);
+    expect(provisionAccount?.count).toBeUndefined();
   });
 });

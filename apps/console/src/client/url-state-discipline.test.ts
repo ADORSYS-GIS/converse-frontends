@@ -131,6 +131,11 @@ describe('ADR 0011 discipline', () => {
     //    same rule-set draft, plus the two write-call outcome trackers
     //    (`activateBudgetPolicy`/`createBudgetPolicyRevision`) — none of it `useSharedMutation`'s
     //    cross-zone cache, since only this one view ever renders it.
+    //  - `use-provision-account-screen.ts` (`/admin/provision-account`, lightbridge-authz#720/#722)
+    //    carries the three unsent form fields (subject/email/name) plus the one write call's own
+    //    outcome — same shape as `use-refill-policy-create-screen.ts` above, a real route with no
+    //    URL-vs-draft pair to state, not `useSharedMutation`'s cross-zone cache, since only this
+    //    one view ever renders it.
     expect(withState).toEqual([
       join('client', 'console-chrome.tsx'),
       join('containers', 'auth-view.tsx'),
@@ -139,6 +144,7 @@ describe('ADR 0011 discipline', () => {
       join('containers', 'use-create-project-dialog.ts'),
       join('containers', 'use-project-rename.ts'),
       join('containers', 'use-project-settings-screen.ts'),
+      join('containers', 'use-provision-account-screen.ts'),
       join('containers', 'use-refill-policies-screen.ts'),
       join('containers', 'use-refill-policy-create-screen.ts'),
       join('containers', 'use-refill-screen.ts'),

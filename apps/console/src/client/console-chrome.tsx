@@ -386,19 +386,21 @@ export function settingsNavGroups(active: SettingsRoute, isAdmin: boolean): NavG
 // ── `/admin/*` — the admin area's own nav (ADR 0013's same-day "the admin area" amendment) ─────
 
 /**
- * The admin area's three destinations, in the same "dashboard first, drill-down after" order the
+ * The admin area's four destinations, in the same "dashboard first, drill-down after" order the
  * settings area's own gated "Admin" row (`settingsNavGroups`) links into: `/admin/overview` (the
  * eight-board operator dashboard), `/admin/refills-queue` (the budget refill review queue, moved
  * here from
- * `/settings/refills-queue`), then `/admin/refill-policies` (the policy authoring/simulation
+ * `/settings/refills-queue`), `/admin/refill-policies` (the policy authoring/simulation
  * surface, moved here from `/settings/refill-options` — owner ruling, verbatim: "Refill options
- * are for admins only. Not normal users.", converse-frontends#368). All three are real for every
- * visitor who reaches this nav at all — the whole area is gated server-side
- * (`admin/overview/page.tsx`, `admin/refills-queue/page.tsx`, `admin/refill-policies/page.tsx`)
- * and `ConsoleSidebarContent` never renders `adminNavGroups` for a non-admin (see its own doc
+ * are for admins only. Not normal users.", converse-frontends#368), then `/admin/provision-account`
+ * (lightbridge-authz#720/#722 — the offboarding kill switch's mirror image at onboarding time). All
+ * four are real for every visitor who reaches this nav at all — the whole area is gated
+ * server-side (`admin/overview/page.tsx`, `admin/refills-queue/page.tsx`,
+ * `admin/refill-policies/page.tsx`, `admin/provision-account/page.tsx`) and
+ * `ConsoleSidebarContent` never renders `adminNavGroups` for a non-admin (see its own doc
  * comment), so there is no disabled/omitted row to model here the way settings' `roles` needs.
  */
-export type AdminRoute = 'overview' | 'refills-queue' | 'refill-policies';
+export type AdminRoute = 'overview' | 'refills-queue' | 'refill-policies' | 'provision-account';
 
 /** `/admin/<segment>` -> which nav row is active. Anything unrecognised (including the bare
  *  `/admin` segment, mid-redirect to `/admin/overview`) defaults to `overview` — the same
@@ -407,17 +409,21 @@ export type AdminRoute = 'overview' | 'refills-queue' | 'refill-policies';
 export function adminRouteFromPathname(pathname: string): AdminRoute {
   if (pathname.startsWith('/admin/refills-queue')) return 'refills-queue';
   if (pathname.startsWith('/admin/refill-policies')) return 'refill-policies';
+  if (pathname.startsWith('/admin/provision-account')) return 'provision-account';
   return 'overview';
 }
 
 /** One shared icon per admin destination, the same 16px/1.5-stroke family `NAV_ICON`/
  *  `SETTINGS_NAV_ICON` draw from (`lib/icons.tsx`) — never a third, differently-weighted glyph
  *  set for the third area. `refill-policies` reuses the exact icon the settings row it replaced
- *  used — the glyph names a CONCEPT (a refill ladder), not the area it lives in. */
+ *  used — the glyph names a CONCEPT (a refill ladder), not the area it lives in.
+ *  `provision-account` reuses `AccountsIcon` (the same glyph the account-area rail draws on) —
+ *  the concept here is an account too, not a fourth, differently-weighted glyph. */
 const ADMIN_NAV_ICON: Record<AdminRoute, React.ReactNode> = {
   overview: <OverviewIcon />,
   'refills-queue': <AdminIcon />,
   'refill-policies': <RefillOptionsIcon />,
+  'provision-account': <AccountsIcon />,
 };
 
 /**
@@ -457,6 +463,13 @@ export function adminNavGroups(active: AdminRoute, refillCount?: number): NavGro
           href: '/admin/refill-policies',
           icon: ADMIN_NAV_ICON['refill-policies'],
           active: active === 'refill-policies',
+        },
+        {
+          key: 'provision-account',
+          label: 'Provision account',
+          href: '/admin/provision-account',
+          icon: ADMIN_NAV_ICON['provision-account'],
+          active: active === 'provision-account',
         },
       ],
     },

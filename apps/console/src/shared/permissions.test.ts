@@ -54,11 +54,6 @@ describe('PERMISSION', () => {
     // never a destination, so holding it alone must not conjure an admin area with nothing in it.
     // `session:read` IS present for the opposite reason — it has a screen of its own
     // (`/admin/sessions`, converse-frontends#450), so someone granted nothing but the ability to
-    // close sessions still has one real destination to reach.
-    // `user:read` is deliberately absent: it is a supporting read (resolving a name for a row),
-    // never a destination, so holding it alone must not conjure an admin area with nothing in it.
-    // `session:read` IS present for the opposite reason — it has a screen of its own
-    // (`/admin/sessions`, converse-frontends#450), so someone granted nothing but the ability to
     // close sessions still has one real destination to reach. `account:provision` is present for
     // the same reason (`/admin/provision-account`, lightbridge-authz#720/#722).
     expect([...ADMIN_AREA_PERMISSIONS]).toEqual([

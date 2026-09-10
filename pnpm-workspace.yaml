@@ -57,7 +57,8 @@ minimumReleaseAgeExclude:
 
 overrides:
   axios: "^1.18.0" # CVE fix floor raised: GHSA-gcfj-64vw-6mp9 (HIGH) needs >=1.18.0
-  "@xmldom/xmldom": "^0.9.10"
+  "@xmldom/xmldom": "^0.9.12" # CVE-2026-83608 through -83618 (HIGH): raised again, fixed 0.9.12
+  sharp: "^0.35.4" # GHSA-rgj7-g3m4-5g8c (HIGH): RCE via crafted AVIF (libheif), fixed 0.35.4
   minimatch: "^10.2.3"
   node-forge: "^1.4.0"
   picomatch: "^4.0.4"
@@ -86,6 +87,6 @@ overrides:
   "ws@8": "^8.21.0" # CVE-2026-48779 (HIGH): DoS via memory exhaustion
   postcss: "^8.5.18" # CVE-2026-45623 / GHSA-r28c-9q8g-f849 (HIGH): path traversal via sourceMappingURL auto-loading
   brace-expansion: "^5.0.8" # CVE-2026-13149 / CVE-2026-14257 (HIGH): DoS via crafted brace patterns
-  "js-yaml@3": "^3.15.1" # CVE-2026-59869 (HIGH): DoS via crafted YAML; floor raised again for CVE-2026-59870 (HIGH): quadratic CPU consumption in !!omap resolution, fixed 3.15.1
-  "js-yaml@4": "^4.3.1" # CVE-2026-59869 (HIGH): same CVE also affects the 4.x line below 4.3.0; floor raised again for CVE-2026-59870 (HIGH): quadratic CPU consumption in !!omap resolution, fixed 4.3.1
+  "js-yaml@3": "^3.15.2" # CVE-2026-59869/-59870 (HIGH): floor raised again for CVE-2026-84375 (HIGH): maxTotalMergeKeys DoS via aliased empty mappings, fixed 3.15.2
+  "js-yaml@4": "^4.3.2" # CVE-2026-59869/-59870 (HIGH): same CVE line also affects 4.x; floor raised again for CVE-2026-84375 (HIGH): maxTotalMergeKeys DoS via aliased empty mappings, fixed 4.3.2
   "nanoid@3": "^3.3.18" # CVE-2026-67213 (HIGH): DoS via infinite loop in random ID generation, fixed 3.3.18; also covers CVE-2026-67214 (HIGH): infinite loop in custom alphabet handling, fixed 3.3.16

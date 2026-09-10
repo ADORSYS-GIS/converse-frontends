@@ -42,6 +42,10 @@ describe('PERMISSION', () => {
       // constant's own doc comment for why `project:update` and not `account:update`.
       projectUpdate: 'project:update',
       budgetReadOwn: 'budget:read-own',
+      // lightbridge-authz#720/#722 (`/admin/provision-account`). Mapped to `lightbridge-admin`'s
+      // `*` in the default role mapping — see the constant's own doc comment for why it is still
+      // declared as a permission, not a role check.
+      accountProvision: 'account:provision',
     });
   });
 
@@ -50,7 +54,8 @@ describe('PERMISSION', () => {
     // never a destination, so holding it alone must not conjure an admin area with nothing in it.
     // `session:read` IS present for the opposite reason — it has a screen of its own
     // (`/admin/sessions`, converse-frontends#450), so someone granted nothing but the ability to
-    // close sessions still has one real destination to reach.
+    // close sessions still has one real destination to reach. `account:provision` is present for
+    // the same reason (`/admin/provision-account`, lightbridge-authz#720/#722).
     expect([...ADMIN_AREA_PERMISSIONS]).toEqual([
       'usage:read-all',
       'budget:review',
@@ -58,6 +63,7 @@ describe('PERMISSION', () => {
       'budget:schedule-manage',
       'rbac:manage',
       'session:read',
+      'account:provision',
     ]);
   });
 

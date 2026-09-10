@@ -21,7 +21,8 @@
     "refill-policies": "Aufladungsrichtlinien",
     "budget-schedules": "Guthaben-Zeitpläne",
     "sessions": "Sitzungen",
-    "roles": "Rollen"
+    "roles": "Rollen",
+    "provision-account": "Konto anlegen"
   },
   "footer": {
     "back-to-console": "Zurück zur Konsole",

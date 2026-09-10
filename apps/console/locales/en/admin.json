@@ -156,5 +156,21 @@
     "search-unavailable": "User search is unavailable.",
     "labels-unresolved": "User names could not be resolved — showing the raw user id instead.",
     "granted": "Granted {{role}} · it reaches them at their next token mint."
+  },
+  "provision-account": {
+    "title": "Provision account",
+    "subtitle": "Create a first account for a Keycloak subject who has no self-service path to one.",
+    "loading": "loading…",
+    "subject-label": "Keycloak subject",
+    "subject-placeholder": "the subject's JWT sub",
+    "email-label": "Email",
+    "email-placeholder": "person@example.com",
+    "email-note": "Becomes the billing identity of the account's default project — must be unique across every project.",
+    "name-label": "Display name",
+    "name-placeholder": "optional",
+    "provisioned": "Account {{accountId}} provisioned. They can now sign in.",
+    "submit": "Provision account",
+    "submitting": "Provisioning…",
+    "another": "Provision another"
   }
 }

@@ -7,7 +7,7 @@
  * repository list, run history, and approval queue are all part of the response HTML/RSC payload,
  * not fetched separately after the shell loads. So the safe set to cache is the small one: the
  * public branding/icon/manifest routes. Everything else — the root Overview page and every route
- * under `/repositories`, `/runs`, `/admin` and `/settings` — is one viewer's own data, and must
+ * under `/analytics`, `/repositories`, `/runs`, `/admin` and `/settings` — is one viewer's own data, and must
  * never be replayed to the next person who opens the same URL on a shared device, or to the same
  * person after they've signed out.
  *
@@ -31,6 +31,7 @@
 export const UNCACHEABLE_PATH_PREFIXES = [
   '/api',
   '/auth',
+  '/analytics',
   '/repositories',
   '/runs',
   '/admin',

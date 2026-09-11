@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 
 import { SESSION_COOKIE } from '../auth';
+import type { FeedbackAnalyticsResponse, ReviewAnalyticsResponse } from '../domain/analytics';
 import type { Repository } from '../domain/repos';
 import type { Review, Task } from '../domain/tasks';
 
@@ -166,4 +167,52 @@ export async function listRepositoriesPage(
   } catch {
     return { ok: false, reason: 'unavailable' };
   }
+}
+
+export interface AnalyticsParams {
+  /** Omitted for every repository at once. */
+  repositoryId?: number;
+  from: Date;
+  to: Date;
+  bucket: string;
+}
+
+function analyticsQuery(params: AnalyticsParams): string {
+  const query = new URLSearchParams({
+    from: params.from.toISOString(),
+    to: params.to.toISOString(),
+    bucket: params.bucket,
+  });
+  if (params.repositoryId !== undefined) query.set('repository_id', String(params.repositoryId));
+  return query.toString();
+}
+
+async function getAnalytics<T>(path: string, params: AnalyticsParams): Promise<ApiResult<T>> {
+  try {
+    const res = await authedFetch(`${path}?${analyticsQuery(params)}`);
+    if (!res) return { ok: false, reason: 'unauthenticated' };
+    if (!res.ok) return { ok: false, reason: classify(res.status), status: res.status };
+    return { ok: true, data: (await res.json()) as T };
+  } catch {
+    return { ok: false, reason: 'unavailable' };
+  }
+}
+
+/** `GET /analytics/reviews` — run outcomes, durations and findings for one window, with the
+ *  previous window beside every total (ADR 0018 D2).
+ *
+ *  Uncached, like every other call here: the response is authorized per bearer token, and Next's data
+ *  cache does not key on the `authorization` header, so a cached body could be served to a caller the
+ *  control plane would have refused. */
+export function getReviewAnalytics(
+  params: AnalyticsParams
+): Promise<ApiResult<ReviewAnalyticsResponse>> {
+  return getAnalytics<ReviewAnalyticsResponse>('/analytics/reviews', params);
+}
+
+/** `GET /analytics/feedback` — the standing 👍/👎 on the comments posted in one window. */
+export function getFeedbackAnalytics(
+  params: AnalyticsParams
+): Promise<ApiResult<FeedbackAnalyticsResponse>> {
+  return getAnalytics<FeedbackAnalyticsResponse>('/analytics/feedback', params);
 }

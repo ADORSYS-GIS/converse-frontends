@@ -301,3 +301,22 @@ export function BackIcon(props: IconProps) {
     </IconBase>
   );
 }
+
+/** Copy — two overlapping rectangles, the standard "copy to clipboard" mark. */
+export function CopyIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="6" y="6" width="7.5" height="7.5" rx="1" />
+      <path d="M9.5 6V3.5a1 1 0 0 0-1-1H3.5a1 1 0 0 0-1 1V9a1 1 0 0 0 1 1H6" />
+    </IconBase>
+  );
+}
+
+/** Check — confirmation after a copy (or any other completed action). */
+export function CheckIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M3.5 8.5 6.5 11.5 12.5 5" />
+    </IconBase>
+  );
+}

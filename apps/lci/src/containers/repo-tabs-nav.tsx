@@ -4,7 +4,7 @@ import { SubNav } from '@lightbridge/ui-web/src/components/sub-nav';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-/** Overview/Graph/Settings tabs for one repository. A tab is active on an exact path match —
+/** Overview/Insights/Graph/Settings tabs for one repository. A tab is active on an exact path match —
  *  prefix matching would light Overview up on every nested route, since it's the segment's own
  *  index. */
 export function RepoTabsNav({ id }: { id: number }) {
@@ -15,6 +15,12 @@ export function RepoTabsNav({ id }: { id: number }) {
     <SubNav
       items={[
         { key: 'overview', label: 'Overview', href: base, active: pathname === base },
+        {
+          key: 'insights',
+          label: 'Insights',
+          href: `${base}/insights`,
+          active: pathname === `${base}/insights`,
+        },
         {
           key: 'graph',
           label: 'Graph',

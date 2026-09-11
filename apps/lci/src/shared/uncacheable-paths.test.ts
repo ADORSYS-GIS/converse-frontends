@@ -32,8 +32,10 @@ describe('isUncacheablePath', () => {
   it("excludes every real screen, since each one server-renders the caller's own session data", () => {
     for (const path of [
       '/',
+      '/analytics',
       '/repositories',
       '/repositories/81',
+      '/repositories/81/insights',
       '/repositories/81/settings',
       '/runs',
       '/runs/task-1',

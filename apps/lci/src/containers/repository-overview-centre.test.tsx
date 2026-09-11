@@ -31,7 +31,6 @@ describe('RepositoryOverviewCentre', () => {
       <RepositoryOverviewCentre
         result={{ ok: false, reason: 'unavailable' } as ApiResult<Repository | null>}
         now={NOW}
-        grafanaBaseUrl={null}
       />
     );
 
@@ -41,19 +40,13 @@ describe('RepositoryOverviewCentre', () => {
 
   it('renders nothing for a not-found repository (ok, null data)', () => {
     const { container } = render(
-      <RepositoryOverviewCentre result={{ ok: true, data: null }} now={NOW} grafanaBaseUrl={null} />
+      <RepositoryOverviewCentre result={{ ok: true, data: null }} now={NOW} />
     );
     expect(container).toBeEmptyDOMElement();
   });
 
   it('renders the real repository facts', () => {
-    render(
-      <RepositoryOverviewCentre
-        result={{ ok: true, data: baseRepo() }}
-        now={NOW}
-        grafanaBaseUrl={null}
-      />
-    );
+    render(<RepositoryOverviewCentre result={{ ok: true, data: baseRepo() }} now={NOW} />);
 
     expect(screen.getByText('main')).toBeInTheDocument();
     expect(screen.getByText('GitLab')).toBeInTheDocument();
@@ -70,7 +63,6 @@ describe('RepositoryOverviewCentre', () => {
           data: baseRepo({ last_task_at: null, approved_by: null, approved_at: null }),
         }}
         now={NOW}
-        grafanaBaseUrl={null}
       />
     );
 
@@ -78,38 +70,12 @@ describe('RepositoryOverviewCentre', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
-  it('shows the honest unconfigured-Grafana message when NEXT_PUBLIC_GRAFANA_URL is unset', () => {
-    render(
-      <RepositoryOverviewCentre
-        result={{ ok: true, data: baseRepo() }}
-        now={NOW}
-        grafanaBaseUrl={null}
-      />
+  it('embeds no Grafana panel — the analytics moved to the Insights tab (ADR 0018 D8)', () => {
+    const { container } = render(
+      <RepositoryOverviewCentre result={{ ok: true, data: baseRepo() }} now={NOW} />
     );
 
-    expect(screen.getByText('NEXT_PUBLIC_GRAFANA_URL')).toBeInTheDocument();
-    expect(screen.queryByTitle('Billed cost')).not.toBeInTheDocument();
-  });
-
-  it('embeds the real cost and token panels, scoped to this repo, when Grafana is configured', () => {
-    render(
-      <RepositoryOverviewCentre
-        result={{ ok: true, data: baseRepo() }}
-        now={NOW}
-        grafanaBaseUrl="https://grafana.example.com"
-      />
-    );
-
-    const cost = screen.getByTitle('Billed cost');
-    expect(cost.tagName).toBe('IFRAME');
-    expect(cost.getAttribute('src')).toContain(
-      'https://grafana.example.com/d-solo/lci-review-cost'
-    );
-    expect(cost.getAttribute('src')).toContain('var-repo=platform-team%2Fplatform-team-repo-21');
-
-    expect(screen.getByTitle('Tokens used').getAttribute('src')).toContain(
-      '/d-solo/lci-review-quality'
-    );
+    expect(container.querySelector('iframe')).toBeNull();
     expect(screen.queryByText('NEXT_PUBLIC_GRAFANA_URL')).not.toBeInTheDocument();
   });
 });

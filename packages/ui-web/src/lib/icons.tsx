@@ -272,6 +272,18 @@ export function RunsIcon(props: IconProps) {
   );
 }
 
+/** Cancel — a prohibition circle (a diagonal stroke through a ring), the "stop this" mark for a
+ *  run still in progress. Distinct from `SettingsIcon`'s sliders and from any status glyph: this
+ *  is an action, not a state readout. */
+export function CancelIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M4.5 11.5 11.5 4.5" />
+    </IconBase>
+  );
+}
+
 /** Back — a plain leftward arrow, the `settings`/`admin` areas' own "Back to console" row
  *  (`apps/console/src/client/console-chrome.tsx`'s `BackToConsoleRow`/`BackToConsoleCompact`).
  *  Owner review round 2 (2026-08-31, converse-frontends#368 finding #2, verbatim): "'Back to

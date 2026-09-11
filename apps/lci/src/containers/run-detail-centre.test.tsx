@@ -56,6 +56,7 @@ describe('RunDetailCentre', () => {
         reviewResult={null}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
       />
     );
 
@@ -69,6 +70,7 @@ describe('RunDetailCentre', () => {
         reviewResult={null}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
       />
     );
     expect(container).toBeEmptyDOMElement();
@@ -81,6 +83,7 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: null }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
       />
     );
 
@@ -105,6 +108,7 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: null }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
       />
     );
 
@@ -125,6 +129,7 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: null }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
       />
     );
 
@@ -138,6 +143,7 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: null }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
       />
     );
 
@@ -151,6 +157,7 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: baseReview() }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
       />
     );
 
@@ -164,6 +171,7 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: false, reason: 'error' }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
       />
     );
 
@@ -177,6 +185,7 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: null }}
         now={NOW}
         grafanaBaseUrl="https://grafana.example.com"
+        canCancel={false}
       />
     );
 
@@ -195,10 +204,55 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: null }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
       />
     );
 
     expect(screen.queryByTitle('Run logs (Grafana / Loki)')).not.toBeInTheDocument();
     expect(screen.getByText(/kubectl logs -f job\/task-3b9285de/)).toBeInTheDocument();
+  });
+
+  it('offers cancel for a run still in progress when the caller can cancel', () => {
+    render(
+      <RunDetailCentre
+        taskResult={{ ok: true, data: baseTask({ status: 'running' }) }}
+        reviewResult={{ ok: true, data: null }}
+        now={NOW}
+        grafanaBaseUrl={null}
+        canCancel={true}
+      />
+    );
+
+    const button = screen.getByRole('button', { name: 'Cancel run' });
+    const hiddenId = button.closest('form')?.querySelector('input[name="id"]');
+    expect(hiddenId).toHaveValue('task-1118');
+  });
+
+  it('withholds cancel from a caller without the permission, even on an in-progress run', () => {
+    render(
+      <RunDetailCentre
+        taskResult={{ ok: true, data: baseTask({ status: 'running' }) }}
+        reviewResult={{ ok: true, data: null }}
+        now={NOW}
+        grafanaBaseUrl={null}
+        canCancel={false}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument();
+  });
+
+  it('hides cancel once a run has finished, even when the caller can cancel', () => {
+    render(
+      <RunDetailCentre
+        taskResult={{ ok: true, data: baseTask({ status: 'succeeded' }) }}
+        reviewResult={{ ok: true, data: null }}
+        now={NOW}
+        grafanaBaseUrl={null}
+        canCancel={true}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument();
   });
 });

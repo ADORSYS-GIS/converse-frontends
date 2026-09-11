@@ -9,8 +9,8 @@ const stub = (name: string) => join(HERE, 'lci-stubs', name);
 
 /**
  * `apps/lci` modules that only exist inside a running Next.js server, mapped to their Storybook
- * substitute. The three `*-actions` files are Server Actions (`'use server'`, `next/cache`) and
- * `lib/server/session` reads the httpOnly cookie — all four transitively pull `next/headers`,
+ * substitute. The `*-actions` files are Server Actions (`'use server'`, `next/cache`) and
+ * `lib/server/session` reads the httpOnly cookie — all of them transitively pull `next/headers`,
  * `openid-client` and `jose`, none of which can be bundled for a browser.
  *
  * Keyed by extensionless absolute path, because that is what a relative import resolves to.
@@ -20,6 +20,7 @@ const SERVER_STUBS = new Map(
     'containers/admin-actions',
     'containers/repository-actions',
     'containers/repository-settings-actions',
+    'containers/run-detail-actions',
     'lib/server/session',
   ].map((module) => [join(LCI_SRC, module), stub('lci-server.ts')])
 );

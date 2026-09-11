@@ -1,14 +1,16 @@
 import { notFound } from 'next/navigation';
 
 import { RunDetailCentre } from '../../../../containers/run-detail-centre';
+import { hasPermission } from '../../../../lib/server/admin';
 import { getReview, getTask } from '../../../../lib/server/api';
 import { now as fetchNow } from '../../../../lib/server/now';
+import { currentClaims } from '../../../../lib/server/session';
 
 export const dynamic = 'force-dynamic';
 
 export default async function RunDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [taskResult, now] = await Promise.all([getTask(id), fetchNow()]);
+  const [taskResult, now, claims] = await Promise.all([getTask(id), fetchNow(), currentClaims()]);
 
   if (taskResult.ok && !taskResult.data) notFound();
 
@@ -20,6 +22,7 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
       reviewResult={reviewResult}
       now={now}
       grafanaBaseUrl={process.env.NEXT_PUBLIC_GRAFANA_URL ?? null}
+      canCancel={hasPermission(claims, 'task:cancel')}
     />
   );
 }

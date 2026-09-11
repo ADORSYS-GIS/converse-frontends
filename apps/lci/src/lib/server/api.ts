@@ -17,11 +17,12 @@ export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; reason: 'unauthenticated' | 'unavailable' | 'error'; status?: number };
 
-async function authedFetch(path: string): Promise<Response | null> {
+async function authedFetch(path: string, init?: RequestInit): Promise<Response | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   return fetch(`${controlPlaneUrl()}${path}`, {
-    headers: { authorization: `Bearer ${token}`, accept: 'application/json' },
+    ...init,
+    headers: { authorization: `Bearer ${token}`, accept: 'application/json', ...init?.headers },
     cache: 'no-store',
   });
 }
@@ -105,6 +106,18 @@ export async function getReview(id: string): Promise<ApiResult<Review | null>> {
     if (res.status === 404) return { ok: true, data: null };
     if (!res.ok) return { ok: false, reason: classify(res.status), status: res.status };
     return { ok: true, data: (await res.json()) as Review };
+  } catch {
+    return { ok: false, reason: 'unavailable' };
+  }
+}
+
+/** `POST /tasks/{id}/cancel` — cancel a run that hasn't finished yet. */
+export async function cancelTask(id: string): Promise<ApiResult<null>> {
+  try {
+    const res = await authedFetch(`/tasks/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+    if (!res) return { ok: false, reason: 'unauthenticated' };
+    if (!res.ok) return { ok: false, reason: classify(res.status), status: res.status };
+    return { ok: true, data: null };
   } catch {
     return { ok: false, reason: 'unavailable' };
   }

@@ -13,6 +13,7 @@ import {
   RunsIcon,
   SettingsIcon,
   SignOutIcon,
+  UsageIcon,
 } from '@lightbridge/ui-web/src/lib/icons';
 import {
   RAIL_ICON_COLUMN_CLASS,
@@ -43,6 +44,13 @@ function navGroups(pathname: string): NavGroup[] {
           href: '/',
           icon: <OverviewIcon />,
           active: pathname === '/',
+        },
+        {
+          key: 'analytics',
+          label: 'Analytics',
+          href: '/analytics',
+          icon: <UsageIcon />,
+          active: pathname.startsWith('/analytics'),
         },
         {
           key: 'repositories',

@@ -3,6 +3,7 @@
 import React from 'react';
 
 import { cn } from '../../cn';
+import { CheckIcon, CopyIcon } from '../../lib/icons';
 import { DATA_CLASS, LABEL_CLASS } from '../../lib/type-roles';
 import { useCopyToClipboard } from '../../lib/use-copy-to-clipboard';
 import { Button } from '../button';
@@ -35,10 +36,10 @@ export function CommandSnippet({ command, label, className }: CommandSnippetProp
         <Button
           type="button"
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={() => void copy(command)}
           aria-label={copied ? 'Copied' : 'Copy command'}>
-          {copied ? 'Copied' : 'Copy'}
+          {copied ? <CheckIcon /> : <CopyIcon />}
         </Button>
       </div>
     </div>

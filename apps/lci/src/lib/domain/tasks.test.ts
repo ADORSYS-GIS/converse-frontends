@@ -12,6 +12,7 @@ import {
   statusTone,
   type Task,
   triggerLabel,
+  triggerUrl,
 } from './tasks';
 
 function makeTask(overrides: Partial<Task> = {}): Task {
@@ -108,6 +109,34 @@ describe('triggerLabel', () => {
     expect(
       triggerLabel(makeTask({ command_text: 'index', target_type: 'repository', target_id: 12 }))
     ).toBe('index · repository #12');
+  });
+});
+
+describe('triggerUrl', () => {
+  it('points a GitHub pull request at its PR page', () => {
+    expect(
+      triggerUrl(makeTask({ target_type: 'pull_request', target_id: 5, repo_platform: 'github' }))
+    ).toBe('https://github.com/acme/widgets/pull/5');
+  });
+
+  it('points a GitLab pull request at its merge request page', () => {
+    expect(
+      triggerUrl(makeTask({ target_type: 'pull_request', target_id: 5, repo_platform: 'gitlab' }))
+    ).toBe('https://gitlab.com/acme/widgets/-/merge_requests/5');
+  });
+
+  it('is null for a non-pull-request target', () => {
+    expect(
+      triggerUrl(makeTask({ command_text: 'index', target_type: 'repository', target_id: 12 }))
+    ).toBeNull();
+  });
+
+  it('is null when the repo join came back empty', () => {
+    expect(
+      triggerUrl(
+        makeTask({ target_type: 'pull_request', target_id: 5, repo_owner: null, repo_name: null })
+      )
+    ).toBeNull();
   });
 });
 

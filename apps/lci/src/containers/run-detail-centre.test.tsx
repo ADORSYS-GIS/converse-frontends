@@ -95,6 +95,23 @@ describe('RunDetailCentre', () => {
     expect(screen.getByText(/task-3b9285de/)).toBeInTheDocument();
   });
 
+  it('links the trigger fact to the pull request it ran against', () => {
+    render(
+      <RunDetailCentre
+        taskResult={{ ok: true, data: baseTask() }}
+        reviewResult={{ ok: true, data: null }}
+        now={NOW}
+        grafanaBaseUrl={null}
+        canCancel={false}
+      />
+    );
+
+    expect(screen.getByRole('link', { name: 'review · PR #1118' })).toHaveAttribute(
+      'href',
+      'https://github.com/octonaut/octonaut-svc-03/pull/1118'
+    );
+  });
+
   // ── The `PageControls` contract (ADR 0015 amendment A2, converse-frontends#504) ──────────────
   //
   // `PageHeader.controls` is deleted, so the outcome badge moved to a control row of its own on the

@@ -18,6 +18,7 @@ import {
   statusOutcome,
   statusTone,
   triggerLabel,
+  triggerUrl,
   type Review,
   type Task,
 } from '../lib/domain/tasks';
@@ -78,6 +79,7 @@ export function RunDetailCentre({
   const { tone, label } = statusTone(task.status);
   const outcome = statusOutcome(task.status);
   const cancellable = canCancel && (outcome === 'pending' || outcome === 'active');
+  const triggerHref = triggerUrl(task);
 
   return (
     <div className="flex flex-col gap-6">
@@ -127,7 +129,19 @@ export function RunDetailCentre({
             </Link>
           </Fact>
           <Fact label="Default branch">{task.repo_default_branch ?? '—'}</Fact>
-          <Fact label="Trigger">{triggerLabel(task)}</Fact>
+          <Fact label="Trigger">
+            {triggerHref ? (
+              <a
+                href={triggerHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline">
+                {triggerLabel(task)}
+              </a>
+            ) : (
+              triggerLabel(task)
+            )}
+          </Fact>
           <Fact label="Delivery">
             <code className="bg-chrome rounded-field px-1.5 py-0.5 font-mono">
               {task.webhook_delivery_id ?? '—'}

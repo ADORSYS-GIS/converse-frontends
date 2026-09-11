@@ -139,6 +139,15 @@ export function triggerLabel(task: Task): string {
   return `${task.command_text} · ${target}`;
 }
 
+/** Where `triggerLabel` points to, when it names a real pull/merge request — `null` for a
+ *  non-PR trigger (e.g. a repository index) or when the repo join came back empty. */
+export function triggerUrl(task: Task): string | null {
+  if (task.target_type !== 'pull_request' || !task.repo_owner || !task.repo_name) return null;
+  return task.repo_platform === 'gitlab'
+    ? `https://gitlab.com/${task.repo_owner}/${task.repo_name}/-/merge_requests/${task.target_id}`
+    : `https://github.com/${task.repo_owner}/${task.repo_name}/pull/${task.target_id}`;
+}
+
 export function shortSha(sha: string | null): string | null {
   return sha ? sha.slice(0, 7) : null;
 }

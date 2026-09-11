@@ -45,18 +45,18 @@ function navGroups(pathname: string): NavGroup[] {
           active: pathname === '/',
         },
         {
-          key: 'repositories',
-          label: 'Repositories',
-          href: '/repositories',
-          icon: <ProjectsIcon />,
-          active: pathname.startsWith('/repositories'),
-        },
-        {
           key: 'runs',
           label: 'Runs',
           href: '/runs',
           icon: <RunsIcon />,
           active: pathname.startsWith('/runs'),
+        },
+        {
+          key: 'repositories',
+          label: 'Repositories',
+          href: '/repositories',
+          icon: <ProjectsIcon />,
+          active: pathname.startsWith('/repositories'),
         },
         {
           key: 'admin',

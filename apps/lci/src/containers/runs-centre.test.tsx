@@ -68,13 +68,45 @@ describe('RunsCentre', () => {
     expect(screen.getByText('acme/widgets')).toBeInTheDocument();
   });
 
+  it('links a pull-request trigger to the pull request itself', () => {
+    renderCentre({ ok: true, data: { tasks: [baseTask()], total: 1 } });
+
+    expect(screen.getByRole('link', { name: 'review · PR #42' })).toHaveAttribute(
+      'href',
+      'https://github.com/acme/widgets/pull/42'
+    );
+  });
+
+  it('leaves a non-pull-request trigger as plain text, not a link', () => {
+    renderCentre({
+      ok: true,
+      data: {
+        tasks: [baseTask({ command_text: 'index', target_type: 'repository', target_id: 7 })],
+        total: 1,
+      },
+    });
+
+    expect(screen.getByText('index · repository #7')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'index · repository #7' })).not.toBeInTheDocument();
+  });
+
   it('navigates to the run detail page when a row is selected', async () => {
     const user = userEvent.setup();
     renderCentre({ ok: true, data: { tasks: [baseTask({ id: 'task-99' })], total: 1 } });
 
-    await user.click(screen.getByText('review · PR #42'));
+    await user.click(screen.getByText('acme/widgets'));
 
     expect(pushMock).toHaveBeenCalledWith('/runs/task-99');
+  });
+
+  it('opens the pull request, not the run detail page, when the trigger link is clicked', async () => {
+    const user = userEvent.setup();
+    renderCentre({ ok: true, data: { tasks: [baseTask({ id: 'task-99' })], total: 1 } });
+    const callsBefore = pushMock.mock.calls.length;
+
+    await user.click(screen.getByRole('link', { name: 'review · PR #42' }));
+
+    expect(pushMock.mock.calls.length).toBe(callsBefore);
   });
 
   it('offers a status filter option for every real outcome', () => {

@@ -21,6 +21,7 @@ import {
   shortSha,
   statusTone,
   triggerLabel,
+  triggerUrl,
   type Task,
 } from '../lib/domain/tasks';
 import type { ApiResult, TasksPageResponse } from '../lib/server/api';
@@ -195,7 +196,23 @@ function RunsList({
             {
               key: 'trigger',
               header: 'Trigger',
-              accessor: (t) => <span className="text-ink">{triggerLabel(t)}</span>,
+              accessor: (t) => {
+                const href = triggerUrl(t);
+                return href ? (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                    // The row itself opens the run on click; the trigger link opens the PR/MR
+                    // instead, so it must not also fire the row's own handler.
+                    onClick={(event) => event.stopPropagation()}>
+                    {triggerLabel(t)}
+                  </a>
+                ) : (
+                  <span className="text-ink">{triggerLabel(t)}</span>
+                );
+              },
             },
             { key: 'repo', header: 'Repository', accessor: (t) => repoLabel(t), kind: 'data' },
             {

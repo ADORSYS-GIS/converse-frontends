@@ -395,6 +395,11 @@ describe('adminRouteFromPathname', () => {
     expect(adminRouteFromPathname('/admin/roles')).toBe('roles');
   });
 
+  // lightbridge-authz#720/#722.
+  it('matches /admin/provision-account by its own prefix', () => {
+    expect(adminRouteFromPathname('/admin/provision-account')).toBe('provision-account');
+  });
+
   it('defaults to overview for the bare /admin segment (mid-redirect) or anything unrecognised', () => {
     expect(adminRouteFromPathname('/admin')).toBe('overview');
     expect(adminRouteFromPathname('/admin/overview')).toBe('overview');
@@ -409,6 +414,7 @@ describe('adminNavGroups', () => {
     'budget:schedule-manage',
     'session:read',
     'rbac:manage',
+    'account:provision',
   ];
 
   // Readings first, then actions. Usage sits SECOND, between the dashboard and the three budget
@@ -416,7 +422,9 @@ describe('adminNavGroups', () => {
   // rest are things an operator DOES (converse-frontends#448). Sessions (converse-frontends#450)
   // and Roles (converse-frontends#452) are last, in that order — both are facts about the
   // operators rather than the estate, and closing a session is the one reached for more often.
-  it('lists all seven admin destinations, dashboard first and usage second', () => {
+  // Provision account (lightbridge-authz#720/#722) sits after Roles: a bootstrap action for a
+  // subject who cannot sign in at all yet, not an ordinary-day row.
+  it('lists all eight admin destinations, dashboard first and usage second', () => {
     const [group] = adminNavGroups('overview', FULL, NAV_T);
 
     expect(group.items.map((item) => item.key)).toEqual([
@@ -427,6 +435,7 @@ describe('adminNavGroups', () => {
       'budget-schedules',
       'sessions',
       'roles',
+      'provision-account',
     ]);
     expect(group.items[0]?.href).toBe('/admin/overview');
     expect(group.items[1]?.href).toBe('/admin/usage');
@@ -435,6 +444,7 @@ describe('adminNavGroups', () => {
     expect(group.items[4]?.href).toBe('/admin/budget-schedules');
     expect(group.items[5]?.href).toBe('/admin/sessions');
     expect(group.items[6]?.href).toBe('/admin/roles');
+    expect(group.items[7]?.href).toBe('/admin/provision-account');
   });
 
   // converse-frontends#450: `session:read` is a destination of its own, so it must unlock the
@@ -519,5 +529,14 @@ describe('adminNavGroups', () => {
     expect(schedules?.active).toBe(true);
     expect(schedules?.count).toBeUndefined();
     expect(group.items.find((item) => item.key === 'overview')?.active).toBe(false);
+  });
+
+  // lightbridge-authz#720/#722.
+  it('marks provision-account active off the given AdminRoute, and carries no count', () => {
+    const [group] = adminNavGroups('provision-account', FULL, NAV_T, 4);
+    const provisionAccount = group.items.find((item) => item.key === 'provision-account');
+
+    expect(provisionAccount?.active).toBe(true);
+    expect(provisionAccount?.count).toBeUndefined();
   });
 });

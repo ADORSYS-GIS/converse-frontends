@@ -185,6 +185,11 @@ describe('ADR 0011 discipline', () => {
     //    selection (`?selected=<session id>` IS in the URL), and a link that reopened a stranger's
     //    half-confirmed "close every session for this person" is precisely what a shared URL must
     //    not do — the same shape every unsent-dialog carve-out on this list has.
+    //  - `use-provision-account-screen.ts` (`/admin/provision-account`, lightbridge-authz#720/#722)
+    //    carries the three unsent form fields (subject/email/name) plus the one write call's own
+    //    outcome — same shape as `use-refill-policy-create-screen.ts` above, a real route with no
+    //    URL-vs-draft pair to state, not `useSharedMutation`'s cross-zone cache, since only this
+    //    one view ever renders it.
     //  - ADR 0017 (i18n): `i18n/client.tsx` holds the i18next INSTANCE. It is the one entry on
     //    this list that is not a draft or an in-flight flag — it is a long-lived object with a
     //    resource store, not a fact about what the visitor is looking at. The fact that IS one,
@@ -204,6 +209,7 @@ describe('ADR 0011 discipline', () => {
       join('containers', 'use-create-project-dialog.ts'),
       join('containers', 'use-project-rename.ts'),
       join('containers', 'use-project-settings-screen.ts'),
+      join('containers', 'use-provision-account-screen.ts'),
       join('containers', 'use-refill-policies-screen.ts'),
       join('containers', 'use-refill-policy-create-screen.ts'),
       join('containers', 'use-refill-screen.ts'),

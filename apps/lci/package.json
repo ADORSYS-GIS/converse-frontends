@@ -27,7 +27,7 @@
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "@xyflow/react": "^12.11.3",
     "jose": "^6.2.10",
-    "next": "16.3.2",
+    "next": "16.3.4",
     "nuqs": "^2.10.1",
     "openid-client": "^6.8.7",
     "react": "19.2.8",

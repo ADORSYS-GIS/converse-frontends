@@ -21,7 +21,7 @@ const meta = {
   component: RunDetailCentre,
   parameters: { layout: 'fullscreen' },
   decorators: [withPagePadding],
-  args: { now: NOW, grafanaBaseUrl: null },
+  args: { now: NOW, grafanaBaseUrl: null, canCancel: false },
 } satisfies Meta<typeof RunDetailCentre>;
 
 export default meta;
@@ -53,6 +53,15 @@ export const InProgress: Story = {
       data: task({ id: 'tsk_02b7n9q1wxy4', status: 'running', completed_at: null }),
     },
     reviewResult: { ok: true, data: null },
+  },
+};
+
+/** Still running, and the caller holds `task:cancel` — the outcome row offers cancel alongside the
+ *  status readout. */
+export const InProgressCancellable: Story = {
+  args: {
+    ...InProgress.args,
+    canCancel: true,
   },
 };
 

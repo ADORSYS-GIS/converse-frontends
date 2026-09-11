@@ -64,6 +64,40 @@ export function classifyCreateAccountError(message: string): AccountNameFieldErr
   return { error: message };
 }
 
+export type ProvisionAccountFieldErrors = {
+  subjectError?: string;
+  emailError?: string;
+  error?: string;
+};
+
+/**
+ * Routes a `provisionAccount` failure (lightbridge-authz#720) onto the subject field, the email
+ * field, or the general line.
+ *
+ * Two backend messages name the field precisely, and are checked before the generic substring
+ * matches below so they win: `"account already exists for this subject"`
+ * (`StoreRepo::provision_account`'s 23505 on `accounts.id`) belongs on `subject` even though it
+ * also contains the word "account", not "subject" — hence checked by its own full phrase, not a
+ * bare `mentions(message, 'subject')`. `"a project with billing identity '<email>' already
+ * exists"` belongs on `email`, not on a hypothetical "project" field — `email` IS that project's
+ * `billing_identity`, a fact only this form's field mapping knows, not the backend's message.
+ */
+export function classifyProvisionAccountError(message: string): ProvisionAccountFieldErrors {
+  if (mentions(message, 'already exists for this subject')) {
+    return { subjectError: message };
+  }
+  if (mentions(message, 'billing identity', 'billing_identity')) {
+    return { emailError: message };
+  }
+  if (mentions(message, 'email')) {
+    return { emailError: message };
+  }
+  if (mentions(message, 'subject')) {
+    return { subjectError: message };
+  }
+  return { error: message };
+}
+
 export type ProjectNameFieldErrors = {
   nameError?: string;
   error?: string;

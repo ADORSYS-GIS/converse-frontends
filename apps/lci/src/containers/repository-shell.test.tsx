@@ -43,6 +43,19 @@ describe('RepositoryShell', () => {
     expect(screen.getByText('tab content')).toBeInTheDocument();
   });
 
+  it('offers a way back to the repositories list', () => {
+    render(
+      <RepositoryShell id={81} repo={baseRepo()}>
+        <p>tab content</p>
+      </RepositoryShell>
+    );
+
+    expect(screen.getByRole('link', { name: 'Repositories' })).toHaveAttribute(
+      'href',
+      '/repositories'
+    );
+  });
+
   it('carries the approval status in the controls row, not on the title row', () => {
     const { container } = render(
       <RepositoryShell id={81} repo={baseRepo({ status: 'pending' })}>

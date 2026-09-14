@@ -4,6 +4,7 @@ import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import type { ReactNode } from 'react';
 
 import { approvalTone, repoSlug, type Repository } from '../lib/domain/repos';
+import { BackLink } from './back-link';
 import { RepoTabsNav } from './repo-tabs-nav';
 
 /**
@@ -33,7 +34,10 @@ export function RepositoryShell({
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={repoSlug(repo)} />
+      <div className="flex flex-col gap-2">
+        <BackLink href="/repositories" label="Repositories" />
+        <PageHeader title={repoSlug(repo)} />
+      </div>
 
       <PageControls
         label="Repository controls"

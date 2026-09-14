@@ -1,11 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { gitlabLinkConfig, type GitlabLinkConfig } from '../lib/domain/gitlab-links';
 import type { Review, Task } from '../lib/domain/tasks';
 import type { ApiResult } from '../lib/server/api';
 import { RunDetailCentre } from './run-detail-centre';
 
 const NOW = Date.UTC(2026, 7, 15, 12, 0, 0);
+const GITLAB_LINKS: GitlabLinkConfig = gitlabLinkConfig(null, null);
 
 function baseTask(overrides: Partial<Task> = {}): Task {
   return {
@@ -57,6 +59,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl={null}
         canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -71,6 +75,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl={null}
         canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
     expect(container).toBeEmptyDOMElement();
@@ -84,6 +90,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl={null}
         canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -103,6 +111,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl={null}
         canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -126,6 +136,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl={null}
         canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -147,6 +159,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl={null}
         canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -161,6 +175,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl={null}
         canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -175,6 +191,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl={null}
         canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -189,6 +207,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl={null}
         canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -203,6 +223,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl="https://grafana.example.com"
         canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -222,6 +244,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl={null}
         canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -237,6 +261,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl={null}
         canCancel={true}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -253,6 +279,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl={null}
         canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -267,6 +295,8 @@ describe('RunDetailCentre', () => {
         now={NOW}
         grafanaBaseUrl={null}
         canCancel={true}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 

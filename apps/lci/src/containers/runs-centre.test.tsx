@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { withNuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { describe, expect, it, vi } from 'vitest';
 
+import { gitlabLinkConfig, type GitlabLinkConfig } from '../lib/domain/gitlab-links';
 import type { Task } from '../lib/domain/tasks';
 import type { ApiResult, TasksPageResponse } from '../lib/server/api';
 
@@ -14,6 +15,7 @@ vi.mock('next/navigation', () => ({
 const { RunsCentre } = await import('./runs-centre');
 
 const NOW = Date.UTC(2026, 7, 15, 12, 0, 0);
+const GITLAB_LINKS: GitlabLinkConfig = gitlabLinkConfig(null, null);
 
 function baseTask(overrides: Partial<Task> = {}): Task {
   return {
@@ -41,8 +43,13 @@ function baseTask(overrides: Partial<Task> = {}): Task {
   };
 }
 
-function renderCentre(result: ApiResult<TasksPageResponse>, now = NOW, searchParams = '') {
-  return render(<RunsCentre result={result} now={now} />, {
+function renderCentre(
+  result: ApiResult<TasksPageResponse>,
+  now = NOW,
+  searchParams = '',
+  gitlabLinks: GitlabLinkConfig = GITLAB_LINKS
+) {
+  return render(<RunsCentre result={result} now={now} gitlabLinks={gitlabLinks} />, {
     wrapper: withNuqsTestingAdapter({ searchParams }),
   });
 }
@@ -90,11 +97,34 @@ describe('RunsCentre', () => {
     expect(screen.queryByRole('link', { name: 'index · repository #7' })).not.toBeInTheDocument();
   });
 
+  it('links the repository to itself on GitHub', () => {
+    renderCentre({ ok: true, data: { tasks: [baseTask()], total: 1 } });
+
+    expect(screen.getByRole('link', { name: 'acme/widgets' })).toHaveAttribute(
+      'href',
+      'https://github.com/acme/widgets'
+    );
+  });
+
+  it('links the repository at a self-hosted GitLab base URL when the deployment sets one', () => {
+    renderCentre(
+      { ok: true, data: { tasks: [baseTask({ repo_platform: 'gitlab' })], total: 1 } },
+      NOW,
+      '',
+      gitlabLinkConfig('https://gitlab.example.com', null)
+    );
+
+    expect(screen.getByRole('link', { name: 'acme/widgets' })).toHaveAttribute(
+      'href',
+      'https://gitlab.example.com/acme/widgets'
+    );
+  });
+
   it('navigates to the run detail page when a row is selected', async () => {
     const user = userEvent.setup();
     renderCentre({ ok: true, data: { tasks: [baseTask({ id: 'task-99' })], total: 1 } });
 
-    await user.click(screen.getByText('acme/widgets'));
+    await user.click(screen.getByText('main'));
 
     expect(pushMock).toHaveBeenCalledWith('/runs/task-99');
   });
@@ -105,6 +135,16 @@ describe('RunsCentre', () => {
     const callsBefore = pushMock.mock.calls.length;
 
     await user.click(screen.getByRole('link', { name: 'review · PR #42' }));
+
+    expect(pushMock.mock.calls.length).toBe(callsBefore);
+  });
+
+  it('opens the repository, not the run detail page, when the repository link is clicked', async () => {
+    const user = userEvent.setup();
+    renderCentre({ ok: true, data: { tasks: [baseTask({ id: 'task-99' })], total: 1 } });
+    const callsBefore = pushMock.mock.calls.length;
+
+    await user.click(screen.getByRole('link', { name: 'acme/widgets' }));
 
     expect(pushMock.mock.calls.length).toBe(callsBefore);
   });

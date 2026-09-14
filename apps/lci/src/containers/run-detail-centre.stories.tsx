@@ -11,6 +11,7 @@
 // the tone is the point.
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { gitlabLinkConfig } from '../lib/domain/gitlab-links';
 import { RunDetailCentre } from './run-detail-centre';
 import { NOW, REVIEW, task, TASKS, withPagePadding } from './story-fixtures';
 
@@ -21,7 +22,13 @@ const meta = {
   component: RunDetailCentre,
   parameters: { layout: 'fullscreen' },
   decorators: [withPagePadding],
-  args: { now: NOW, grafanaBaseUrl: null, canCancel: false },
+  args: {
+    now: NOW,
+    grafanaBaseUrl: null,
+    canCancel: false,
+    gitlabLinks: gitlabLinkConfig(null, null),
+    agentNamespace: 'lightbridge-agents',
+  },
 } satisfies Meta<typeof RunDetailCentre>;
 
 export default meta;
@@ -78,6 +85,16 @@ export const ReviewUnavailable: Story = {
   args: {
     taskResult: { ok: true, data: SUCCEEDED },
     reviewResult: { ok: false, reason: 'unavailable' },
+  },
+};
+
+/** A self-hosted GitLab deployment: the Repository and Trigger links use the configured base URL,
+ *  never `gitlab.com`. */
+export const SelfHostedGitlab: Story = {
+  args: {
+    taskResult: { ok: true, data: TASKS.find((t) => t.repo_platform === 'gitlab')! },
+    reviewResult: { ok: true, data: null },
+    gitlabLinks: gitlabLinkConfig('https://gitlab.example.com', null),
   },
 };
 

@@ -50,7 +50,7 @@ describe('RepositoryShell', () => {
       </RepositoryShell>
     );
 
-    expect(screen.getByRole('link', { name: 'Repositories' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: '← Repositories' })).toHaveAttribute(
       'href',
       '/repositories'
     );
@@ -71,6 +71,8 @@ describe('RepositoryShell', () => {
     const header = container.querySelector('.page-header');
     expect(header).not.toBeNull();
     expect(header).toHaveTextContent('platform-team/platform-team-repo-21');
-    expect(header?.querySelector('.page-header-action')).toBeNull();
+    // The header's one action is the back link, not the approval readout — that lives in the
+    // controls row above, asserted separately.
+    expect(header).not.toContainElement(screen.getByText('Pending approval'));
   });
 });

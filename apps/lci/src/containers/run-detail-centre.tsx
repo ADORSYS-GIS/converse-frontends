@@ -7,6 +7,7 @@ import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
 import { CancelIcon } from '@lightbridge/ui-web/src/lib/icons';
 import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
+import Link from 'next/link';
 
 import type { GitlabLinkConfig } from '../lib/domain/gitlab-links';
 import {
@@ -24,11 +25,21 @@ import {
   type Task,
 } from '../lib/domain/tasks';
 import type { ApiResult } from '../lib/server/api';
-import { BackLink } from './back-link';
 import { Fact } from './fact';
 import { GrafanaPanel } from './grafana-panel';
 import { ReviewOutput } from './review-output';
 import { cancelRunAction } from './run-detail-actions';
+
+/** The way back to the runs list this page was opened from. A real anchor rather than a
+ *  history-pop handler: this page is linkable and routinely arrived at by pasted URL, where
+ *  there is no "back" to pop. */
+function BackToRuns() {
+  return (
+    <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/runs" />}>
+      ← Runs
+    </Button>
+  );
+}
 
 /**
  * Run detail: status, trigger, the persisted review, and this run's logs — live from Grafana/Loki
@@ -64,8 +75,7 @@ export function RunDetailCentre({
   if (!taskResult.ok) {
     return (
       <div className="flex flex-col gap-6">
-        <BackLink href="/runs" label="Runs" />
-        <PageHeader title="Run" />
+        <PageHeader title="Run" action={<BackToRuns />} />
         <Card>
           <ErrorLine
             message={
@@ -91,13 +101,11 @@ export function RunDetailCentre({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <BackLink href="/runs" label="Runs" />
-        <PageHeader
-          title={triggerLabel(task)}
-          subtitle={`${repoLabel(task)} · ${relativeTime(task.created_at, now)}`}
-        />
-      </div>
+      <PageHeader
+        title={triggerLabel(task)}
+        subtitle={`${repoLabel(task)} · ${relativeTime(task.created_at, now)}`}
+        action={<BackToRuns />}
+      />
 
       <PageControls
         label="Run status"

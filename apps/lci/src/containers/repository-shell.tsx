@@ -1,11 +1,23 @@
+import { Button } from '@lightbridge/ui-web/src/components/button';
 import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
 import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import { approvalTone, repoSlug, type Repository } from '../lib/domain/repos';
-import { BackLink } from './back-link';
 import { RepoTabsNav } from './repo-tabs-nav';
+
+/** The way back to the repositories list this page was opened from. A real anchor rather than a
+ *  history-pop handler: this page is linkable and routinely arrived at by pasted URL, where
+ *  there is no "back" to pop. */
+function BackToRepositories() {
+  return (
+    <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/repositories" />}>
+      ← Repositories
+    </Button>
+  );
+}
 
 /**
  * Chrome shared by everything under one repository — the approval status readout and the tab
@@ -34,10 +46,7 @@ export function RepositoryShell({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <BackLink href="/repositories" label="Repositories" />
-        <PageHeader title={repoSlug(repo)} />
-      </div>
+      <PageHeader title={repoSlug(repo)} action={<BackToRepositories />} />
 
       <PageControls
         label="Repository controls"

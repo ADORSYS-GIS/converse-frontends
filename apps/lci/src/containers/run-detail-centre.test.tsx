@@ -148,25 +148,7 @@ describe('RunDetailCentre', () => {
     const header = container.querySelector('.page-header');
     expect(header).not.toBeNull();
     expect(header).not.toHaveTextContent('Failed');
-    // The header's one action is the back link, not the outcome/cancel controls — those live in
-    // the row above, asserted separately.
-    expect(header).not.toContainElement(screen.getByRole('group', { name: 'Outcome' }));
-  });
-
-  it('offers a way back to the runs list', () => {
-    render(
-      <RunDetailCentre
-        taskResult={{ ok: true, data: baseTask() }}
-        reviewResult={{ ok: true, data: null }}
-        now={NOW}
-        grafanaBaseUrl={null}
-        canCancel={false}
-        gitlabLinks={GITLAB_LINKS}
-        agentNamespace="lightbridge-agents"
-      />
-    );
-
-    expect(screen.getByRole('button', { name: '← Runs' })).toHaveAttribute('href', '/runs');
+    expect(header?.querySelector('.page-header-action')).toBeNull();
   });
 
   it('a completed run with no posted review reads as such, not as an empty/broken review', () => {

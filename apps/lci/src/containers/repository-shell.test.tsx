@@ -43,19 +43,6 @@ describe('RepositoryShell', () => {
     expect(screen.getByText('tab content')).toBeInTheDocument();
   });
 
-  it('offers a way back to the repositories list', () => {
-    render(
-      <RepositoryShell id={81} repo={baseRepo()}>
-        <p>tab content</p>
-      </RepositoryShell>
-    );
-
-    expect(screen.getByRole('button', { name: '← Repositories' })).toHaveAttribute(
-      'href',
-      '/repositories'
-    );
-  });
-
   it('carries the approval status in the controls row, not on the title row', () => {
     const { container } = render(
       <RepositoryShell id={81} repo={baseRepo({ status: 'pending' })}>
@@ -71,8 +58,6 @@ describe('RepositoryShell', () => {
     const header = container.querySelector('.page-header');
     expect(header).not.toBeNull();
     expect(header).toHaveTextContent('platform-team/platform-team-repo-21');
-    // The header's one action is the back link, not the approval readout — that lives in the
-    // controls row above, asserted separately.
-    expect(header).not.toContainElement(screen.getByText('Pending approval'));
+    expect(header?.querySelector('.page-header-action')).toBeNull();
   });
 });

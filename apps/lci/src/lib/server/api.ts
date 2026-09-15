@@ -123,6 +123,24 @@ export async function cancelTask(id: string): Promise<ApiResult<null>> {
   }
 }
 
+/** `GET /config` — non-sensitive deployment settings the console needs to render platform-correct
+ *  links (e.g. a self-hosted GitLab's real web base URL, never assumed to be `gitlab.com`). */
+export interface DeploymentConfig {
+  gitlab_base_url: string;
+  gitlab_project_base_urls: Record<string, string>;
+}
+
+export async function getDeploymentConfig(): Promise<ApiResult<DeploymentConfig>> {
+  try {
+    const res = await authedFetch('/config');
+    if (!res) return { ok: false, reason: 'unauthenticated' };
+    if (!res.ok) return { ok: false, reason: classify(res.status), status: res.status };
+    return { ok: true, data: (await res.json()) as DeploymentConfig };
+  } catch {
+    return { ok: false, reason: 'unavailable' };
+  }
+}
+
 export interface RepositoriesCursor {
   activity_at: string;
   id: number;

@@ -13,10 +13,12 @@ import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 import { useRouter } from 'next/navigation';
 import { parseAsInteger, parseAsStringLiteral, useQueryState } from 'nuqs';
 
+import type { GitlabLinkConfig } from '../lib/domain/gitlab-links';
 import {
   duration,
   relativeTime,
   repoLabel,
+  repoUrl,
   RUNS_PAGE_SIZE,
   shortSha,
   statusTone,
@@ -58,7 +60,15 @@ const FILTERS: { value: FilterValue; label: string }[] = [
  * worth its own follow-up once this table view is confirmed against real data; only the table
  * view renders here for now.
  */
-export function RunsCentre({ result, now }: { result: ApiResult<TasksPageResponse>; now: number }) {
+export function RunsCentre({
+  result,
+  now,
+  gitlabLinks,
+}: {
+  result: ApiResult<TasksPageResponse>;
+  now: number;
+  gitlabLinks: GitlabLinkConfig;
+}) {
   const [status, setStatus] = useQueryState(
     'status',
     parseAsStringLiteral(FILTER_VALUES).withDefault('all').withOptions({ shallow: false })
@@ -148,6 +158,7 @@ export function RunsCentre({ result, now }: { result: ApiResult<TasksPageRespons
             now={now}
             page={page}
             onPageChange={(target) => void setPage(target)}
+            gitlabLinks={gitlabLinks}
           />
         </Card>
       )}
@@ -163,12 +174,14 @@ function RunsList({
   now,
   page,
   onPageChange,
+  gitlabLinks,
 }: {
   tasks: Task[];
   total: number;
   now: number;
   page: number;
   onPageChange: (target: number) => void;
+  gitlabLinks: GitlabLinkConfig;
 }) {
   const router = useRouter();
 
@@ -197,7 +210,7 @@ function RunsList({
               key: 'trigger',
               header: 'Trigger',
               accessor: (t) => {
-                const href = triggerUrl(t);
+                const href = triggerUrl(t, gitlabLinks);
                 return href ? (
                   <a
                     href={href}
@@ -214,7 +227,26 @@ function RunsList({
                 );
               },
             },
-            { key: 'repo', header: 'Repository', accessor: (t) => repoLabel(t), kind: 'data' },
+            {
+              key: 'repo',
+              header: 'Repository',
+              kind: 'data',
+              accessor: (t) => {
+                const href = repoUrl(t, gitlabLinks);
+                return href ? (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                    onClick={(event) => event.stopPropagation()}>
+                    {repoLabel(t)}
+                  </a>
+                ) : (
+                  repoLabel(t)
+                );
+              },
+            },
             {
               key: 'branch',
               header: 'Branch / SHA',

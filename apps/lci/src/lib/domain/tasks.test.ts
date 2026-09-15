@@ -136,6 +136,15 @@ describe('repoUrl', () => {
     );
   });
 
+  it("uses the project-specific base URL keyed by the task's installation_id (the GitLab project id)", () => {
+    const links = gitlabLinkConfig('https://gitlab.example.com', {
+      '1': 'https://gitlab.other.example.com',
+    });
+    expect(repoUrl(makeTask({ repo_platform: 'gitlab', installation_id: 1 }), links)).toBe(
+      'https://gitlab.other.example.com/acme/widgets'
+    );
+  });
+
   it('is null when the repo join came back empty', () => {
     expect(repoUrl(makeTask({ repo_owner: null, repo_name: null }), GITLAB_LINKS)).toBeNull();
   });

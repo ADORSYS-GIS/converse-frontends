@@ -141,13 +141,15 @@ export function triggerLabel(task: Task): string {
   return `${task.command_text} · ${target}`;
 }
 
-/** The task's repository, on GitHub or GitLab — `null` when the repo join came back empty. A task
- *  row carries no GitLab project id, so this always uses the deployment's default GitLab base URL,
- *  never a per-project override (unlike `Repository`, which does — see `repoUrl` in `repos.ts`). */
+/** The task's repository, on GitHub or GitLab — `null` when the repo join came back empty. For
+ *  GitLab, `installation_id` carries the numeric GitLab project id (GitLab webhooks have no
+ *  installation concept of their own, so the control plane reuses this field for it — see
+ *  `services/control-plane/src/config.rs`'s `installation_id` doc comment), which is exactly what
+ *  `gitlab_project_base_urls` is keyed by. */
 export function repoUrl(task: Task, gitlab: GitlabLinkConfig): string | null {
   if (!task.repo_owner || !task.repo_name) return null;
   return task.repo_platform === 'gitlab'
-    ? `${gitlabBaseUrlForProject(gitlab, null)}/${task.repo_owner}/${task.repo_name}`
+    ? `${gitlabBaseUrlForProject(gitlab, task.installation_id)}/${task.repo_owner}/${task.repo_name}`
     : `https://github.com/${task.repo_owner}/${task.repo_name}`;
 }
 

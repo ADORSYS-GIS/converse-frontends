@@ -19,9 +19,9 @@
       // `env` is the only form of it that can be read, reviewed, and relied on.
       //
       // `NEXT_PUBLIC_GRAFANA_URL` is what `.github/workflows/lci-docker-image.yml` bakes in for the
-      // Grafana panels on the repository and run detail screens (`grafanaBaseUrl` on both). A stale
-      // cache hit would point those iframes at the wrong host — or at nothing, silently falling
-      // back to the "Grafana is not configured" card on a deployment that does have Grafana.
+      // Grafana run-logs panel on the run detail screen (`grafanaBaseUrl`). A stale cache hit would
+      // point that iframe at the wrong host — or at nothing, silently falling back to the "Grafana
+      // is not configured" card on a deployment that does have Grafana.
       //
       // `NEXT_PUBLIC_BUILD_SHA` is the commit this bundle was built from and the fallback
       // `@lightbridge/otel`'s `resolveServiceVersion` uses when no image stamp is present

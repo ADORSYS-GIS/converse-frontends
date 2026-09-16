@@ -1,4 +1,4 @@
-// The Overview/Graph/Settings tab strip for one repository, on `ui-web`'s `SubNav` (the
+// The Overview/Insights/Graph/Settings tab strip for one repository, on `ui-web`'s `SubNav` (the
 // `docs/design/lci-app/PRIMITIVES.md` "class swap" row for LCI's own `repo-tabs.tsx`).
 //
 // Its whole behaviour is which tab is active, and that is derived from `usePathname()` — so every
@@ -18,6 +18,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Overview: Story = { decorators: [withPathname('/repositories/1')] };
+export const Insights: Story = { decorators: [withPathname('/repositories/1/insights')] };
 export const Graph: Story = { decorators: [withPathname('/repositories/1/graph')] };
 export const Settings: Story = { decorators: [withPathname('/repositories/1/settings')] };
 

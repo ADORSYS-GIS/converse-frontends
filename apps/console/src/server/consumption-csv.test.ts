@@ -90,6 +90,26 @@ describe('aggregateConsumptionRows', () => {
   it('returns no rows for no points, never a fabricated placeholder row', () => {
     expect(aggregateConsumptionRows([])).toEqual([]);
   });
+
+  it('treats a null total_cost as a 0 contribution rather than throwing or producing NaN', () => {
+    // lightbridge-authz#729: the backend sends `total_cost: null` for a bucket no usage_events
+    // row matched. This route reads the backend with a plain fetch (`server/reports/usage-fetch.ts`),
+    // not the Zod-validated SDK client, so a real null reaches here directly.
+    const rows = aggregateConsumptionRows([
+      point({ project_id: 'proj_1', model: 'gpt-4', requests: 10, total_cost: null }),
+      point({ project_id: 'proj_1', model: 'gpt-4', requests: 5, total_cost: 0.75 }),
+    ]);
+
+    expect(rows).toEqual([
+      expect.objectContaining({ projectId: 'proj_1', model: 'gpt-4', totalCostMicroUsd: 0.75 }),
+    ]);
+  });
+
+  it('sums to 0, not null, when every point in a group has a null total_cost', () => {
+    const rows = aggregateConsumptionRows([point({ total_cost: null })]);
+
+    expect(rows).toEqual([expect.objectContaining({ totalCostMicroUsd: 0 })]);
+  });
 });
 
 describe('consumptionTotals', () => {

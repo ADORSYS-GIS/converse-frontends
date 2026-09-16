@@ -30,7 +30,14 @@ export function microUsdToUsd(microUsd: number): number {
   return microUsd / 1_000_000;
 }
 
-/** The subset of `UsageSeriesPoint` (`openapi/usage.backend.yaml`) this route reads. */
+/** The subset of `UsageSeriesPoint` (`openapi/usage.backend.yaml`) this route reads.
+ *
+ *  `total_cost` is `number | null`, matching the generated schema: the backend returns `null` for
+ *  a bucket no `usage_events` row matched, deliberately distinct from `0.0` (lightbridge-authz#729).
+ *  This route reaches the backend with a plain `fetch` + `.json()` (`server/reports/usage-fetch.ts`),
+ *  not the generated, Zod-validated SDK client, so it was never protected by that schema at
+ *  runtime — declaring `total_cost: number` here was a silent type lie once the backend started
+ *  emitting real nulls, not a compile error. See `safePointCost` below. */
 export type UsageSeriesPoint = {
   project_id?: string | null;
   model?: string | null;
@@ -38,8 +45,23 @@ export type UsageSeriesPoint = {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
-  total_cost: number;
+  total_cost: number | null;
 };
+
+/** A finite, non-negative cost — the same "malformed/null total_cost renders as 0 for THIS point
+ *  alone" guard `overview-usage.ts`'s `safeCost` applies to the Overview dashboard's own points.
+ *  Not imported from there: `overview-usage.ts` already imports `microUsdToUsd` FROM this module,
+ *  so importing `safeCost` back would be a circular dependency between the two — kept in sync by
+ *  hand instead, and both must keep applying the same "point defends" convention.
+ *
+ *  A report row sums many buckets into one number, so it cannot show "unknown" for a single bucket
+ *  without misstating the total of the ones that ARE known — the same reasoning `safeCost`'s own
+ *  doc comment gives for the Overview dashboard's charts. A caller needing the null/zero
+ *  distinction for one bucket must read `point.total_cost` directly, same as there. */
+function safePointCost(point: Pick<UsageSeriesPoint, 'total_cost'>): number {
+  const raw = point.total_cost;
+  return raw !== null && Number.isFinite(raw) && raw > 0 ? raw : 0;
+}
 
 export type ConsumptionRow = {
   projectId: string;
@@ -81,7 +103,7 @@ export function aggregateConsumptionRows(points: readonly UsageSeriesPoint[]): C
       existing.promptTokens += point.prompt_tokens;
       existing.completionTokens += point.completion_tokens;
       existing.totalTokens += point.total_tokens;
-      existing.totalCostMicroUsd += point.total_cost;
+      existing.totalCostMicroUsd += safePointCost(point);
     } else {
       groups.set(key, {
         projectId,
@@ -90,7 +112,7 @@ export function aggregateConsumptionRows(points: readonly UsageSeriesPoint[]): C
         promptTokens: point.prompt_tokens,
         completionTokens: point.completion_tokens,
         totalTokens: point.total_tokens,
-        totalCostMicroUsd: point.total_cost,
+        totalCostMicroUsd: safePointCost(point),
       });
     }
   }

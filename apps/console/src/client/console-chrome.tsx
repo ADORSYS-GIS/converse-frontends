@@ -444,7 +444,7 @@ export function settingsNavGroups(
 // ── `/admin/*` — the admin area's own nav (ADR 0013's same-day "the admin area" amendment) ─────
 
 /**
- * The admin area's seven destinations, in the same "dashboard first, drill-down after" order the
+ * The admin area's eight destinations, in the same "dashboard first, drill-down after" order the
  * account rail's own gated "Admin" row (`navGroups`' Operator group) links into: `/admin/overview` (the
  * operator dashboard), `/admin/usage` (the estate's usage surface — nineteen panels answering
  * "who spent what, on which channel, with which model", converse-frontends#448), then
@@ -459,7 +459,11 @@ export function settingsNavGroups(
  * and the three budget rows are things an operator DOES rather than reads. `/admin/sessions`
  * (converse-frontends#450) and `/admin/roles` (converse-frontends#452) come LAST, in that order —
  * both are facts about the OPERATORS rather than about the estate, and of the two, closing a
- * session is the one an operator reaches for on an ordinary day.
+ * session is the one an operator reaches for on an ordinary day. `/admin/provision-account`
+ * (lightbridge-authz#720/#722) sits at the very end after those: like `/admin/roles` it is about
+ * the PEOPLE of the estate rather than its data, but unlike every row above it, it is a
+ * once-in-a-while bootstrap action for a subject who cannot sign in at all yet — not something an
+ * operator reaches for on an ordinary day.
  *
  * A row is real for a visitor only when they hold ITS OWN permission: each route file gates on one
  * (`readSession` + `can(session, …)` + `notFound()`), and `adminNavGroups` filters against the
@@ -472,7 +476,8 @@ export type AdminRoute =
   | 'refill-policies'
   | 'budget-schedules'
   | 'sessions'
-  | 'roles';
+  | 'roles'
+  | 'provision-account';
 
 /** `/admin/<segment>` -> which nav row is active. Anything unrecognised (including the bare
  *  `/admin` segment, mid-redirect to `/admin/overview`) defaults to `overview` — the same
@@ -489,6 +494,7 @@ export function adminRouteFromPathname(pathname: string): AdminRoute {
   if (pathname.startsWith('/admin/budget-schedules')) return 'budget-schedules';
   if (pathname.startsWith('/admin/sessions')) return 'sessions';
   if (pathname.startsWith('/admin/roles')) return 'roles';
+  if (pathname.startsWith('/admin/provision-account')) return 'provision-account';
   return 'overview';
 }
 
@@ -556,6 +562,17 @@ const ADMIN_DESTINATIONS: readonly {
     href: '/admin/roles',
     permission: PERMISSION.rbacManage,
   },
+  // lightbridge-authz#720/#722. The backend maps `account:provision` to `lightbridge-admin`'s `*`
+  // only — never to `lightbridge-editor`/`lightbridge-viewer` — so this row is admin-only in
+  // practice, but it is keyed on the PERMISSION like every row above, not on a role: the same
+  // "the nav and the gate cannot drift" invariant, and a deployment that grants it more widely
+  // gets the row without a console change.
+  {
+    route: 'provision-account',
+    labelKey: 'item.provision-account',
+    href: '/admin/provision-account',
+    permission: PERMISSION.accountProvision,
+  },
 ];
 
 /**
@@ -594,6 +611,9 @@ const ADMIN_NAV_ICON: Record<AdminRoute, React.ReactNode> = {
   // The SAME glyph the settings area's own "Roles" row draws — the row moved area, the concept
   // (who holds which platform role) did not.
   roles: <RolesIcon />,
+  // The SAME glyph the account-area rail draws on — the concept here is an account too (the
+  // bootstrap row this screen mints IS an account), not a fourth, differently-weighted glyph.
+  'provision-account': <AccountsIcon />,
 };
 
 /**

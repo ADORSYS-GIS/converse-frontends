@@ -4,7 +4,30 @@
   "tasks": {
     "build:web": {
       "dependsOn": ["^build:web", "codegen"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**"],
+      // Both of these are INLINED into the bundle by `next build`, so both MUST be part of this
+      // task's hash — the same rule `apps/console/turbo.json` spells out for `NEXT_PUBLIC_BUILD_SHA`.
+      // Outside the hash, Turbo would restore a cached `.next/` built from a different value and
+      // nothing would fail: no build error, no warning, just a bundle that is confidently wrong.
+      //
+      // Declared EXPLICITLY rather than left to Turbo's Next.js framework inference. Measured on
+      // turbo 2.10.9: inference does currently sweep `NEXT_PUBLIC_*` into the hash — with these
+      // entries removed, changing `NEXT_PUBLIC_GRAFANA_URL` still misses — but that cover is
+      // implicit and fragile. `--framework-inference=false` restores the stale hit (verified), and
+      // `turbo run build:web --filter=lci --dry=json` reports `framework: ""` with `inferred: []`,
+      // so the protection is not even visible in the task summary anyone would audit. An explicit
+      // `env` is the only form of it that can be read, reviewed, and relied on.
+      //
+      // `NEXT_PUBLIC_GRAFANA_URL` is what `.github/workflows/lci-docker-image.yml` bakes in for the
+      // Grafana panels on the repository and run detail screens (`grafanaBaseUrl` on both). A stale
+      // cache hit would point those iframes at the wrong host — or at nothing, silently falling
+      // back to the "Grafana is not configured" card on a deployment that does have Grafana.
+      //
+      // `NEXT_PUBLIC_BUILD_SHA` is the commit this bundle was built from and the fallback
+      // `@lightbridge/otel`'s `resolveServiceVersion` uses when no image stamp is present
+      // (lightbridge-authz#573). A cache hit stamped with an earlier commit's SHA would name the
+      // wrong build, which is worse than naming none.
+      "env": ["NEXT_PUBLIC_BUILD_SHA", "NEXT_PUBLIC_GRAFANA_URL"]
     }
   }
 }

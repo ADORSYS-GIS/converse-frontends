@@ -7,8 +7,8 @@ import {
   REFRESH_COOKIE,
   SESSION_COOKIE,
   STATE_COOKIE,
-} from '../../../../lib/auth';
-import { getOidc } from '../../../../lib/auth/oidc';
+} from '../../../lib/auth';
+import { getOidc } from '../../../lib/auth/oidc';
 
 export const runtime = 'nodejs';
 
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const codeVerifier = req.cookies.get(PKCE_COOKIE)?.value;
   const expectedState = req.cookies.get(STATE_COOKIE)?.value;
   if (!codeVerifier || !expectedState) {
-    return NextResponse.redirect(new URL('/sign-in?error=missing_state', appOrigin));
+    return NextResponse.redirect(new URL('/auth/error?error=missing_state', appOrigin));
   }
 
   const callbackUrl = new URL(clientConfig.redirectUri);
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       expectedState,
     });
   } catch {
-    return NextResponse.redirect(new URL('/sign-in?error=exchange_failed', appOrigin));
+    return NextResponse.redirect(new URL('/auth/error?error=exchange_failed', appOrigin));
   }
 
   const maxAge = typeof tokens.expires_in === 'number' ? tokens.expires_in : 1800;

@@ -1,11 +1,9 @@
-// The chrome every `/repositories/[id]/*` route renders inside: title, approval status and the
-// approve/deny actions (which act on the repository, so they stay reachable from every tab), plus
-// the Overview/Graph/Settings tab strip.
+// The chrome every `/repositories/[id]/*` route renders inside: title, approval status, and the
+// Overview/Graph/Settings tab strip.
 //
-// Since converse-frontends#504 (ADR 0015 amendment A2) approval is a trailing `PageControls` group
+// Since converse-frontends#504 (ADR 0015 amendment A2) status is a trailing `PageControls` group
 // rather than `PageHeader.controls`, which no longer exists — the title row carries a title and at
-// most one action, and this cluster is three things. `Mobile` is the story that pays for the
-// change: at 390px the row wraps under the title instead of fighting it for the same edge.
+// most one action.
 //
 // `withPathname` is what makes the tab strip honest — `RepoTabsNav` matches the tab EXACTLY (a
 // prefix match would light Overview on every nested route), so a story that does not pin the
@@ -26,13 +24,12 @@ const meta = {
   component: RepositoryShell,
   parameters: { layout: 'fullscreen' },
   decorators: [withPagePadding],
-  args: { id: 1, repo: repository(), canApprove: true, canDeny: true, children: BODY },
+  args: { id: 1, repo: repository(), children: BODY },
 } satisfies Meta<typeof RepositoryShell>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Approved repository, Overview tab. Only Deny is offered — Approve would be a no-op. */
 export const Default: Story = {
   decorators: [withPathname('/repositories/1')],
 };
@@ -51,15 +48,9 @@ export const SettingsTab: Story = {
   decorators: [withPathname('/repositories/1/settings')],
 };
 
-/** Pending approval: `attention` status, and both actions offered. */
+/** Pending approval: `attention` status tone. */
 export const Pending: Story = {
   args: { repo: repository({ status: 'pending', approved_at: null, approved_by: null }) },
-  decorators: [withPathname('/repositories/1')],
-};
-
-/** No approval grants — the status still reads, the buttons are simply absent. */
-export const ReadOnly: Story = {
-  args: { canApprove: false, canDeny: false },
   decorators: [withPathname('/repositories/1')],
 };
 

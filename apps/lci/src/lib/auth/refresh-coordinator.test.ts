@@ -10,7 +10,7 @@ const { refreshOnce } = await import('./refresh-coordinator');
 const config = {
   issuer: 'https://auth.example.com',
   clientId: 'lci',
-  redirectUri: 'https://lci.example.com/api/auth/callback',
+  redirectUri: 'https://lci.example.com/auth/callback',
   postLogoutRedirectUri: 'https://lci.example.com',
   scope: 'openid',
 };

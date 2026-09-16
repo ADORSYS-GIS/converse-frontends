@@ -1,11 +1,12 @@
 /**
  * The `apps/lci` server surface, for Storybook.
  *
- * `AdminCentre`, `RepositoryShell` and `RepoSettingsForm` bind `<form action={…}>` and `onChange`
- * handlers to Server Actions, and `SettingsCentre` imports `displayName` from
- * `lib/server/session.ts`. Importing those modules for real would drag `next/headers`,
- * `openid-client` and `jose` into a browser bundle — none of which belong there, and none of which
- * a story exercises. `packages/ui-web/.storybook/main.ts` aliases all four modules here.
+ * `AdminCentre`, `RepositoryShell`, `RepoSettingsForm` and `RunDetailCentre` bind
+ * `<form action={…}>` and `onChange` handlers to Server Actions, and `SettingsCentre` imports
+ * `displayName` from `lib/server/session.ts`. Importing those modules for real would drag
+ * `next/headers`, `openid-client` and `jose` into a browser bundle — none of which belong there,
+ * and none of which a story exercises. `packages/ui-web/.storybook/main.ts` aliases every one of
+ * them here.
  *
  * The action bodies are deliberately inert: a story shows that the control EXISTS and is
  * enabled/disabled correctly for the given permissions. What the action then does to the control
@@ -28,6 +29,11 @@ export async function approveRepoAction(formData: FormData): Promise<void> {
 
 export async function denyRepoAction(formData: FormData): Promise<void> {
   log('denyRepoAction', formData.get('id'));
+}
+
+/** `containers/run-detail-actions.ts`. */
+export async function cancelRunAction(formData: FormData): Promise<void> {
+  log('cancelRunAction', formData.get('id'));
 }
 
 /** `containers/repository-settings-actions.ts`. */

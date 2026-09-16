@@ -260,6 +260,30 @@ export function SignOutIcon(props: IconProps) {
   );
 }
 
+/** Runs — a play glyph in a circle, the "execution" mark. `apps/lci`'s own nav row for its list
+ *  of task runs; distinct from `ScheduleIcon`'s clock (that's recurrence — WHEN something runs
+ *  again — not a record of runs that already happened). */
+export function RunsIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M6.5 5.5 11 8l-4.5 2.5v-5Z" />
+    </IconBase>
+  );
+}
+
+/** Cancel — a prohibition circle (a diagonal stroke through a ring), the "stop this" mark for a
+ *  run still in progress. Distinct from `SettingsIcon`'s sliders and from any status glyph: this
+ *  is an action, not a state readout. */
+export function CancelIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M4.5 11.5 11.5 4.5" />
+    </IconBase>
+  );
+}
+
 /** Back — a plain leftward arrow, the `settings`/`admin` areas' own "Back to console" row
  *  (`apps/console/src/client/console-chrome.tsx`'s `BackToConsoleRow`/`BackToConsoleCompact`).
  *  Owner review round 2 (2026-08-31, converse-frontends#368 finding #2, verbatim): "'Back to
@@ -274,6 +298,25 @@ export function BackIcon(props: IconProps) {
   return (
     <IconBase {...props}>
       <path d="M2.5 8h9.5M6 4.5 2.5 8 6 11.5" />
+    </IconBase>
+  );
+}
+
+/** Copy — two overlapping rectangles, the standard "copy to clipboard" mark. */
+export function CopyIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="6" y="6" width="7.5" height="7.5" rx="1" />
+      <path d="M9.5 6V3.5a1 1 0 0 0-1-1H3.5a1 1 0 0 0-1 1V9a1 1 0 0 0 1 1H6" />
+    </IconBase>
+  );
+}
+
+/** Check — confirmation after a copy (or any other completed action). */
+export function CheckIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M3.5 8.5 6.5 11.5 12.5 5" />
     </IconBase>
   );
 }

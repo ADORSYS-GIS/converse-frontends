@@ -1,23 +1,33 @@
+import { Button } from '@lightbridge/ui-web/src/components/button';
 import { Card } from '@lightbridge/ui-web/src/components/card';
+import { CommandSnippet } from '@lightbridge/ui-web/src/components/command-snippet';
 import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
-import { DATA_CLASS, LABEL_CLASS } from '@lightbridge/ui-web/src/lib/type-roles';
+import { CancelIcon } from '@lightbridge/ui-web/src/lib/icons';
 import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
+import type { GitlabLinkConfig } from '../lib/domain/gitlab-links';
 import {
+  absoluteTime,
   duration,
   relativeTime,
   repoLabel,
+  repoUrl,
+  shortSha,
+  statusOutcome,
   statusTone,
   triggerLabel,
+  triggerUrl,
   type Review,
   type Task,
 } from '../lib/domain/tasks';
 import type { ApiResult } from '../lib/server/api';
+import { Fact } from './fact';
 import { GrafanaPanel } from './grafana-panel';
 import { ReviewOutput } from './review-output';
+import { cancelRunAction } from './run-detail-actions';
 
 /**
  * Run detail: status, trigger, the persisted review, and this run's logs — live from Grafana/Loki
@@ -30,19 +40,25 @@ import { ReviewOutput } from './review-output';
  * "Failed" rendered as one more grey fragment in a `·`-joined line is the single fact on this
  * screen that must not read like the rest.
  *
- * A row holding one readout and no knob is the honest shape here — this screen has no parameters
- * at all, and `label` says what the row is rather than pretending it filters something.
+ * The same group carries the one action this screen has — cancelling a run that hasn't finished —
+ * next to the readout it acts on, the same shape `RepositoryShell` uses for its own approval row.
  */
 export function RunDetailCentre({
   taskResult,
   reviewResult,
   now,
   grafanaBaseUrl,
+  canCancel,
+  gitlabLinks,
+  agentNamespace,
 }: {
   taskResult: ApiResult<Task | null>;
   reviewResult: ApiResult<Review | null> | null;
   now: number;
   grafanaBaseUrl: string | null;
+  canCancel: boolean;
+  gitlabLinks: GitlabLinkConfig;
+  agentNamespace: string;
 }) {
   if (!taskResult.ok) {
     return (
@@ -66,12 +82,16 @@ export function RunDetailCentre({
   if (!task || !reviewResult) return null;
 
   const { tone, label } = statusTone(task.status);
+  const outcome = statusOutcome(task.status);
+  const cancellable = canCancel && (outcome === 'pending' || outcome === 'active');
+  const repoHref = repoUrl(task, gitlabLinks);
+  const triggerHref = triggerUrl(task, gitlabLinks);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title={triggerLabel(task)}
-        subtitle={`${repoLabel(task)} · ${relativeTime(task.created_at, now)}${duration(task, now) ? ` · ${duration(task, now)}` : ''}`}
+        subtitle={`${repoLabel(task)} · ${relativeTime(task.created_at, now)}`}
       />
 
       <PageControls
@@ -85,10 +105,76 @@ export function RunDetailCentre({
             // subtitle.
             align: 'end',
             label: 'Outcome',
-            children: <StatusText tone={tone}>{label}</StatusText>,
+            children: (
+              <>
+                <StatusText tone={tone} className="self-center">
+                  {label}
+                </StatusText>
+                {cancellable ? (
+                  <form action={cancelRunAction}>
+                    <input type="hidden" name="id" value={task.id} />
+                    <Button type="submit" variant="secondary" size="sm">
+                      <CancelIcon />
+                      Cancel run
+                    </Button>
+                  </form>
+                ) : null}
+              </>
+            ),
           },
         ]}
       />
+
+      <Card title="Overview">
+        <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+          <Fact label="Repository">
+            {repoHref ? (
+              <a
+                href={repoHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline">
+                {repoLabel(task)}
+              </a>
+            ) : (
+              repoLabel(task)
+            )}
+          </Fact>
+          <Fact label="Default branch">{task.repo_default_branch ?? '—'}</Fact>
+          <Fact label="Trigger">
+            {triggerHref ? (
+              <a
+                href={triggerHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline">
+                {triggerLabel(task)}
+              </a>
+            ) : (
+              triggerLabel(task)
+            )}
+          </Fact>
+          <Fact label="Delivery">
+            <code className="bg-chrome rounded-field px-1.5 py-0.5 font-mono">
+              {task.webhook_delivery_id ?? '—'}
+            </code>
+          </Fact>
+          <Fact label="Base SHA">
+            <code className="bg-chrome rounded-field px-1.5 py-0.5 font-mono">
+              {shortSha(task.base_sha) ?? '—'}
+            </code>
+          </Fact>
+          <Fact label="Head SHA">
+            <code className="bg-chrome rounded-field px-1.5 py-0.5 font-mono">
+              {shortSha(task.head_sha) ?? '—'}
+            </code>
+          </Fact>
+          <Fact label="Created">{absoluteTime(task.created_at)}</Fact>
+          <Fact label="Started">{task.started_at ? absoluteTime(task.started_at) : '—'}</Fact>
+          <Fact label="Completed">{task.completed_at ? absoluteTime(task.completed_at) : '—'}</Fact>
+          <Fact label="Duration">{duration(task, now) ?? '—'}</Fact>
+        </dl>
+      </Card>
 
       <Card title="Review">
         {!reviewResult.ok ? (
@@ -127,18 +213,10 @@ export function RunDetailCentre({
       ) : null}
 
       <Card title="Stream logs">
-        <div className="flex flex-col gap-1.5">
-          <span className={LABEL_CLASS}>kubectl</span>
-          <div className="command-snippet">
-            {/* `tabIndex={0}`: `command-snippet`'s `code` scrolls horizontally (theme.css), and a
-                real job name pushes this command past the strip. Same fix, same reason as
-                `ui-web`'s own `CommandSnippet` — axe `scrollable-region-focusable`, WCAG 2.1.1. */}
-            {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
-            <code className={DATA_CLASS} tabIndex={0}>
-              kubectl logs -f job/{task.job_name ?? `task-${task.id}`} -n lightbridge
-            </code>
-          </div>
-        </div>
+        <CommandSnippet
+          label="kubectl"
+          command={`kubectl logs -f job/${task.job_name ?? `task-${task.id}`} -n ${agentNamespace}`}
+        />
       </Card>
     </div>
   );

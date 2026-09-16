@@ -1,6 +1,7 @@
 import { Button } from '@lightbridge/ui-web/src/components/button';
 import { Card } from '@lightbridge/ui-web/src/components/card';
 import { SettingsRow } from '@lightbridge/ui-web/src/components/settings-row';
+import { SignOutIcon } from '@lightbridge/ui-web/src/lib/icons';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
 
 import type { SessionClaims } from '../lib/auth';
@@ -112,9 +113,10 @@ export function SettingsCentre({
             // Base UI `render` takes a template that is cloned WITH this Button's children — see
             // `packages/ui-web/src/components/button/component.tsx`'s note on these two rules.
             // eslint-disable-next-line jsx-a11y/anchor-has-content, jsx-a11y/control-has-associated-label
-            <a href="/api/auth/logout" />
+            <a href="/auth/logout" />
           }
           nativeButton={false}>
+          <SignOutIcon />
           Sign out
         </Button>
       </div>

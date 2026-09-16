@@ -62,8 +62,8 @@ describe('budget:*/session:* permissions (issue #147, lightbridge-authz#325)', (
   // (lightbridge-authz#325).
   const SESSION_PERMISSIONS_IN_ORDER = ['session:revoke-own', 'session:revoke'] as const;
 
-  it('ALL_PERMISSIONS has exactly 31 entries: the original 18, plus the eleven budget:* additions, plus the two session:* additions', () => {
-    expect(ALL_PERMISSIONS).toHaveLength(31);
+  it('ALL_PERMISSIONS has exactly 32 entries: the original 18, plus the eleven budget:* additions, plus the two session:* additions, plus account:provision (lightbridge-authz#720)', () => {
+    expect(ALL_PERMISSIONS).toHaveLength(32);
   });
 
   it('all eleven budget permissions are present, in the backend declaration order, immediately after apikey:*', () => {
@@ -209,6 +209,9 @@ describe('permissionsForRoles (default mapping)', () => {
     expect(viewer.has('project:read')).toBe(true);
     expect(viewer.has('project:create')).toBe(false);
     expect(viewer.has('account:delete')).toBe(false);
+    // account:provision (lightbridge-authz#720) is admin-only, unlike account:create — it lets
+    // the caller mint an account for an ARBITRARY subject, not their own.
+    expect(viewer.has('account:provision')).toBe(false);
     // account:create was added to the viewer role by lightbridge-authz#325 (mirrors prod's
     // oauth2.rbac.role_permissions) -- it does NOT make the role broadly "account write", it's a
     // deliberate single addition alongside the self-service budget/session grants below.
@@ -231,6 +234,8 @@ describe('permissionsForRoles (default mapping)', () => {
     expect(editor.has('account:create')).toBe(true);
     expect(editor.has('account:update')).toBe(false);
     expect(editor.has('account:disable')).toBe(false);
+    // account:provision (lightbridge-authz#720) is admin-only, same shape as account:disable.
+    expect(editor.has('account:provision')).toBe(false);
     expect(editor.has('project:create')).toBe(true);
     expect(editor.has('project:disable')).toBe(true);
     expect(editor.has('apikey:rotate')).toBe(true);

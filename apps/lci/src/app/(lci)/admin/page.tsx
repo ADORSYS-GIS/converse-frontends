@@ -10,9 +10,25 @@ export default async function AdminPage() {
   const canDeny = hasPermission(claims, 'repo:deny');
 
   if (!canApprove && !canDeny) {
-    return <AdminCentre result={null} canApprove={canApprove} canDeny={canDeny} />;
+    return (
+      <AdminCentre
+        title="Pending"
+        emptyMessage="No pending repositories."
+        result={null}
+        canApprove={canApprove}
+        canDeny={canDeny}
+      />
+    );
   }
 
-  const result = await listAdminRepos();
-  return <AdminCentre result={result} canApprove={canApprove} canDeny={canDeny} />;
+  const result = await listAdminRepos('pending');
+  return (
+    <AdminCentre
+      title="Pending"
+      emptyMessage="No pending repositories."
+      result={result}
+      canApprove={canApprove}
+      canDeny={canDeny}
+    />
+  );
 }

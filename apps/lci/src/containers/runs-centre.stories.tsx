@@ -11,6 +11,7 @@
 // visible: the row is still there when the table is not.
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
+import { gitlabLinkConfig } from '../lib/domain/gitlab-links';
 import { RunsCentre } from './runs-centre';
 import { NOW, TASKS, withNuqs, withPagePadding } from './story-fixtures';
 
@@ -19,7 +20,7 @@ const meta = {
   component: RunsCentre,
   parameters: { layout: 'fullscreen' },
   decorators: [withNuqs, withPagePadding],
-  args: { now: NOW },
+  args: { now: NOW, gitlabLinks: gitlabLinkConfig(null, null) },
 } satisfies Meta<typeof RunsCentre>;
 
 export default meta;

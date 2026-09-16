@@ -17,11 +17,12 @@ export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; reason: 'unauthenticated' | 'unavailable' | 'error'; status?: number };
 
-async function authedFetch(path: string): Promise<Response | null> {
+async function authedFetch(path: string, init?: RequestInit): Promise<Response | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   return fetch(`${controlPlaneUrl()}${path}`, {
-    headers: { authorization: `Bearer ${token}`, accept: 'application/json' },
+    ...init,
+    headers: { authorization: `Bearer ${token}`, accept: 'application/json', ...init?.headers },
     cache: 'no-store',
   });
 }
@@ -105,6 +106,36 @@ export async function getReview(id: string): Promise<ApiResult<Review | null>> {
     if (res.status === 404) return { ok: true, data: null };
     if (!res.ok) return { ok: false, reason: classify(res.status), status: res.status };
     return { ok: true, data: (await res.json()) as Review };
+  } catch {
+    return { ok: false, reason: 'unavailable' };
+  }
+}
+
+/** `POST /tasks/{id}/cancel` — cancel a run that hasn't finished yet. */
+export async function cancelTask(id: string): Promise<ApiResult<null>> {
+  try {
+    const res = await authedFetch(`/tasks/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+    if (!res) return { ok: false, reason: 'unauthenticated' };
+    if (!res.ok) return { ok: false, reason: classify(res.status), status: res.status };
+    return { ok: true, data: null };
+  } catch {
+    return { ok: false, reason: 'unavailable' };
+  }
+}
+
+/** `GET /config` — non-sensitive deployment settings the console needs to render platform-correct
+ *  links (e.g. a self-hosted GitLab's real web base URL, never assumed to be `gitlab.com`). */
+export interface DeploymentConfig {
+  gitlab_base_url: string;
+  gitlab_project_base_urls: Record<string, string>;
+}
+
+export async function getDeploymentConfig(): Promise<ApiResult<DeploymentConfig>> {
+  try {
+    const res = await authedFetch('/config');
+    if (!res) return { ok: false, reason: 'unauthenticated' };
+    if (!res.ok) return { ok: false, reason: classify(res.status), status: res.status };
+    return { ok: true, data: (await res.json()) as DeploymentConfig };
   } catch {
     return { ok: false, reason: 'unavailable' };
   }

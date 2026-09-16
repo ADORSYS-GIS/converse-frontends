@@ -1,11 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { gitlabLinkConfig, type GitlabLinkConfig } from '../lib/domain/gitlab-links';
 import type { Review, Task } from '../lib/domain/tasks';
 import type { ApiResult } from '../lib/server/api';
 import { RunDetailCentre } from './run-detail-centre';
 
 const NOW = Date.UTC(2026, 7, 15, 12, 0, 0);
+const GITLAB_LINKS: GitlabLinkConfig = gitlabLinkConfig(null, null);
 
 function baseTask(overrides: Partial<Task> = {}): Task {
   return {
@@ -56,6 +58,9 @@ describe('RunDetailCentre', () => {
         reviewResult={null}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -69,6 +74,9 @@ describe('RunDetailCentre', () => {
         reviewResult={null}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
     expect(container).toBeEmptyDOMElement();
@@ -81,13 +89,37 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: null }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
-    expect(screen.getByText('review · PR #1118')).toBeInTheDocument();
-    expect(screen.getByText(/octonaut\/octonaut-svc-03/)).toBeInTheDocument();
+    // Trigger and repository each appear twice now — once in the title row, once again as a
+    // Fact in the new Overview card — so these assert presence, not uniqueness.
+    expect(screen.getAllByText('review · PR #1118').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/octonaut\/octonaut-svc-03/).length).toBeGreaterThan(0);
     expect(screen.getByText('Failed')).toBeInTheDocument();
     expect(screen.getByText(/task-3b9285de/)).toBeInTheDocument();
+  });
+
+  it('links the trigger fact to the pull request it ran against', () => {
+    render(
+      <RunDetailCentre
+        taskResult={{ ok: true, data: baseTask() }}
+        reviewResult={{ ok: true, data: null }}
+        now={NOW}
+        grafanaBaseUrl={null}
+        canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
+      />
+    );
+
+    expect(screen.getByRole('link', { name: 'review · PR #1118' })).toHaveAttribute(
+      'href',
+      'https://github.com/octonaut/octonaut-svc-03/pull/1118'
+    );
   });
 
   // ── The `PageControls` contract (ADR 0015 amendment A2, converse-frontends#504) ──────────────
@@ -103,6 +135,9 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: null }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -123,6 +158,9 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: null }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -136,6 +174,9 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: null }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -149,6 +190,9 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: baseReview() }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -162,6 +206,9 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: false, reason: 'error' }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -175,6 +222,9 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: null }}
         now={NOW}
         grafanaBaseUrl="https://grafana.example.com"
+        canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
@@ -193,10 +243,63 @@ describe('RunDetailCentre', () => {
         reviewResult={{ ok: true, data: null }}
         now={NOW}
         grafanaBaseUrl={null}
+        canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
       />
     );
 
     expect(screen.queryByTitle('Run logs (Grafana / Loki)')).not.toBeInTheDocument();
     expect(screen.getByText(/kubectl logs -f job\/task-3b9285de/)).toBeInTheDocument();
+  });
+
+  it('offers cancel for a run still in progress when the caller can cancel', () => {
+    render(
+      <RunDetailCentre
+        taskResult={{ ok: true, data: baseTask({ status: 'running' }) }}
+        reviewResult={{ ok: true, data: null }}
+        now={NOW}
+        grafanaBaseUrl={null}
+        canCancel={true}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
+      />
+    );
+
+    const button = screen.getByRole('button', { name: 'Cancel run' });
+    const hiddenId = button.closest('form')?.querySelector('input[name="id"]');
+    expect(hiddenId).toHaveValue('task-1118');
+  });
+
+  it('withholds cancel from a caller without the permission, even on an in-progress run', () => {
+    render(
+      <RunDetailCentre
+        taskResult={{ ok: true, data: baseTask({ status: 'running' }) }}
+        reviewResult={{ ok: true, data: null }}
+        now={NOW}
+        grafanaBaseUrl={null}
+        canCancel={false}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument();
+  });
+
+  it('hides cancel once a run has finished, even when the caller can cancel', () => {
+    render(
+      <RunDetailCentre
+        taskResult={{ ok: true, data: baseTask({ status: 'succeeded' }) }}
+        reviewResult={{ ok: true, data: null }}
+        now={NOW}
+        grafanaBaseUrl={null}
+        canCancel={true}
+        gitlabLinks={GITLAB_LINKS}
+        agentNamespace="lightbridge-agents"
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument();
   });
 });

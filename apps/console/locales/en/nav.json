@@ -21,7 +21,8 @@
     "refill-policies": "Refill policies",
     "budget-schedules": "Budget schedules",
     "sessions": "Sessions",
-    "roles": "Roles"
+    "roles": "Roles",
+    "provision-account": "Provision account"
   },
   "footer": {
     "back-to-console": "Back to console",

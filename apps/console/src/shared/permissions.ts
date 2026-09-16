@@ -56,6 +56,17 @@ export const PERMISSION = {
    * an operator ledger is for); it is not what makes the query safe.
    */
   sessionRead: 'session:read',
+  /**
+   * Minting a first account for a subject who cannot self-provision one —
+   * `/admin/provision-account` (lightbridge-authz#720/#722).
+   *
+   * The backend maps this to `lightbridge-admin`'s `*` only — never to
+   * `lightbridge-editor`/`lightbridge-viewer` — so in the default configuration it is admin-only,
+   * but it is declared and gated as a PERMISSION like every other destination, not as a role
+   * check: the same "the nav and the gate cannot drift" invariant the rest of this file states,
+   * and a deployment that grants it more widely gets the row without a console change.
+   */
+  accountProvision: 'account:provision',
   /** Reading the user directory (`searchUsers`, `resolveUserProfiles`). */
   userRead: 'user:read',
   /** Hard-deleting an API key — the one row action `ApiKeysLedger` hides without it. */
@@ -113,6 +124,10 @@ export const ADMIN_AREA_PERMISSIONS: readonly ConsolePermission[] = [
   // which only resolves a name for someone else's row. Someone granted nothing but the ability to
   // close sessions still has one real screen to reach.
   PERMISSION.sessionRead,
+  // `account:provision` IS a destination of its own (`/admin/provision-account`) — same rule as
+  // `session:read` above. In the default role mapping only `lightbridge-admin` holds it, but the
+  // list is keyed on permissions, not roles.
+  PERMISSION.accountProvision,
 ];
 
 /**

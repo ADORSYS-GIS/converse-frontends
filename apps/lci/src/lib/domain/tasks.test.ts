@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { gitlabLinkConfig } from './gitlab-links';
 import {
   absoluteTime,
   duration,
@@ -7,12 +8,17 @@ import {
   failureNoticePrefix,
   relativeTime,
   repoLabel,
+  repoUrl,
   shortSha,
   statusOutcome,
   statusTone,
   type Task,
   triggerLabel,
+  triggerUrl,
 } from './tasks';
+
+const GITLAB_LINKS = gitlabLinkConfig(null, null);
+const SELF_HOSTED_GITLAB_LINKS = gitlabLinkConfig('https://gitlab.example.com', null);
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
@@ -108,6 +114,86 @@ describe('triggerLabel', () => {
     expect(
       triggerLabel(makeTask({ command_text: 'index', target_type: 'repository', target_id: 12 }))
     ).toBe('index · repository #12');
+  });
+});
+
+describe('repoUrl', () => {
+  it('points a GitHub repo at github.com', () => {
+    expect(repoUrl(makeTask({ repo_platform: 'github' }), GITLAB_LINKS)).toBe(
+      'https://github.com/acme/widgets'
+    );
+  });
+
+  it('points a GitLab repo at the deployment default base URL, gitlab.com included', () => {
+    expect(repoUrl(makeTask({ repo_platform: 'gitlab' }), GITLAB_LINKS)).toBe(
+      'https://gitlab.com/acme/widgets'
+    );
+  });
+
+  it('uses a self-hosted GitLab base URL when the deployment sets one', () => {
+    expect(repoUrl(makeTask({ repo_platform: 'gitlab' }), SELF_HOSTED_GITLAB_LINKS)).toBe(
+      'https://gitlab.example.com/acme/widgets'
+    );
+  });
+
+  it("uses the project-specific base URL keyed by the task's installation_id (the GitLab project id)", () => {
+    const links = gitlabLinkConfig('https://gitlab.example.com', {
+      '1': 'https://gitlab.other.example.com',
+    });
+    expect(repoUrl(makeTask({ repo_platform: 'gitlab', installation_id: 1 }), links)).toBe(
+      'https://gitlab.other.example.com/acme/widgets'
+    );
+  });
+
+  it('is null when the repo join came back empty', () => {
+    expect(repoUrl(makeTask({ repo_owner: null, repo_name: null }), GITLAB_LINKS)).toBeNull();
+  });
+});
+
+describe('triggerUrl', () => {
+  it('points a GitHub pull request at its PR page', () => {
+    expect(
+      triggerUrl(
+        makeTask({ target_type: 'pull_request', target_id: 5, repo_platform: 'github' }),
+        GITLAB_LINKS
+      )
+    ).toBe('https://github.com/acme/widgets/pull/5');
+  });
+
+  it('points a GitLab pull request at its merge request page', () => {
+    expect(
+      triggerUrl(
+        makeTask({ target_type: 'pull_request', target_id: 5, repo_platform: 'gitlab' }),
+        GITLAB_LINKS
+      )
+    ).toBe('https://gitlab.com/acme/widgets/-/merge_requests/5');
+  });
+
+  it('uses a self-hosted GitLab base URL when the deployment sets one', () => {
+    expect(
+      triggerUrl(
+        makeTask({ target_type: 'pull_request', target_id: 5, repo_platform: 'gitlab' }),
+        SELF_HOSTED_GITLAB_LINKS
+      )
+    ).toBe('https://gitlab.example.com/acme/widgets/-/merge_requests/5');
+  });
+
+  it('is null for a non-pull-request target', () => {
+    expect(
+      triggerUrl(
+        makeTask({ command_text: 'index', target_type: 'repository', target_id: 12 }),
+        GITLAB_LINKS
+      )
+    ).toBeNull();
+  });
+
+  it('is null when the repo join came back empty', () => {
+    expect(
+      triggerUrl(
+        makeTask({ target_type: 'pull_request', target_id: 5, repo_owner: null, repo_name: null }),
+        GITLAB_LINKS
+      )
+    ).toBeNull();
   });
 });
 

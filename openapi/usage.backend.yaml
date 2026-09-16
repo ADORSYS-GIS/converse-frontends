@@ -401,7 +401,9 @@ components:
             - string
             - 'null'
         total_cost:
-          type: number
+          type:
+            - number
+            - 'null'
           format: double
         total_tokens:
           type: integer

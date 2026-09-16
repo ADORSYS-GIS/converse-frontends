@@ -556,7 +556,7 @@ describe('the 2026-09-03 actor-total-cost inflation', () => {
     // incident: a real total of real rows — just not the ones the picker asked for.
     const widened = ledger('2026-08-28T00:00:00.000Z', '2026-09-03T23:59:59.999Z');
     expect(
-      widened.points.reduce((sum, entry) => sum + entry.total_cost, 0) / 1_000_000
+      widened.points.reduce((sum, entry) => sum + (entry.total_cost ?? 0), 0) / 1_000_000
     ).toBeCloseTo(11.92, 10);
 
     const view = toPanelView({

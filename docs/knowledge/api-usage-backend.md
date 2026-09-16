@@ -76,9 +76,7 @@ The closed vocabulary for the `operation` dimension:
 
 ```json
 {
-  "points": [
-    /* UsageSeriesPoint[] */
-  ],
+  "points": [/* UsageSeriesPoint[] */],
   "truncated": false
 }
 ```

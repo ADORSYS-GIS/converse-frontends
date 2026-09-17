@@ -1,4 +1,5 @@
-// `/repositories/[id]` — the Overview tab: review analytics plus the repository's own facts.
+// `/repositories/[id]` — the Overview tab: the repository's own facts. Its analytics are the
+// Insights tab, `Pages/LCI/RepositoryInsights`.
 //
 // Rendered here WITHOUT the `RepositoryShell` chrome around it, matching how the route composes
 // it (the shell is the layout, this is the page). `Pages/LCI/RepositoryShell` covers the chrome.
@@ -12,16 +13,12 @@ const meta = {
   component: RepositoryOverviewCentre,
   parameters: { layout: 'fullscreen' },
   decorators: [withPagePadding],
-  args: { now: NOW, grafanaBaseUrl: null },
+  args: { now: NOW },
 } satisfies Meta<typeof RepositoryOverviewCentre>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/**
- * The deployed default: no `NEXT_PUBLIC_GRAFANA_URL`, so the analytics card carries one honest
- * line naming the variable instead of two dead iframes.
- */
 export const Default: Story = {
   args: { result: { ok: true, data: repository() } },
 };
@@ -29,14 +26,6 @@ export const Default: Story = {
 export const Wireframe: Story = {
   args: Default.args,
   globals: { theme: 'wireframe' },
-};
-
-/** With Grafana configured — billed cost and tokens used, side by side at `sm` and up. */
-export const WithGrafana: Story = {
-  args: {
-    result: { ok: true, data: repository() },
-    grafanaBaseUrl: 'https://grafana.example.internal',
-  },
 };
 
 /** Never approved, never run: the facts grid falls back rather than printing zeroes as facts. */

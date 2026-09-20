@@ -69,7 +69,7 @@ export function LciShell({
             heading: 'Navigate',
             items: [
               { key: 'overview', label: 'Overview', onSelect: () => go('/') },
-              { key: 'analytics', label: 'Analytics', onSelect: () => go('/analytics') },
+              { key: 'feedback', label: 'Feedback', onSelect: () => go('/feedback') },
               { key: 'repositories', label: 'Repositories', onSelect: () => go('/repositories') },
             ],
           },

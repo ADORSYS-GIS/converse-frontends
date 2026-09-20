@@ -46,11 +46,11 @@ function navGroups(pathname: string): NavGroup[] {
           active: pathname === '/',
         },
         {
-          key: 'analytics',
-          label: 'Analytics',
-          href: '/analytics',
+          key: 'feedback',
+          label: 'Feedback',
+          href: '/feedback',
           icon: <UsageIcon />,
-          active: pathname.startsWith('/analytics'),
+          active: pathname.startsWith('/feedback'),
         },
         {
           key: 'runs',

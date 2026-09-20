@@ -1,25 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { feedbackAnalytics, reviewAnalytics } from '../../containers/analytics-fixtures';
+import { feedbackAnalytics } from '../../containers/feedback-fixtures';
 import {
-  ANALYTICS_PANELS,
-  analyticsView,
   bucketFor,
   countDelta,
+  FEEDBACK_PANELS,
   feedbackNotes,
-  formatDuration,
+  feedbackView,
+  formatRate,
   panelsFor,
-  parseAnalyticsRange,
+  parseFeedbackRange,
   rateDelta,
-  resolveAnalyticsWindow,
+  resolveFeedbackWindow,
   windowLabel,
-  type AnalyticsPanelSpec,
-  type AnalyticsUi,
+  type FeedbackPanelSpec,
   type FeedbackTotals,
-  type ReviewTotals,
-} from './analytics';
+  type FeedbackUi,
+} from './feedback';
 
-const ui: AnalyticsUi = {
+const ui: FeedbackUi = {
   scaleFor: () => 'linear',
   onScaleChange: () => {},
   pageFor: () => 0,
@@ -28,37 +27,21 @@ const ui: AnalyticsUi = {
 
 const PREVIOUS_WEEK = { from: '2026-08-25T00:00:00.000Z', to: '2026-09-01T00:00:00.000Z' };
 
-function spec(id: string): AnalyticsPanelSpec {
-  const found = ANALYTICS_PANELS.find((panel) => panel.id === id);
+function spec(id: string): FeedbackPanelSpec {
+  const found = FEEDBACK_PANELS.find((panel) => panel.id === id);
   if (!found) throw new Error(`no panel ${id}`);
   return found;
 }
 
-const ZERO_REVIEWS: ReviewTotals = {
-  runs: 0,
-  succeeded: 0,
-  failed: 0,
-  cancelled: 0,
-  active: 0,
-  pending: 0,
-  p50_duration_secs: null,
-  p95_duration_secs: null,
-  reviews: 0,
-  findings: 0,
-  inline: 0,
-  deferred: 0,
-  out_of_scope: 0,
-};
-
-describe('parseAnalyticsRange', () => {
+describe('parseFeedbackRange', () => {
   it('falls back to the default for an absent or unknown value, and takes the first of many', () => {
-    expect(parseAnalyticsRange(undefined)).toBe('30d');
-    expect(parseAnalyticsRange('fortnight')).toBe('30d');
-    expect(parseAnalyticsRange(['last-week', '7d'])).toBe('last-week');
+    expect(parseFeedbackRange(undefined)).toBe('30d');
+    expect(parseFeedbackRange('fortnight')).toBe('30d');
+    expect(parseFeedbackRange(['last-week', '7d'])).toBe('last-week');
   });
 });
 
-describe('resolveAnalyticsWindow', () => {
+describe('resolveFeedbackWindow', () => {
   const wednesday = Date.parse('2026-09-09T14:30:00.000Z');
 
   it.each([
@@ -70,7 +53,7 @@ describe('resolveAnalyticsWindow', () => {
     ['30d', '2026-08-11T00:00:00.000Z', '2026-09-09T14:30:00.000Z', '1 day'],
     ['90d', '2026-06-12T00:00:00.000Z', '2026-09-09T14:30:00.000Z', '1 day'],
   ] as const)('%s is [%s, %s) by %s', (range, from, to, bucket) => {
-    const window = resolveAnalyticsWindow(range, wednesday);
+    const window = resolveFeedbackWindow(range, wednesday);
     expect(window.from.toISOString()).toBe(from);
     expect(window.to.toISOString()).toBe(to);
     expect(window.bucket).toBe(bucket);
@@ -78,14 +61,14 @@ describe('resolveAnalyticsWindow', () => {
 
   it('starts the week on Monday even when asked on a Sunday', () => {
     const sunday = Date.parse('2026-09-13T20:00:00.000Z');
-    expect(resolveAnalyticsWindow('this-week', sunday).from.toISOString()).toBe(
+    expect(resolveFeedbackWindow('this-week', sunday).from.toISOString()).toBe(
       '2026-09-07T00:00:00.000Z'
     );
   });
 
   it('never hands the control plane an empty window at the very start of a week', () => {
     const monday = Date.parse('2026-09-07T00:00:00.000Z');
-    const window = resolveAnalyticsWindow('this-week', monday);
+    const window = resolveFeedbackWindow('this-week', monday);
     expect(window.to.getTime()).toBeGreaterThan(window.from.getTime());
   });
 });
@@ -132,146 +115,108 @@ describe('countDelta / rateDelta', () => {
     });
     expect(rateDelta(null, 0.5, PREVIOUS_WEEK)).toBeUndefined();
   });
-});
 
-describe('formatDuration', () => {
-  it('is compact at every magnitude and honest about no data', () => {
-    expect(formatDuration(42)).toBe('42s');
-    expect(formatDuration(611.4)).toBe('10m 11s');
-    expect(formatDuration(3600)).toBe('1h 0m');
-    expect(formatDuration(null)).toBe('—');
+  it('a window nobody reacted in has no rate at all, rather than a fabricated 0%', () => {
+    expect(formatRate(null)).toBe('—');
+    expect(formatRate(0)).toBe('0%');
   });
 });
 
 describe('the panel list', () => {
   it('has unique ids, and lists repositories on the estate page only', () => {
-    const ids = ANALYTICS_PANELS.map((panel) => panel.id);
+    const ids = FEEDBACK_PANELS.map((panel) => panel.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(panelsFor('estate').some((panel) => panel.id === 'repositories')).toBe(true);
     expect(panelsFor('repository').some((panel) => panel.id === 'repositories')).toBe(false);
+    expect(panelsFor('repository').some((panel) => panel.id === 'most-rejected')).toBe(false);
   });
 
   it('every adapter produces the panel type its entry declares, on both pages', () => {
-    const data = { reviews: reviewAnalytics(), feedback: feedbackAnalytics() };
+    const data = feedbackAnalytics();
     for (const scope of ['estate', 'repository'] as const) {
       for (const panel of panelsFor(scope)) {
-        expect(analyticsView(panel, data, ui)?.kind, panel.id).toBe(panel.type);
+        expect(feedbackView(panel, data, ui)?.kind, panel.id).toBe(panel.type);
       }
     }
   });
 
-  it('a panel whose request failed has no view, and the other source is untouched', () => {
-    const data = { reviews: reviewAnalytics(), feedback: null };
-    expect(analyticsView(spec('acceptance'), data, ui)).toBeNull();
-    expect(analyticsView(spec('reviews'), data, ui)).not.toBeNull();
+  it('a failed request leaves every panel without a view', () => {
+    for (const panel of panelsFor('estate')) {
+      expect(feedbackView(panel, null, ui), panel.id).toBeNull();
+    }
   });
 });
 
 describe('adapters hold the honesty rules', () => {
-  const baseFeedback = feedbackAnalytics().current;
+  const baseline = feedbackAnalytics().current;
   const feedbackWith = (current: Partial<FeedbackTotals>) =>
-    feedbackAnalytics({ current: { ...baseFeedback, ...current } });
+    feedbackAnalytics({ current: { ...baseline, ...current } });
 
   it('the acceptance rate is the control plane’s 👍/(👍+👎), never diluted by other reactions', () => {
-    const view = analyticsView(
+    const view = feedbackView(
       spec('acceptance'),
-      { reviews: null, feedback: feedbackWith({ up: 2, down: 3, other: 40, approval_rate: 0.4 }) },
+      feedbackWith({ up: 2, down: 3, other: 40, approval_rate: 0.4 }),
       ui
     );
     expect(view).toMatchObject({ kind: 'stat', metric: '40%' });
   });
 
   it('coverage states how many posted comments carried a reaction at all', () => {
-    const view = analyticsView(
+    const view = feedbackView(
       spec('coverage'),
-      { reviews: null, feedback: feedbackWith({ reacted_inline: 3, inline_comments: 900 }) },
+      feedbackWith({ reacted_inline: 3, inline_comments: 900 }),
       ui
     );
     expect(view).toMatchObject({ kind: 'stat', metric: '3 of 900' });
   });
 
-  it('a count board formats counts, not money, and draws nothing over a window with no runs', () => {
-    const populated = analyticsView(
-      spec('runs-over-time'),
-      { reviews: reviewAnalytics(), feedback: null },
-      ui
-    );
+  it('the reaction mix shows what the rate ignores, and drops the kinds nobody used', () => {
+    const view = feedbackView(spec('reaction-mix'), feedbackWith({ up: 5, down: 2, other: 0 }), ui);
+    if (view?.kind !== 'share') throw new Error('expected a share view');
+    expect(view.segments.map((segment) => segment.key)).toEqual(['up', 'down']);
+  });
+
+  it('a count board formats counts, not money, and draws nothing over a window with no comments', () => {
+    const populated = feedbackView(spec('reactions-over-time'), feedbackAnalytics(), ui);
     if (populated?.kind !== 'series') throw new Error('expected a series view');
     expect(populated.formatYTick?.(1200)).toBe('1,200');
-    expect(populated.series.map((line) => line.key)).toEqual(['succeeded', 'failed', 'cancelled']);
+    expect(populated.series.map((line) => line.key)).toEqual(['up', 'down']);
 
-    const empty = analyticsView(
-      spec('runs-over-time'),
-      { reviews: reviewAnalytics({ current: ZERO_REVIEWS }), feedback: null },
+    const empty = feedbackView(
+      spec('reactions-over-time'),
+      feedbackWith({ inline_comments: 0 }),
       ui
     );
     expect(empty).toMatchObject({
       kind: 'series',
       series: [],
-      emptyMessage: 'No runs in this window.',
+      emptyMessage: 'No review comments were posted in this window.',
     });
   });
 
-  it('priorities are drawn P0 → P2 whatever order they arrive in, and empty ones are left out', () => {
-    const view = analyticsView(
-      spec('findings-by-priority'),
-      {
-        reviews: reviewAnalytics({
-          by_priority: [
-            { key: 'P2', count: 9 },
-            { key: 'P0', count: 1 },
-          ],
-        }),
-        feedback: null,
-      },
-      ui
-    );
-    if (view?.kind !== 'share') throw new Error('expected a share view');
-    expect(view.segments.map((segment) => segment.key)).toEqual(['P0', 'P2']);
+  it('the most-rejected ranking is ordered by 👎 and leaves out repositories with none', () => {
+    const view = feedbackView(spec('most-rejected'), feedbackAnalytics(), ui);
+    if (view?.kind !== 'ranked') throw new Error('expected a ranked view');
+    expect(view.rows.map((row) => row.value)).toEqual([12, 3, 1]);
+    expect(view.rows[0]?.label).toBe('adorsys-gis/converse-frontends');
   });
 
-  it('the repositories table links to each repository’s insights, and says "—" for reactions it could not load', () => {
-    const reviews = reviewAnalytics();
-    const withFeedback = analyticsView(
-      spec('repositories'),
-      { reviews, feedback: feedbackAnalytics() },
-      ui
-    );
-    const withoutFeedback = analyticsView(spec('repositories'), { reviews, feedback: null }, ui);
-    if (withFeedback?.kind !== 'table' || withoutFeedback?.kind !== 'table') {
-      throw new Error('expected table views');
-    }
-    expect(withFeedback.rows[0]?.href).toBe('/repositories/2/insights');
-    expect(withFeedback.rows[0]?.cells.down).toBe('12');
-    expect(withoutFeedback.rows[0]?.cells.down).toBe('—');
-  });
-
-  it('an unmatched down-voted comment keeps its row, says it has no finding, and the repository column is estate-only', () => {
-    const estate = analyticsView(
-      spec('most-downvoted'),
-      { reviews: null, feedback: feedbackAnalytics() },
-      ui
-    );
-    const scoped = analyticsView(
-      spec('most-downvoted'),
-      { reviews: null, feedback: feedbackAnalytics({ repository_id: 2 }) },
-      ui
-    );
-    if (estate?.kind !== 'table' || scoped?.kind !== 'table')
-      throw new Error('expected table views');
-    expect(estate.rows[1]?.cells.finding).toBe('Unmatched comment');
-    expect(estate.rows[1]?.href).toBe('/runs/tsk_02b7n9q1wxy4');
-    expect(estate.columns[0]?.key).toBe('repository');
-    expect(scoped.columns.some((column) => column.key === 'repository')).toBe(false);
+  it('the repositories table links to each repository’s own feedback tab', () => {
+    const view = feedbackView(spec('repositories'), feedbackAnalytics(), ui);
+    if (view?.kind !== 'table') throw new Error('expected a table view');
+    expect(view.rows[0]?.href).toBe('/repositories/2/feedback');
+    expect(view.rows[0]?.cells.down).toBe('12');
+    expect(view.rows[0]?.cells.rate).toBe('74%');
   });
 });
 
 describe('feedbackNotes', () => {
   const now = Date.parse('2026-09-09T14:30:00.000Z');
+  const quiet = { reply_up: 0, reply_down: 0 };
 
   it('says where reactions stop being refreshed when the window reaches past the poll window', () => {
     const notes = feedbackNotes(
-      feedbackAnalytics({ current: { ...feedbackAnalytics().current, unresolved: 0 } }),
+      feedbackAnalytics({ current: { ...feedbackAnalytics().current, ...quiet } }),
       now
     );
     expect(notes).toEqual([
@@ -282,18 +227,29 @@ describe('feedbackNotes', () => {
   it('says nothing about freshness for a window inside the poll window', () => {
     const recent = feedbackAnalytics({
       window: { from: '2026-09-03T00:00:00.000Z', to: '2026-09-09T14:30:00.000Z' },
-      current: { ...feedbackAnalytics().current, unresolved: 0 },
+      current: { ...feedbackAnalytics().current, ...quiet },
     });
     expect(feedbackNotes(recent, now)).toEqual([]);
   });
 
-  it('counts the reactions that matched no finding, instead of letting them vanish from the breakdowns', () => {
+  it('keeps reactions on summary comments visible without folding them into the rate', () => {
     const recent = feedbackAnalytics({
       window: { from: '2026-09-03T00:00:00.000Z', to: '2026-09-09T14:30:00.000Z' },
-      current: { ...feedbackAnalytics().current, unresolved: 1 },
+      current: { ...feedbackAnalytics().current, reply_up: 3, reply_down: 1 },
     });
     expect(feedbackNotes(recent, now)).toEqual([
-      '1 reaction is on a comment that matched no finding: counted in the acceptance rate, but not by priority or category.',
+      '4 reactions on summary comments are not counted above: a 👍 on "here is my summary" is not a verdict on any one finding.',
+    ]);
+  });
+
+  it('says when the repositories table was cut short by the cap', () => {
+    const truncated = feedbackAnalytics({
+      window: { from: '2026-09-03T00:00:00.000Z', to: '2026-09-09T14:30:00.000Z' },
+      current: { ...feedbackAnalytics().current, ...quiet },
+      by_repository_truncated: true,
+    });
+    expect(feedbackNotes(truncated, now)).toEqual([
+      'Only the 3 most down-voted repositories are listed; the estate has more with feedback in this window.',
     ]);
   });
 });

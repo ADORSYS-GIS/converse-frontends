@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 
 import { SESSION_COOKIE } from '../auth';
-import type { FeedbackAnalyticsResponse, ReviewAnalyticsResponse } from '../domain/analytics';
+import type { FeedbackAnalyticsResponse } from '../domain/feedback';
 import type { Repository } from '../domain/repos';
 import type { Review, Task } from '../domain/tasks';
 
@@ -198,19 +198,12 @@ async function getAnalytics<T>(path: string, params: AnalyticsParams): Promise<A
   }
 }
 
-/** `GET /analytics/reviews` — run outcomes, durations and findings for one window, with the
+/** `GET /analytics/feedback` — the standing 👍/👎 on the comments posted in one window, with the
  *  previous window beside every total (LCI ADR-0116 D2).
  *
  *  Uncached, like every other call here: the response is authorized per bearer token, and Next's data
  *  cache does not key on the `authorization` header, so a cached body could be served to a caller the
  *  control plane would have refused. */
-export function getReviewAnalytics(
-  params: AnalyticsParams
-): Promise<ApiResult<ReviewAnalyticsResponse>> {
-  return getAnalytics<ReviewAnalyticsResponse>('/analytics/reviews', params);
-}
-
-/** `GET /analytics/feedback` — the standing 👍/👎 on the comments posted in one window. */
 export function getFeedbackAnalytics(
   params: AnalyticsParams
 ): Promise<ApiResult<FeedbackAnalyticsResponse>> {

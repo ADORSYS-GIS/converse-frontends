@@ -7,9 +7,9 @@ import { absoluteTime, relativeTime } from '../lib/domain/tasks';
 import type { ApiResult } from '../lib/server/api';
 import { Fact } from './fact';
 
-/** Repository overview tab: the repository's own facts. Its review analytics live on the Insights
- *  tab, drawn from the control plane's aggregates rather than from embedded Grafana panels
- *  (LCI ADR-0116 D8). */
+/** Repository overview tab: the repository's own facts. What reviewers did with its comments lives
+ *  on the Feedback tab, drawn from the control plane's aggregates rather than from embedded Grafana
+ *  panels (LCI ADR-0116 D8). */
 export function RepositoryOverviewCentre({
   result,
   now,

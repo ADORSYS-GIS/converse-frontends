@@ -17,73 +17,64 @@ import { parseAsStringLiteral, useQueryState } from 'nuqs';
 import { useState } from 'react';
 
 import {
-  ANALYTICS_RANGE_OPTIONS,
-  ANALYTICS_RANGES,
-  analyticsView,
-  DEFAULT_ANALYTICS_RANGE,
+  DEFAULT_FEEDBACK_RANGE,
+  FEEDBACK_RANGE_OPTIONS,
+  FEEDBACK_RANGES,
   feedbackNotes,
+  feedbackView,
   panelsFor,
-  parseAnalyticsRange,
-  type AnalyticsData,
-  type AnalyticsPanelSpec,
-  type AnalyticsScope,
-  type AnalyticsSource,
-  type AnalyticsUi,
+  parseFeedbackRange,
   type FeedbackAnalyticsResponse,
-  type ReviewAnalyticsResponse,
-} from '../lib/domain/analytics';
+  type FeedbackPanelSpec,
+  type FeedbackScope,
+  type FeedbackUi,
+} from '../lib/domain/feedback';
 import type { ApiResult } from '../lib/server/api';
 
-type Results = {
-  reviews: ApiResult<ReviewAnalyticsResponse>;
-  feedback: ApiResult<FeedbackAnalyticsResponse>;
-};
-
 /**
- * The review-analytics board shared by the Overview page (every repository) and a repository's
- * Insights tab (one) — LCI ADR-0116 D1.
+ * The reviewer-feedback board shared by the Feedback page (every repository) and a repository's
+ * Feedback tab (one) — LCI ADR-0116 D1.
  *
  * The range is the page's one control and lives in the URL (`?range=`, `shallow: false`), so
  * changing it re-renders the server page, which asks the control plane for the new window; the
  * board never fetches or aggregates anything itself. Panels come from the declarative list in
- * `lib/domain/analytics.ts` and render through `ui-web`'s panel kit.
+ * `lib/domain/feedback.ts` and render through `ui-web`'s panel kit.
  *
- * The two requests fail independently. A panel reads exactly one of them, and a failed request
- * costs only the panels that read it — so the control plane's feedback query erroring leaves the run
- * and finding counts on screen beside the error it explains.
+ * A failed request costs every panel its figure and nothing else: each one renders the reason in
+ * place, so the page explains itself instead of showing zeros it cannot stand behind.
  */
-export function AnalyticsBoard({
+export function FeedbackBoard({
   scope,
-  reviews,
   feedback,
   now,
-}: Results & { scope: AnalyticsScope; now: number }) {
+}: {
+  scope: FeedbackScope;
+  feedback: ApiResult<FeedbackAnalyticsResponse>;
+  now: number;
+}) {
   const [range, setRange] = useQueryState(
     'range',
-    parseAsStringLiteral(ANALYTICS_RANGES)
-      .withDefault(DEFAULT_ANALYTICS_RANGE)
+    parseAsStringLiteral(FEEDBACK_RANGES)
+      .withDefault(DEFAULT_FEEDBACK_RANGE)
       .withOptions({ shallow: false })
   );
   const [scales, setScales] = useState<Record<string, MultiSeriesSpendScale>>({});
   const [pages, setPages] = useState<Record<string, number>>({});
 
-  const ui: AnalyticsUi = {
+  const ui: FeedbackUi = {
     scaleFor: (panelId) => scales[panelId] ?? 'linear',
     onScaleChange: (panelId, scale) => setScales((prev) => ({ ...prev, [panelId]: scale })),
     pageFor: (panelId) => pages[panelId] ?? 0,
     onPageChange: (panelId, page) =>
       setPages((prev) => ({ ...prev, [panelId]: Math.max(page, 0) })),
   };
-  const data: AnalyticsData = {
-    reviews: reviews.ok ? reviews.data : null,
-    feedback: feedback.ok ? feedback.data : null,
-  };
-  const notes = data.feedback ? feedbackNotes(data.feedback, now) : [];
+  const data = feedback.ok ? feedback.data : null;
+  const notes = data ? feedbackNotes(data, now) : [];
 
   return (
     <div className="flex flex-col gap-6">
       <PageControls
-        label="Analytics controls"
+        label="Feedback controls"
         groups={[
           {
             id: 'range',
@@ -92,10 +83,10 @@ export function AnalyticsBoard({
               <SelectField
                 label="Range"
                 value={range}
-                options={ANALYTICS_RANGE_OPTIONS}
+                options={FEEDBACK_RANGE_OPTIONS}
                 onChange={(value) => {
                   setPages({});
-                  void setRange(parseAnalyticsRange(value));
+                  void setRange(parseFeedbackRange(value));
                 }}
                 layout="inline"
                 hideLabel
@@ -115,32 +106,25 @@ export function AnalyticsBoard({
 
       <DashboardGrid>
         {panelsFor(scope).map((spec) => (
-          <AnalyticsPanel
-            key={spec.id}
-            spec={spec}
-            data={data}
-            results={{ reviews, feedback }}
-            ui={ui}
-          />
+          <FeedbackPanel key={spec.id} spec={spec} result={feedback} data={data} ui={ui} />
         ))}
       </DashboardGrid>
     </div>
   );
 }
 
-function AnalyticsPanel({
+function FeedbackPanel({
   spec,
+  result,
   data,
-  results,
   ui,
 }: {
-  spec: AnalyticsPanelSpec;
-  data: AnalyticsData;
-  results: Results;
-  ui: AnalyticsUi;
+  spec: FeedbackPanelSpec;
+  result: ApiResult<FeedbackAnalyticsResponse>;
+  data: FeedbackAnalyticsResponse | null;
+  ui: FeedbackUi;
 }) {
-  const result = results[spec.source];
-  const view = analyticsView(spec, data, ui);
+  const view = feedbackView(spec, data, ui);
   const chrome = panelChrome(spec.type);
 
   return (
@@ -158,7 +142,7 @@ function AnalyticsPanel({
               {/* A bare stat card has no heading row, so without this the error would not say WHICH
                   figure is missing. A carded panel already shows its title above. */}
               {chrome === 'bare' ? <span className={LABEL_CLASS}>{spec.title}</span> : null}
-              <ErrorLine message={failureMessage(result, spec.source)} />
+              <ErrorLine message={failureMessage(result)} />
             </div>
           );
         }
@@ -171,11 +155,11 @@ function AnalyticsPanel({
   );
 }
 
-function failureMessage(result: Results[AnalyticsSource], source: AnalyticsSource): string {
-  if (result.ok) return `Couldn't draw this ${source} panel.`;
+function failureMessage(result: ApiResult<FeedbackAnalyticsResponse>): string {
+  if (result.ok) return "Couldn't draw this panel.";
   if (result.reason === 'unauthenticated') {
     return "Your session can't reach the control plane. Sign in again.";
   }
   if (result.reason === 'unavailable') return 'The control plane is unreachable right now.';
-  return `Couldn't load ${source === 'reviews' ? 'review' : 'feedback'} analytics${result.status ? ` (HTTP ${result.status})` : ''}.`;
+  return `Couldn't load feedback${result.status ? ` (HTTP ${result.status})` : ''}.`;
 }

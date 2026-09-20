@@ -1,6 +1,6 @@
 // `/analytics` — review activity, findings and reviewer feedback across every repository, for the
-// URL's range. Every figure is a control-plane aggregate (ADR 0018); a single repository's version
-// of this board is `Pages/LCI/RepositoryInsights`.
+// URL's range. Every figure is a control-plane aggregate (LCI ADR-0116); a single repository's
+// version of this board is `Pages/LCI/RepositoryInsights`.
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { AnalyticsCentre } from './analytics-centre';

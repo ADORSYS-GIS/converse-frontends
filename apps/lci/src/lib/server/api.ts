@@ -199,7 +199,7 @@ async function getAnalytics<T>(path: string, params: AnalyticsParams): Promise<A
 }
 
 /** `GET /analytics/reviews` — run outcomes, durations and findings for one window, with the
- *  previous window beside every total (ADR 0018 D2).
+ *  previous window beside every total (LCI ADR-0116 D2).
  *
  *  Uncached, like every other call here: the response is authorized per bearer token, and Next's data
  *  cache does not key on the `authorization` header, so a cached body could be served to a caller the

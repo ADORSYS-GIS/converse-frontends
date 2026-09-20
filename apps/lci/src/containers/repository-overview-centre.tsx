@@ -9,7 +9,7 @@ import { Fact } from './fact';
 
 /** Repository overview tab: the repository's own facts. Its review analytics live on the Insights
  *  tab, drawn from the control plane's aggregates rather than from embedded Grafana panels
- *  (ADR 0018 D8). */
+ *  (LCI ADR-0116 D8). */
 export function RepositoryOverviewCentre({
   result,
   now,

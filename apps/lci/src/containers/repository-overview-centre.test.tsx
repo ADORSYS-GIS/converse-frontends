@@ -70,7 +70,7 @@ describe('RepositoryOverviewCentre', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
-  it('embeds no Grafana panel — the analytics moved to the Insights tab (ADR 0018 D8)', () => {
+  it('embeds no Grafana panel — the analytics moved to the Insights tab (LCI ADR-0116 D8)', () => {
     const { container } = render(
       <RepositoryOverviewCentre result={{ ok: true, data: baseRepo() }} now={NOW} />
     );

@@ -11,7 +11,7 @@ import type {
 } from '@lightbridge/ui-web/src/sections/dashboard-panels/types';
 
 /**
- * Review analytics for the Overview page and a repository's Insights tab (ADR 0018): the range
+ * Review analytics for the Analytics page and a repository's Insights tab (LCI ADR-0116): the range
  * vocabulary, the shapes `GET /analytics/reviews` and `GET /analytics/feedback` return, the
  * declarative panel list, and the adapters that turn a response into render-ready
  * `DashboardPanelView`s for `ui-web`'s panel kit.
@@ -82,8 +82,8 @@ function startOfUtcMonth(ms: number, monthOffset = 0): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + monthOffset, 1);
 }
 
-/** ≤ 7 days → hourly, ≤ 90 days → daily, else weekly (ADR 0018 D4). Derived from the range, never
- *  chosen beside it: a second knob could only draw a chart that contradicts the first. */
+/** ≤ 7 days → hourly, ≤ 90 days → daily, else weekly (LCI ADR-0116 D4). Derived from the range,
+ *  never chosen beside it: a second knob could only draw a chart that contradicts the first. */
 export function bucketFor(spanMs: number): AnalyticsBucket {
   if (spanMs <= 7 * DAY_MS) return '1 hour';
   if (spanMs <= 90 * DAY_MS) return '1 day';
@@ -361,10 +361,10 @@ interface PanelSpecBase {
 }
 
 /**
- * One panel, as data (ADR 0018 D3). `source` names the request it reads — which is also what decides
- * that a failed feedback request costs the feedback panels and nothing else — and `adapter` names a
- * function in the closed registry below, typed per source so a feedback panel cannot name a reviews
- * adapter.
+ * One panel, as data (LCI ADR-0116 D3). `source` names the request it reads — which is also what
+ * decides that a failed feedback request costs the feedback panels and nothing else — and `adapter`
+ * names a function in the closed registry below, typed per source so a feedback panel cannot name a
+ * reviews adapter.
  */
 export type AnalyticsPanelSpec =
   | (PanelSpecBase & { source: 'reviews'; adapter: ReviewAdapterName })
@@ -705,7 +705,7 @@ const FEEDBACK_ADAPTERS: Record<FeedbackAdapterName, FeedbackAdapter> = {
     ),
   }),
   // Coverage sits beside the rate as its own card, so a 100% built on two reactions reads as two
-  // reactions (ADR 0018 D5, rule 4).
+  // reactions (LCI ADR-0116 D5, rule 4).
   coverage: (feedback, _reviews, _ui, spec) => ({
     kind: 'stat',
     label: spec.title,
@@ -785,9 +785,9 @@ export function analyticsView(
 }
 
 /**
- * The page-level caveats a feedback response carries, as sentences (ADR 0018 D5). Stated once above
- * the grid rather than on a panel, because both headline feedback figures are bare stat cards with no
- * caption row of their own.
+ * The page-level caveats a feedback response carries, as sentences (LCI ADR-0116 D5). Stated once
+ * above the grid rather than on a panel, because both headline feedback figures are bare stat cards
+ * with no caption row of their own.
  */
 export function feedbackNotes(feedback: FeedbackAnalyticsResponse, now: number): string[] {
   const notes: string[] = [];

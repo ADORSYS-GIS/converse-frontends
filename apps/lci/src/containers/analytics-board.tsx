@@ -41,7 +41,7 @@ type Results = {
 
 /**
  * The review-analytics board shared by the Overview page (every repository) and a repository's
- * Insights tab (one) — ADR 0018 D1.
+ * Insights tab (one) — LCI ADR-0116 D1.
  *
  * The range is the page's one control and lives in the URL (`?range=`, `shallow: false`), so
  * changing it re-renders the server page, which asks the control plane for the new window; the

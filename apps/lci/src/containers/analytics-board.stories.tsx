@@ -1,5 +1,5 @@
 // `/repositories/[id]/insights` — one repository's review analytics from the control plane's
-// aggregates (ADR 0018). The estate-wide version of this board is `Pages/LCI/Analytics`.
+// aggregates (LCI ADR-0116). The estate-wide version of this board is `Pages/LCI/Analytics`.
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { AnalyticsBoard } from './analytics-board';

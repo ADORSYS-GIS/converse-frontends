@@ -46,13 +46,6 @@ function navGroups(pathname: string): NavGroup[] {
           active: pathname === '/',
         },
         {
-          key: 'feedback',
-          label: 'Feedback',
-          href: '/feedback',
-          icon: <UsageIcon />,
-          active: pathname.startsWith('/feedback'),
-        },
-        {
           key: 'runs',
           label: 'Runs',
           href: '/runs',
@@ -72,6 +65,13 @@ function navGroups(pathname: string): NavGroup[] {
           href: '/admin',
           icon: <AdminIcon />,
           active: pathname.startsWith('/admin'),
+        },
+        {
+          key: 'feedback',
+          label: 'Feedback',
+          href: '/feedback',
+          icon: <UsageIcon />,
+          active: pathname.startsWith('/feedback'),
         },
         {
           key: 'settings',

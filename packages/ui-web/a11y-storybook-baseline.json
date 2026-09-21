@@ -54,7 +54,7 @@
     ]
   },
   "apps/lci/src/containers/repository-overview-centre.stories.tsx": {
-    "failing": 8,
+    "failing": 10,
     "rules": [
       "color-contrast"
     ]

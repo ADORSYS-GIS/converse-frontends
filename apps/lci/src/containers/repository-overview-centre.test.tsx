@@ -31,6 +31,7 @@ describe('RepositoryOverviewCentre', () => {
       <RepositoryOverviewCentre
         result={{ ok: false, reason: 'unavailable' } as ApiResult<Repository | null>}
         now={NOW}
+        grafanaBaseUrl={null}
       />
     );
 
@@ -40,13 +41,19 @@ describe('RepositoryOverviewCentre', () => {
 
   it('renders nothing for a not-found repository (ok, null data)', () => {
     const { container } = render(
-      <RepositoryOverviewCentre result={{ ok: true, data: null }} now={NOW} />
+      <RepositoryOverviewCentre result={{ ok: true, data: null }} now={NOW} grafanaBaseUrl={null} />
     );
     expect(container).toBeEmptyDOMElement();
   });
 
   it('renders the real repository facts', () => {
-    render(<RepositoryOverviewCentre result={{ ok: true, data: baseRepo() }} now={NOW} />);
+    render(
+      <RepositoryOverviewCentre
+        result={{ ok: true, data: baseRepo() }}
+        now={NOW}
+        grafanaBaseUrl={null}
+      />
+    );
 
     expect(screen.getByText('main')).toBeInTheDocument();
     expect(screen.getByText('GitLab')).toBeInTheDocument();
@@ -63,6 +70,7 @@ describe('RepositoryOverviewCentre', () => {
           data: baseRepo({ last_task_at: null, approved_by: null, approved_at: null }),
         }}
         now={NOW}
+        grafanaBaseUrl={null}
       />
     );
 
@@ -70,12 +78,38 @@ describe('RepositoryOverviewCentre', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
-  it('embeds no Grafana panel — the figures moved to the Feedback tab (LCI ADR-0118 D8)', () => {
-    const { container } = render(
-      <RepositoryOverviewCentre result={{ ok: true, data: baseRepo() }} now={NOW} />
+  it('shows the honest unconfigured-Grafana message when NEXT_PUBLIC_GRAFANA_URL is unset', () => {
+    render(
+      <RepositoryOverviewCentre
+        result={{ ok: true, data: baseRepo() }}
+        now={NOW}
+        grafanaBaseUrl={null}
+      />
     );
 
-    expect(container.querySelector('iframe')).toBeNull();
+    expect(screen.getByText('NEXT_PUBLIC_GRAFANA_URL')).toBeInTheDocument();
+    expect(screen.queryByTitle('Billed cost')).not.toBeInTheDocument();
+  });
+
+  it('embeds the real cost and token panels, scoped to this repo, when Grafana is configured', () => {
+    render(
+      <RepositoryOverviewCentre
+        result={{ ok: true, data: baseRepo() }}
+        now={NOW}
+        grafanaBaseUrl="https://grafana.example.com"
+      />
+    );
+
+    const cost = screen.getByTitle('Billed cost');
+    expect(cost.tagName).toBe('IFRAME');
+    expect(cost.getAttribute('src')).toContain(
+      'https://grafana.example.com/d-solo/lci-review-cost'
+    );
+    expect(cost.getAttribute('src')).toContain('var-repo=platform-team%2Fplatform-team-repo-21');
+
+    expect(screen.getByTitle('Tokens used').getAttribute('src')).toContain(
+      '/d-solo/lci-review-quality'
+    );
     expect(screen.queryByText('NEXT_PUBLIC_GRAFANA_URL')).not.toBeInTheDocument();
   });
 });

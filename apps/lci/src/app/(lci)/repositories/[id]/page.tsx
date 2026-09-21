@@ -18,5 +18,11 @@ export default async function RepositoryOverviewPage({
   const [result, now] = await Promise.all([getAdminRepo(id), fetchNow()]);
   if (result.ok && !result.data) notFound();
 
-  return <RepositoryOverviewCentre result={result} now={now} />;
+  return (
+    <RepositoryOverviewCentre
+      result={result}
+      now={now}
+      grafanaBaseUrl={process.env.NEXT_PUBLIC_GRAFANA_URL ?? null}
+    />
+  );
 }

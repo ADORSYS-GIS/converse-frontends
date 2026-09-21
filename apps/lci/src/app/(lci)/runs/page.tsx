@@ -1,6 +1,11 @@
 import { RunsCentre } from '../../../containers/runs-centre';
+import { gitlabLinkConfig } from '../../../lib/domain/gitlab-links';
 import { RUNS_PAGE_SIZE } from '../../../lib/domain/tasks';
-import { listTasksPage, type TasksStatusFilter } from '../../../lib/server/api';
+import {
+  getDeploymentConfig,
+  listTasksPage,
+  type TasksStatusFilter,
+} from '../../../lib/server/api';
 import { now as fetchNow } from '../../../lib/server/now';
 
 export const dynamic = 'force-dynamic';
@@ -28,14 +33,21 @@ export default async function RunsPage({
   const status = isStatusFilter(params.status) ? params.status : undefined;
   const repositoryId = params.repo ? Number(params.repo) : undefined;
 
-  const result = await listTasksPage({
-    page: Number.isFinite(page) ? page : 0,
-    pageSize: RUNS_PAGE_SIZE,
-    status,
-    repositoryId: Number.isFinite(repositoryId) ? repositoryId : undefined,
-    q: params.q,
-  });
-  const now = await fetchNow();
+  const [result, now, config] = await Promise.all([
+    listTasksPage({
+      page: Number.isFinite(page) ? page : 0,
+      pageSize: RUNS_PAGE_SIZE,
+      status,
+      repositoryId: Number.isFinite(repositoryId) ? repositoryId : undefined,
+      q: params.q,
+    }),
+    fetchNow(),
+    getDeploymentConfig(),
+  ]);
+  const gitlabLinks = gitlabLinkConfig(
+    config.ok ? config.data.gitlab_base_url : null,
+    config.ok ? config.data.gitlab_project_base_urls : null
+  );
 
-  return <RunsCentre result={result} now={now} />;
+  return <RunsCentre result={result} now={now} gitlabLinks={gitlabLinks} />;
 }

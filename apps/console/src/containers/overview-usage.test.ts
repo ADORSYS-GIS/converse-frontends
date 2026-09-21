@@ -44,6 +44,14 @@ describe('safeCost', () => {
     expect(safeCost(point({ total_cost: -10 }))).toBe(0);
   });
 
+  it(
+    'clamps a null total_cost to 0 — the backend sends null for a bucket no usage_events row ' +
+      'matched (lightbridge-authz#729), and a chart cannot plot "unknown"',
+    () => {
+      expect(safeCost(point({ total_cost: null }))).toBe(0);
+    }
+  );
+
   it('converts a real micro-USD total_cost to dollars', () => {
     expect(safeCost(point({ total_cost: usd(5) }))).toBeCloseTo(5);
   });

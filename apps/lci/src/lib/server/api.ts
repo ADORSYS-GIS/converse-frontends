@@ -124,6 +124,24 @@ export async function cancelTask(id: string): Promise<ApiResult<null>> {
   }
 }
 
+/** `GET /config` — non-sensitive deployment settings the console needs to render platform-correct
+ *  links (e.g. a self-hosted GitLab's real web base URL, never assumed to be `gitlab.com`). */
+export interface DeploymentConfig {
+  gitlab_base_url: string;
+  gitlab_project_base_urls: Record<string, string>;
+}
+
+export async function getDeploymentConfig(): Promise<ApiResult<DeploymentConfig>> {
+  try {
+    const res = await authedFetch('/config');
+    if (!res) return { ok: false, reason: 'unauthenticated' };
+    if (!res.ok) return { ok: false, reason: classify(res.status), status: res.status };
+    return { ok: true, data: (await res.json()) as DeploymentConfig };
+  } catch {
+    return { ok: false, reason: 'unavailable' };
+  }
+}
+
 export interface RepositoriesCursor {
   activity_at: string;
   id: number;
@@ -199,7 +217,7 @@ async function getAnalytics<T>(path: string, params: AnalyticsParams): Promise<A
 }
 
 /** `GET /analytics/feedback` — the standing 👍/👎 on the comments posted in one window, with the
- *  previous window beside every total (LCI ADR-0116 D2).
+ *  previous window beside every total (LCI ADR-0118 D2).
  *
  *  Uncached, like every other call here: the response is authorized per bearer token, and Next's data
  *  cache does not key on the `authorization` header, so a cached body could be served to a caller the

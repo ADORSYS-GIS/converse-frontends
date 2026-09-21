@@ -159,12 +159,23 @@ export function isUsageResponseTruncated(
   return response.points.length === limit;
 }
 
-/** A finite, non-negative cost — a malformed or negative `total_cost` from the backend renders as
- *  `0` for THIS point only rather than throwing and taking the whole chart down with it (#304's
- *  "a malformed response does not crash the caller" AC extended to the mapping layer, not just
- *  the transport one `usage-client.ts` already covers). */
+/** A finite, non-negative cost — a null, malformed or negative `total_cost` from the backend
+ *  renders as `0` for THIS point only rather than throwing and taking the whole chart down with it
+ *  (#304's "a malformed response does not crash the caller" AC extended to the mapping layer, not
+ *  just the transport one `usage-client.ts` already covers).
+ *
+ *  `null` is a documented, non-exceptional value: the backend returns it when no row in a bucket
+ *  carried a cost at all, deliberately distinct from `0.0`, because "cost unknown" and "cost was
+ *  zero" are different facts (governance#188, and the `total_cost` row of
+ *  `lightbridge-query-api.md`'s response table). A chart cannot plot "unknown", so it is flattened
+ *  to `0` HERE, at the point of display, rather than pretending upstream that the distinction
+ *  never existed — any caller that needs to tell the two apart must read `point.total_cost`
+ *  directly. Before this was typed nullable the runtime already behaved this way
+ *  (`Number.isFinite(null)` is `false`); only the type was wrong, which is what surfaced as a zod
+ *  `invalid_type` rejection of the whole response once the backend started emitting nulls. */
 export function safeCost(point: UsageSeriesPoint): number {
-  const microUsd = Number.isFinite(point.total_cost) && point.total_cost > 0 ? point.total_cost : 0;
+  const raw = point.total_cost;
+  const microUsd = raw !== null && Number.isFinite(raw) && raw > 0 ? raw : 0;
   return microUsdToUsd(microUsd);
 }
 

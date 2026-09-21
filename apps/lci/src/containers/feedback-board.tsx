@@ -33,7 +33,7 @@ import type { ApiResult } from '../lib/server/api';
 
 /**
  * The reviewer-feedback board shared by the Feedback page (every repository) and a repository's
- * Feedback tab (one) — LCI ADR-0116 D1.
+ * Feedback tab (one) — LCI ADR-0118 D1.
  *
  * The range is the page's one control and lives in the URL (`?range=`, `shallow: false`), so
  * changing it re-renders the server page, which asks the control plane for the new window; the

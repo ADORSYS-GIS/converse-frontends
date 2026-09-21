@@ -401,8 +401,14 @@ components:
             - string
             - 'null'
         total_cost:
-          type: number
+          type:
+            - number
+            - 'null'
           format: double
+          description: >-
+            Total cost in micro-USD for this bucket. Null when no usage_events row matched it —
+            never collapsed to 0, because "no cost was recorded" and "this bucket cost nothing"
+            are different facts (lightbridge-authz#729).
         total_tokens:
           type: integer
           format: int64

@@ -1,5 +1,5 @@
 // `/repositories/[id]/feedback` — one repository's reviewer reactions from the control plane's
-// aggregates (LCI ADR-0116). The estate-wide version of this board is `Pages/LCI/Feedback`.
+// aggregates (LCI ADR-0118). The estate-wide version of this board is `Pages/LCI/Feedback`.
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { FeedbackBoard } from './feedback-board';

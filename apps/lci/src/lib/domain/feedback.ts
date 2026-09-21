@@ -11,7 +11,7 @@ import type {
 } from '@lightbridge/ui-web/src/sections/dashboard-panels/types';
 
 /**
- * Reviewer feedback for the Feedback page and a repository's Feedback tab (LCI ADR-0116): the range
+ * Reviewer feedback for the Feedback page and a repository's Feedback tab (LCI ADR-0118): the range
  * vocabulary, the shape `GET /analytics/feedback` returns, the declarative panel list, and the
  * adapters that turn a response into render-ready `DashboardPanelView`s for `ui-web`'s panel kit.
  *
@@ -79,7 +79,7 @@ function startOfUtcMonth(ms: number, monthOffset = 0): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + monthOffset, 1);
 }
 
-/** ≤ 7 days → hourly, ≤ 90 days → daily, else weekly (LCI ADR-0116 D4). Derived from the range,
+/** ≤ 7 days → hourly, ≤ 90 days → daily, else weekly (LCI ADR-0118 D4). Derived from the range,
  *  never chosen beside it: a second knob could only draw a chart that contradicts the first. */
 export function bucketFor(spanMs: number): FeedbackBucket {
   if (spanMs <= 7 * DAY_MS) return '1 hour';
@@ -257,7 +257,7 @@ type FeedbackAdapterName =
   | 'repositories';
 
 /**
- * One panel, as data (LCI ADR-0116 D3). `adapter` names a function in the closed registry below, so
+ * One panel, as data (LCI ADR-0118 D3). `adapter` names a function in the closed registry below, so
  * a panel can only be declared if something can actually render it.
  */
 export interface FeedbackPanelSpec {
@@ -450,7 +450,7 @@ const FEEDBACK_ADAPTERS: Record<FeedbackAdapterName, FeedbackAdapter> = {
     ),
   }),
   // Coverage sits beside the rate as its own card, so a 100% built on two reactions reads as two
-  // reactions (LCI ADR-0116 D5, rule 4).
+  // reactions (LCI ADR-0118 D5, rule 4).
   coverage: (feedback, _ui, spec) => ({
     kind: 'stat',
     label: spec.title,
@@ -543,7 +543,7 @@ export function feedbackView(
 }
 
 /**
- * The page-level caveats a response carries, as sentences (LCI ADR-0116 D5). Stated once above the
+ * The page-level caveats a response carries, as sentences (LCI ADR-0118 D5). Stated once above the
  * grid rather than on a panel, because the headline figures are bare stat cards with no caption row
  * of their own.
  */

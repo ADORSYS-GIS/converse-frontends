@@ -7,17 +7,19 @@ import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
 import { CancelIcon } from '@lightbridge/ui-web/src/lib/icons';
 import { PageControls } from '@lightbridge/ui-web/src/sections/page-controls';
 import { PageHeader } from '@lightbridge/ui-web/src/sections/page-header';
-import Link from 'next/link';
 
+import type { GitlabLinkConfig } from '../lib/domain/gitlab-links';
 import {
   absoluteTime,
   duration,
   relativeTime,
   repoLabel,
+  repoUrl,
   shortSha,
   statusOutcome,
   statusTone,
   triggerLabel,
+  triggerUrl,
   type Review,
   type Task,
 } from '../lib/domain/tasks';
@@ -47,12 +49,16 @@ export function RunDetailCentre({
   now,
   grafanaBaseUrl,
   canCancel,
+  gitlabLinks,
+  agentNamespace,
 }: {
   taskResult: ApiResult<Task | null>;
   reviewResult: ApiResult<Review | null> | null;
   now: number;
   grafanaBaseUrl: string | null;
   canCancel: boolean;
+  gitlabLinks: GitlabLinkConfig;
+  agentNamespace: string;
 }) {
   if (!taskResult.ok) {
     return (
@@ -78,6 +84,8 @@ export function RunDetailCentre({
   const { tone, label } = statusTone(task.status);
   const outcome = statusOutcome(task.status);
   const cancellable = canCancel && (outcome === 'pending' || outcome === 'active');
+  const repoHref = repoUrl(task, gitlabLinks);
+  const triggerHref = triggerUrl(task, gitlabLinks);
 
   return (
     <div className="flex flex-col gap-6">
@@ -120,14 +128,32 @@ export function RunDetailCentre({
       <Card title="Overview">
         <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
           <Fact label="Repository">
-            <Link
-              href={`/repositories/${task.repository_id}`}
-              className="text-primary hover:underline">
-              {repoLabel(task)}
-            </Link>
+            {repoHref ? (
+              <a
+                href={repoHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline">
+                {repoLabel(task)}
+              </a>
+            ) : (
+              repoLabel(task)
+            )}
           </Fact>
           <Fact label="Default branch">{task.repo_default_branch ?? '—'}</Fact>
-          <Fact label="Trigger">{triggerLabel(task)}</Fact>
+          <Fact label="Trigger">
+            {triggerHref ? (
+              <a
+                href={triggerHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline">
+                {triggerLabel(task)}
+              </a>
+            ) : (
+              triggerLabel(task)
+            )}
+          </Fact>
           <Fact label="Delivery">
             <code className="bg-chrome rounded-field px-1.5 py-0.5 font-mono">
               {task.webhook_delivery_id ?? '—'}
@@ -189,7 +215,7 @@ export function RunDetailCentre({
       <Card title="Stream logs">
         <CommandSnippet
           label="kubectl"
-          command={`kubectl logs -f job/${task.job_name ?? `task-${task.id}`} -n lightbridge`}
+          command={`kubectl logs -f job/${task.job_name ?? `task-${task.id}`} -n ${agentNamespace}`}
         />
       </Card>
     </div>

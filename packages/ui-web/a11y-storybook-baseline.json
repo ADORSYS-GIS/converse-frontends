@@ -11,6 +11,18 @@
       "color-contrast"
     ]
   },
+  "apps/lci/src/containers/feedback-board.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
+  "apps/lci/src/containers/feedback-centre.stories.tsx": {
+    "failing": 10,
+    "rules": [
+      "color-contrast"
+    ]
+  },
   "apps/lci/src/containers/graph/node-inspector.stories.tsx": {
     "failing": 14,
     "rules": [

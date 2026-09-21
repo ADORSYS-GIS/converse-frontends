@@ -9,13 +9,17 @@ vi.mock('next/navigation', () => ({
 const { RepoTabsNav } = await import('./repo-tabs-nav');
 
 describe('RepoTabsNav', () => {
-  it('renders Overview, Graph, and Settings, each linking to its own tab', () => {
+  it('renders Overview, Feedback, Graph, and Settings, each linking to its own tab', () => {
     usePathnameMock.mockReturnValue('/repositories/81');
     render(<RepoTabsNav id={81} />);
 
     expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute(
       'href',
       '/repositories/81'
+    );
+    expect(screen.getByRole('link', { name: 'Feedback' })).toHaveAttribute(
+      'href',
+      '/repositories/81/feedback'
     );
     expect(screen.getByRole('link', { name: 'Graph' })).toHaveAttribute(
       'href',
@@ -40,6 +44,14 @@ describe('RepoTabsNav', () => {
     render(<RepoTabsNav id={81} />);
 
     expect(screen.getByRole('link', { name: 'Graph' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Overview' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('marks Feedback active on the feedback path, and Overview inactive there', () => {
+    usePathnameMock.mockReturnValue('/repositories/81/feedback');
+    render(<RepoTabsNav id={81} />);
+
+    expect(screen.getByRole('link', { name: 'Feedback' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Overview' })).not.toHaveAttribute('aria-current');
   });
 

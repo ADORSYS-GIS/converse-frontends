@@ -145,6 +145,12 @@ describe('repoUrl', () => {
     );
   });
 
+  it('points a Bitbucket repo at bitbucket.org', () => {
+    expect(repoUrl(makeTask({ repo_platform: 'bitbucket' }), GITLAB_LINKS)).toBe(
+      'https://bitbucket.org/acme/widgets'
+    );
+  });
+
   it('is null when the repo join came back empty', () => {
     expect(repoUrl(makeTask({ repo_owner: null, repo_name: null }), GITLAB_LINKS)).toBeNull();
   });
@@ -176,6 +182,15 @@ describe('triggerUrl', () => {
         SELF_HOSTED_GITLAB_LINKS
       )
     ).toBe('https://gitlab.example.com/acme/widgets/-/merge_requests/5');
+  });
+
+  it('points a Bitbucket pull request at its pull-requests page', () => {
+    expect(
+      triggerUrl(
+        makeTask({ target_type: 'pull_request', target_id: 5, repo_platform: 'bitbucket' }),
+        GITLAB_LINKS
+      )
+    ).toBe('https://bitbucket.org/acme/widgets/pull-requests/5');
   });
 
   it('is null for a non-pull-request target', () => {

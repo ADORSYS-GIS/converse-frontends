@@ -98,14 +98,22 @@ describe('avgCostPerMillionTokens', () => {
     expect(avgCostPerMillionTokens(response(points))).toBeNull();
   });
 
-  it('clamps a malformed cost for that point alone rather than throwing', () => {
+  it('drops a malformed cost point from BOTH sides of the ratio rather than throwing', () => {
     const value = avgCostPerMillionTokens(
       response([
         point({ total_cost: Number.NaN, total_tokens: 500_000 }),
         point({ total_cost: 1_000_000, total_tokens: 500_000 }),
       ])
     );
-    expect(value).toBeCloseTo(1, 10);
+    // $1 over the 500k PRICED tokens. This used to be $1 over all 1M — the unpriced half sat in
+    // the denominator and halved the rate (converse-frontends#540).
+    expect(value).toBeCloseTo(2, 10);
+  });
+
+  it('is null when no point was priced — unknown, not $0.00 / 1M (converse-frontends#540)', () => {
+    expect(
+      avgCostPerMillionTokens(response([point({ total_cost: null, total_tokens: 500_000 })]))
+    ).toBeNull();
   });
 });
 
@@ -328,5 +336,21 @@ describe('lastActiveByGroup', () => {
 describe('the registry', () => {
   it('implements exactly the derived metrics the schema accepts', () => {
     expect(Object.keys(derivedMetrics).sort()).toEqual([...DERIVED_METRICS].sort());
+  });
+});
+
+describe('costPerRequest over priced rows only (converse-frontends#540)', () => {
+  it('leaves unpriced requests out of the denominator', () => {
+    const value = costPerRequest(
+      response([
+        point({ total_cost: null, requests: 30 }),
+        point({ total_cost: 1_000_000, requests: 10 }),
+      ])
+    );
+    expect(value).toBeCloseTo(0.1, 10);
+  });
+
+  it('is null when no row was priced', () => {
+    expect(costPerRequest(response([point({ total_cost: null, requests: 30 })]))).toBeNull();
   });
 });

@@ -156,6 +156,18 @@ describe('DashboardRenderer', () => {
     expect(screen.queryByText(/Showing the most recent/)).not.toBeInTheDocument();
   });
 
+  it('captions a partly-priced cost panel, and only that one (converse-frontends#540)', () => {
+    render(
+      <DashboardRenderer
+        state={state([
+          panel({ costCaption: '3 of 10 usage rows here carried no reported cost.' }),
+          panel({ id: 'p2', title: 'Fully priced' }),
+        ])}
+      />
+    );
+    expect(screen.getAllByText(/carried no reported cost/)).toHaveLength(1);
+  });
+
   /**
    * A BARE panel (`stat`/`stat-group`) has no heading row: its title is the `StatCard`'s own label,
    * which only exists once data lands. Without this, a page of failed stats is a column of

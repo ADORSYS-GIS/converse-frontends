@@ -22,7 +22,12 @@ import { actorIdsKey, collectActorIds, EMPTY_ACTOR_IDS, withSeedActorIds } from 
 import type { ActorIds, LabelFor } from './actor-labels';
 import type { DashboardPageSpec } from './dashboard-spec';
 import { executionResponseToUsageResponse } from './execution-points';
-import { toPanelView, type DashboardLabelResolver } from './panel-adapters';
+import {
+  costCoverage,
+  panelReadsCost,
+  toPanelView,
+  type DashboardLabelResolver,
+} from './panel-adapters';
 import { queryKey, resolveDashboard } from './resolve-dashboard';
 import type { DashboardFilters, ResolvedDashboard, ResolvedQuery } from './resolve-dashboard';
 import { useActorLabels } from './use-actor-labels';
@@ -76,6 +81,13 @@ export interface DashboardPanelState {
    * "explicit limits and truncation captions", and an explicit AC of story C5.
    */
   truncationCaption?: string;
+  /**
+   * Set only when a panel that prints a cost read rows the backend could not price
+   * (`total_cost: null`), naming how many out of how many (converse-frontends#540). The figures
+   * beside it cover priced usage only; this is what keeps "we could not see it" from reading as
+   * "it was free".
+   */
+  costCaption?: string;
 }
 
 export interface DashboardState {
@@ -384,9 +396,18 @@ export function useDashboard({
     // carries the same `limit`, because they are the same panel's query with a different scope_id.
     const query = resolved.queries[panel.queryIndices[0]];
 
+    const coverage = panelReadsCost(panel.spec) ? costCoverage(response) : undefined;
+
     return {
       ...base,
       status: 'ready',
+      costCaption:
+        coverage && coverage.unpriced > 0
+          ? tCommon('state.cost-unpriced', {
+              unpriced: coverage.unpriced.toLocaleString(intlLocale),
+              total: coverage.total.toLocaleString(intlLocale),
+            })
+          : undefined,
       // Named, not implied: the caption states the panel's OWN limit, which is the number the YAML
       // author set and the only one that explains what was dropped. A `table` gets the longer
       // form, because its pager walks the truncated reading rather than the period.

@@ -1,6 +1,6 @@
 import type { UsageQueryResponse, UsageSeriesPoint } from '@lightbridge/api-rest';
 
-import { safeCost } from '../containers/overview-usage';
+import { isCostKnown, safeCost } from '../containers/overview-usage';
 import type { DerivedMetricName } from './dashboard-spec';
 
 /**
@@ -17,6 +17,9 @@ import type { DerivedMetricName } from './dashboard-spec';
  *    and taking the panel down.
  *  - **`null` means unknown, never 0.** A ratio with no denominator returns `null`, and the panel
  *    renders a dash — never `$0.00 / 1M tokens`, which reads as "we measured it and it is free".
+ *  - **Cost ratios are over PRICED rows only** (converse-frontends#540). A row whose `total_cost`
+ *    is null contributes neither its cost (unknown) nor its requests/tokens: keeping them in the
+ *    denominator would quietly pull the ratio toward zero, the same lie as printing `$0.00`.
  *  - **A distinct-count is over the response's own group keys**, so it can only ever count actors
  *    that had usage in the window. That is a real, structural limit of a usage-EVENTS query (an
  *    actor with genuinely zero usage never appears as a group at all), and the panels that use
@@ -44,6 +47,7 @@ export function avgCostPerMillionTokens(response: UsageQueryResponse): number | 
   let cost = 0;
   let tokens = 0;
   for (const point of response.points) {
+    if (!isCostKnown(point)) continue;
     cost += safeCost(point);
     tokens += safeTokens(point);
   }
@@ -66,6 +70,7 @@ export function costPerRequest(response: UsageQueryResponse): number | null {
   let cost = 0;
   let requests = 0;
   for (const point of response.points) {
+    if (!isCostKnown(point)) continue;
     cost += safeCost(point);
     requests += safeRequests(point);
   }

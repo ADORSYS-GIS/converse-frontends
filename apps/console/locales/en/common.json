@@ -38,7 +38,8 @@
     "panel-failed": "Failed to load this panel.",
     "access-unverified": "Access could not be verified — retry sign-in",
     "truncated-buckets": "Showing the most recent {{limit}} time buckets — older buckets in this window were dropped to fit the query limit, so totals here are lower than the true period totals. Narrow the range for a complete reading.",
-    "truncated-table-paging": "Sorting and paging below run over the rows this query returned, not over the whole period: the usage API has no offset, so the pages you can walk here are pages of the truncated reading."
+    "truncated-table-paging": "Sorting and paging below run over the rows this query returned, not over the whole period: the usage API has no offset, so the pages you can walk here are pages of the truncated reading.",
+    "cost-unpriced": "{{unpriced}} of {{total}} usage rows here carried no reported cost. Cost figures cover priced usage only; a row with no priced usage reads “—”, not $0."
   },
   "range": {
     "label": "Range",

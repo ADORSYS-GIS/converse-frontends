@@ -356,6 +356,9 @@ const DIMENSION_KEYS: Record<string, string[]> = {
   // row an operator has to see before believing a chat total.
   operation: ['Chat completions', 'Responses', 'Messages', 'Embeddings', 'Other'],
   azp: ['console-ui', 'opencode-cli', 'ci-deploy', 'zed-editor', 'raycast'],
+  // Already HUMANISED, like `operation` — `panel-adapters.tsx`'s `SOURCE_LABELS` maps the wire
+  // emitter names (`claude-code`, …) before a row reaches a renderer (lightbridge-governance#36).
+  source: ['Claude Code', 'Codex', 'OpenCode', 'GitHub Copilot'],
   user_id: ['Ada Lovelace', 'grace@adorsys.com', 'ci-deploy', 'usr_01j8k2m4p'],
   account_id: ['Brightline', 'Stark Infer', 'Northwind Labs', 'acct_01j7x'],
   project_id: ['ingest', 'rag-api', 'batch-eval', 'Unassigned'],

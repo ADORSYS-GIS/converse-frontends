@@ -8,6 +8,8 @@
 import { DASHBOARD_PANEL_TYPES } from '@lightbridge/ui-web/src/sections/dashboard-panels/types';
 import { z } from 'zod';
 
+import { DASHBOARD_GRAINS, EXECUTION_DIMENSIONS, EXECUTION_SCOPES } from './execution-points';
+
 /**
  * The schema `apps/console/dashboards.yaml` is validated against (converse-frontends#446,
  * decision D-K — "the dashboards are basically fetch(filters x type x parameters) = data; we
@@ -199,8 +201,40 @@ export const dashboardQuerySchema = z
      * window at an hourly bucket is a real "how many rows could this return" unknown.
      */
     limit: z.number().int().positive(),
+    /**
+     * Which backend grain the panel reads (lightbridge-governance#36). Omitted = `events`, the
+     * gateway's `usage_events` — every panel written before this field existed. `executions` is
+     * the IDE-agent grain (Claude Code, Codex, …), mapped onto the same point shape by
+     * `execution-points.ts` so no adapter or panel type changes.
+     *
+     * The execution grain is narrower than the event grain, and the narrowing is checked HERE
+     * rather than left to a backend 400 under a panel title: `scope` must be `user` or `all` (a
+     * `$placeholder` is checked after substitution — see `resolve-dashboard.ts`), and `group_by`
+     * and `filters` may only name `EXECUTION_DIMENSIONS`.
+     */
+    grain: z.enum(DASHBOARD_GRAINS).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((query, ctx) => {
+    if (query.grain !== 'executions') return;
+    if (query.scope && !query.scope.startsWith('$') && !EXECUTION_SCOPES.includes(query.scope)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['scope'],
+        message: `grain "executions" accepts scope ${EXECUTION_SCOPES.join(' or ')}, not "${query.scope}"`,
+      });
+    }
+    const named = [...(query.group_by ?? []), ...Object.keys(query.filters ?? {})];
+    for (const dimension of named) {
+      if (!EXECUTION_DIMENSIONS.includes(dimension)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['group_by'],
+          message: `grain "executions" has no dimension "${dimension}" (allowed: ${EXECUTION_DIMENSIONS.join(', ')})`,
+        });
+      }
+    }
+  });
 
 export type DashboardQuerySpec = z.infer<typeof dashboardQuerySchema>;
 

@@ -14,6 +14,7 @@ import {
   type DashboardPanelSpec,
   type DashboardQuerySpec,
 } from './dashboard-spec';
+import { EXECUTION_SCOPES } from './execution-points';
 
 /**
  * Spec + page filters → a concrete, DEDUPLICATED query list plus a per-panel index into it
@@ -75,6 +76,10 @@ export interface ResolvedQuery {
    *  (lightbridge-authz#648) — every other filter is a plain equality string. */
   filters?: Record<string, string | string[]>;
   limit: number;
+  /** `'executions'` for the IDE-agent grain; ABSENT for the event grain, so every query that
+   *  existed before the field keeps its exact shape and dedupe key. Never sent on the wire — it
+   *  picks the endpoint (`use-dashboard.ts`, `server/reports/usage-fetch.ts`). */
+  grain?: 'executions';
 }
 
 export interface ResolvedPanel {
@@ -316,12 +321,23 @@ function resolveQuery(
     : undefined;
 
   const groupBy = lens ? applyLens(query.group_by, lens) : query.group_by;
+  const scope = query.scope
+    ? assertUsageScope(substituteField(query.scope, 'scope'), context)
+    : 'all';
+  // The parse-time check in `dashboard-spec.ts` cannot see through a `$placeholder`; this one sees
+  // the substituted value.
+  if (query.grain === 'executions' && !EXECUTION_SCOPES.includes(scope)) {
+    throw new Error(
+      `[console] Scope "${scope}" on page "${context.route}", panel "${context.panelId}" is not ` +
+        `readable on the execution grain (allowed: ${EXECUTION_SCOPES.join(', ')}).`
+    );
+  }
 
   return {
     // `scope: all` with an empty `scope_id` is the estate-wide default the backend documents
     // (`scope_id` is ignored for that scope and callers send `""`), so it is the ONLY place an
     // empty id is legitimate — and it comes from this default, never from a failed substitution.
-    scope: query.scope ? assertUsageScope(substituteField(query.scope, 'scope'), context) : 'all',
+    scope,
     scope_id: query.scope_id ? substituteField(query.scope_id, 'scope_id') : '',
     start_time: window.start.toISOString(),
     end_time: window.end.toISOString(),
@@ -330,6 +346,7 @@ function resolveQuery(
     filters:
       resolvedFilters && Object.keys(resolvedFilters).length > 0 ? resolvedFilters : undefined,
     limit: query.limit,
+    ...(query.grain === 'executions' ? { grain: 'executions' as const } : {}),
   };
 }
 
@@ -377,6 +394,10 @@ export function queryKey(query: ResolvedQuery): string {
         .join('&')
     : '';
   return [
+    // Leads the key so an execution query can never share a request with an event query that
+    // happens to carry the same scope/window/dimensions — they are different endpoints. Omitted
+    // for the event grain, which keeps every pre-existing key byte-identical.
+    ...(query.grain ? [query.grain] : []),
     query.scope,
     query.scope_id,
     query.start_time,

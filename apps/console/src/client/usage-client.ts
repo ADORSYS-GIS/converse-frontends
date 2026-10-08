@@ -1,6 +1,9 @@
 'use client';
 
 import {
+  type ExecutionQueryRequest,
+  type ExecutionQueryResponse,
+  queryExecutions as queryExecutionsSdk,
   queryUsage as queryUsageSdk,
   type UsageErrorResponse,
   type UsageQueryRequest,
@@ -58,6 +61,23 @@ function usageProxyBaseUrl(): string {
  */
 export async function queryUsage(request: UsageQueryRequest): Promise<UsageQueryResponse> {
   const response = await queryUsageSdk({
+    baseURL: usageProxyBaseUrl(),
+    body: request,
+    throwOnError: true,
+  });
+  return response.data;
+}
+
+/**
+ * `POST /usage/v1/usage/executions/query` through the same proxy — the execution grain IDE agents
+ * (Claude Code, Codex, …) report into (lightbridge-authz#726). Same `throwOnError` contract as
+ * `queryUsage`. The backend restricts `scope` to `user` (self) and `all` (`usage:read-all`) and
+ * enforces that itself.
+ */
+export async function queryExecutions(
+  request: ExecutionQueryRequest
+): Promise<ExecutionQueryResponse> {
+  const response = await queryExecutionsSdk({
     baseURL: usageProxyBaseUrl(),
     body: request,
     throwOnError: true,

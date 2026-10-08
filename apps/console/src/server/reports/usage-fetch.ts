@@ -1,3 +1,4 @@
+import type { ExecutionQueryResponse } from '@lightbridge/api-rest';
 import type { NextRequest } from 'next/server';
 
 import { can } from '../access';
@@ -14,6 +15,7 @@ import { readSessionFromRequest } from '../session-store';
 import { usageDispatcher } from '../usage-dispatcher';
 import { guardUsageScope } from '../usage-scope-guard';
 import { PERMISSION } from '../../shared/permissions';
+import { executionResponseToUsageResponse } from '../../dashboards/execution-points';
 
 /**
  * The ONE server-side path from a report route to `POST /usage/v1/usage/query`
@@ -70,6 +72,9 @@ export interface UsageQueryBody {
   group_by?: string[];
   filters?: Record<string, string | string[]>;
   limit?: number;
+  /** `'executions'` routes the query to the IDE-agent grain (lightbridge-governance#36); absent is
+   *  the event grain. Chooses the endpoint and is stripped from the body — never a wire field. */
+  grain?: 'executions';
 }
 
 /** One usage response, shaped by what every adapter in this app reads off it. */
@@ -85,11 +90,13 @@ export type UsageFetchOutcome =
 function fetchOnce(
   usageUrl: string,
   accessToken: string,
-  body: UsageQueryBody,
+  query: UsageQueryBody,
   signal: AbortSignal
 ): Promise<Response> {
   const dispatcher = usageDispatcher();
-  return fetch(`${usageUrl}/usage/v1/usage/query`, {
+  const { grain, ...body } = query;
+  const path = grain === 'executions' ? 'usage/v1/usage/executions/query' : 'usage/v1/usage/query';
+  return fetch(`${usageUrl}/${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
     // The same mTLS client identity `/api/usage/*` presents — this is the same query listener,
@@ -209,7 +216,20 @@ export async function fetchUsageQueries(
     }
 
     try {
-      const payload = (await upstream.json()) as UsageQueryPayload;
+      const raw: unknown = await upstream.json();
+      // The execution grain answers in its own point shape; the report's adapters read the event
+      // grain's, exactly like the browser path (`use-dashboard.ts`). `?? []` holds the same
+      // "a missing array is an empty one" leniency the event branch has always had.
+      let payload: UsageQueryPayload;
+      if (query.grain === 'executions') {
+        const executions = raw as Partial<ExecutionQueryResponse>;
+        payload = executionResponseToUsageResponse({
+          truncated: executions.truncated ?? false,
+          points: executions.points ?? [],
+        });
+      } else {
+        payload = raw as UsageQueryPayload;
+      }
       payloads.push({ points: payload.points ?? [], truncated: payload.truncated });
     } catch (error) {
       console.error('[console] Usage backend returned an unparsable response:', error);

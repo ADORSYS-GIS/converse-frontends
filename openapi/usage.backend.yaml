@@ -34,6 +34,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UsageErrorResponse'
+  /usage/v1/usage/executions/query:
+    post:
+      tags:
+        - usage
+      operationId: query_executions
+      description: >-
+        The execution grain (lightbridge-authz#726): native-telemetry sessions from IDE agents —
+        Claude Code, Codex, … — aggregated into time buckets. `scope` is restricted to `user`
+        (self-ownership via the bearer token's subject) and `all` (`usage:read-all`);
+        `account`/`project`/`api_key` are a `400` because this grain has no per-account ownership
+        authority. The backend enforces this itself — the console's `usage/query` scope guard does
+        not run for this path and does not need to.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecutionQueryRequest'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionQueryResponse'
+        '400':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageErrorResponse'
   /v1/otel/logs:
     post:
       tags:
@@ -96,6 +127,134 @@ paths:
           description: ''
 components:
   schemas:
+    ExecutionGroupBy:
+      description: >-
+        The dimensions the execution grain can be grouped by. `source` and `provider` live on
+        `usage_executions`; `model` lives on the child `usage_model_calls`, so grouping by it fans
+        an execution out once per model it touched (see `ExecutionSeriesPoint`).
+      type: string
+      enum:
+        - source
+        - model
+        - provider
+    ExecutionQueryFilters:
+      type: object
+      description: Equality filters for the execution grain.
+      properties:
+        model:
+          type:
+            - string
+            - 'null'
+        provider:
+          type:
+            - string
+            - 'null'
+        source:
+          type:
+            - string
+            - 'null'
+    ExecutionQueryRequest:
+      type: object
+      required:
+        - scope
+        - scope_id
+        - start_time
+        - end_time
+      properties:
+        bucket:
+          type: string
+        end_time:
+          type: string
+          format: date-time
+        filters:
+          $ref: '#/components/schemas/ExecutionQueryFilters'
+        group_by:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutionGroupBy'
+        limit:
+          type: integer
+          format: int32
+          minimum: 0
+        scope:
+          $ref: '#/components/schemas/UsageScope'
+        scope_id:
+          type: string
+          description: >-
+            For `scope: user`, must equal the caller's own validated token subject. Ignored for
+            `scope: all` — send `""`.
+        start_time:
+          type: string
+          format: date-time
+    ExecutionQueryResponse:
+      type: object
+      required:
+        - points
+        - truncated
+      properties:
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutionSeriesPoint'
+        truncated:
+          type: boolean
+          description: >-
+            Same contract as `UsageQueryResponse.truncated`: `limit` bounds DISTINCT buckets, and
+            the oldest bucket is dropped whole.
+    ExecutionSeriesPoint:
+      type: object
+      description: >-
+        One aggregated time bucket of the execution grain. `source`/`model`/`provider` echo their
+        dimension when it is in `group_by`, null otherwise. Grouped by `model`, the aggregates are
+        NOT additive across groups: a multi-model execution counts once per model it touched.
+      required:
+        - bucket_start
+        - executions_count
+        - total_duration_ms
+        - total_cost
+        - total_input_tokens
+        - total_output_tokens
+        - tool_call_count
+      properties:
+        bucket_start:
+          type: string
+          format: date-time
+        executions_count:
+          type: integer
+          format: int64
+        model:
+          type:
+            - string
+            - 'null'
+        provider:
+          type:
+            - string
+            - 'null'
+        source:
+          type:
+            - string
+            - 'null'
+        tool_call_count:
+          type: integer
+          format: int64
+        total_cost:
+          type:
+            - integer
+            - 'null'
+          format: int64
+          description: >-
+            Sum of `usage_executions.estimated_cost_micro_usd`, integer micro-USD. Null when no
+            execution in the bucket carried a cost — never 0 (unknown is not free,
+            lightbridge-governance#188).
+        total_duration_ms:
+          type: integer
+          format: int64
+        total_input_tokens:
+          type: integer
+          format: int64
+        total_output_tokens:
+          type: integer
+          format: int64
     IngestResponse:
       type: object
       required:
@@ -116,7 +275,8 @@ components:
         The dimensions a usage query may group by. `azp`, `operation` and `billing_plan` are the
         bridge columns lightbridge-authz#648 added to `usage_events` (PR #652) — the OAuth client
         a request arrived on, which API surface was called, and the plan Authorino stamped on it.
-        Order mirrors the backend enum exactly.
+        `source` is the emitter the telemetry came from (lightbridge-authz#584). Order mirrors the
+        backend enum exactly.
       type: string
       enum:
         - account_id
@@ -127,6 +287,7 @@ components:
         - model
         - metric_name
         - signal_type
+        - source
         - azp
         - operation
         - billing_plan
@@ -201,6 +362,11 @@ components:
             - string
             - 'null'
         signal_type:
+          type:
+            - string
+            - 'null'
+        source:
+          description: Equality filter on `usage_events.source`.
           type:
             - string
             - 'null'
@@ -397,6 +563,13 @@ components:
           type: integer
           format: int64
         signal_type:
+          type:
+            - string
+            - 'null'
+        source:
+          description: >-
+            The emitter this bucket's telemetry came from (`usage_events.source`). Present when
+            `group_by` includes `source`, null otherwise.
           type:
             - string
             - 'null'

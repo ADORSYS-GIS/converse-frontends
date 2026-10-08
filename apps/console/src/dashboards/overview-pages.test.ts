@@ -557,7 +557,7 @@ describe('the three /settings/overview lenses in dashboards.yaml', () => {
     expect(ids.slice(0, 4)).toEqual(['requests', 'cost', 'cost-per-request', 'models-in-use']);
   });
 
-  it.each(LENS_ROUTES)('%s resolves its panels to three requests', (route) => {
+  it.each(LENS_ROUTES)('%s resolves its gateway panels to three requests', (route) => {
     const resolved = resolveDashboard({
       page: pageFor(route),
       window: WINDOW,
@@ -567,9 +567,39 @@ describe('the three /settings/overview lenses in dashboards.yaml', () => {
     // zones and had no "vs previous" reading at all. This is one ungrouped query, its comparison
     // twin (which the lens genuinely did not fetch before), and one grouping that four panels
     // share by each reading its own dimension.
-    expect(resolved.queries).toHaveLength(3);
+    const gateway = resolved.queries.filter((query) => query.grain === undefined);
+    expect(gateway).toHaveLength(3);
     const twins = resolved.panels.filter((panel) => panel.compareQueryIndices);
     expect(twins.map((panel) => panel.spec.id)).toEqual(['cost']);
+  });
+
+  it('gives only the user lens the IDE-agent section, at ONE extra request (lightbridge-governance#36)', () => {
+    const resolve = (route: string) =>
+      resolveDashboard({
+        page: pageFor(route),
+        window: WINDOW,
+        filters: { accountId: 'acct_1', projectId: 'proj_1', sub: 'usr_1' },
+      });
+
+    const user = resolve('/settings/overview/user');
+    // 3 gateway requests + 1 execution-grain request, shared by all three IDE panels.
+    expect(user.queries).toHaveLength(4);
+    const executions = user.queries.filter((query) => query.grain === 'executions');
+    expect(executions).toEqual([
+      expect.objectContaining({ scope: 'user', scope_id: 'usr_1', group_by: ['source'] }),
+    ]);
+    const executionIndex = user.queries.indexOf(executions[0]!);
+    const idePanels = user.panels.filter((panel) => panel.queryIndex === executionIndex);
+    expect(idePanels.map((panel) => panel.spec.id)).toEqual([
+      'ide-spend-by-tool',
+      'ide-spend-over-time',
+      'ide-sessions-by-tool',
+    ]);
+
+    // An account or project lens has no execution-grain ownership authority to ask under.
+    for (const route of ['/settings/overview/account', '/settings/overview/project']) {
+      expect(resolve(route).queries.some((query) => query.grain === 'executions')).toBe(false);
+    }
   });
 
   it('gives the account lens a by-project breakdown and the project lens a by-key one', () => {

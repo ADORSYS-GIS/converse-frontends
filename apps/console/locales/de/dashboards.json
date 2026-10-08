@@ -452,6 +452,17 @@
     "latency-by-model": {
       "title": "Latenz nach Modell",
       "subtitle": "Perzentile werden vom Nutzungs-Backend je Intervall berechnet; jede Karte nennt das SCHLECHTESTE Intervall in diesem Zeitraum, niemals einen Mittelwert von Perzentilen. p99 wird unterhalb von 100 Messwerten ausgeblendet."
+    },
+    "ide-spend-by-tool": {
+      "title": "IDE-Agent-Kosten nach Tool",
+      "subtitle": "Claude Code, Codex und andere IDE-Agenten, aus ihrer eigenen Telemetrie — getrennt von den Gateway-Kosten oben. Sitzungen, für die das Tool keinen Preis gemeldet hat, fließen hier nicht ein; siehe die Sitzungsanzahl."
+    },
+    "ide-spend-over-time": {
+      "title": "IDE-Agent-Kosten im Zeitverlauf"
+    },
+    "ide-sessions-by-tool": {
+      "title": "IDE-Agent-Sitzungen nach Tool",
+      "subtitle": "Jede gemeldete Sitzung, mit oder ohne Preis."
     }
   }
 }

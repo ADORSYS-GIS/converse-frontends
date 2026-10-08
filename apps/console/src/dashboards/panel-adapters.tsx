@@ -126,9 +126,25 @@ const OPERATION_LABELS: Record<UsageOperation, string> = {
   other: 'Other',
 };
 
+/**
+ * The emitter vocabulary `source` carries — lightbridge-authz's `normalizer::KNOWN_SOURCES`, which
+ * the usage ingest refuses to store anything outside of. Product names, not translated: "Claude
+ * Code" is "Claude Code" in German too. A value outside this map (a source the backend learns
+ * before this file does) prints verbatim through `keyLabel`'s fallback rather than disappearing.
+ */
+const SOURCE_LABELS: Record<string, string> = {
+  eaig: 'AI gateway',
+  'claude-code': 'Claude Code',
+  codex: 'Codex',
+  opencode: 'OpenCode',
+  'microsoft-foundry': 'Microsoft Foundry',
+  'github-copilot': 'GitHub Copilot',
+};
+
 /** Dimensions whose VALUES have a fixed human rendering (no identity lookup involved). */
 const DIMENSION_VALUE_LABELS: Record<string, Record<string, string>> = {
   operation: OPERATION_LABELS,
+  source: SOURCE_LABELS,
 };
 
 /**

@@ -21,16 +21,24 @@ function noStore(response: NextResponse): NextResponse {
   return response;
 }
 
-/** `path` segments for the one usage-backend endpoint whose response is scoped by an
+/** `path` segments for the usage-backend endpoints whose response is scoped by an
  *  attacker-controlled `scope`/`scope_id` field — `openapi/usage.backend.yaml`'s
- *  `/usage/v1/usage/query`. The three `/v1/otel/*` ingestion endpoints this same catch-all route
- *  also proxies carry no such field, so the guard below only ever runs for this one path. */
-const USAGE_QUERY_PATH = ['usage', 'v1', 'usage', 'query'];
+ *  `/usage/v1/usage/query` and `/usage/v1/usage/executions/query` (lightbridge-governance#36). The
+ *  three `/v1/otel/*` ingestion endpoints this same catch-all route also proxies carry no such
+ *  field, so the guard below only ever runs for these paths.
+ *
+ *  The execution endpoint enforces self-ownership itself; guarding it here too is
+ *  defense-in-depth, and costs nothing — its two legal scopes (`user` for one's own subject, `all`
+ *  with `usage:read-all`) are both fast paths in the guard, with no ownership round-trip. */
+const GUARDED_USAGE_PATHS = [
+  ['usage', 'v1', 'usage', 'query'],
+  ['usage', 'v1', 'usage', 'executions', 'query'],
+];
 
 function isUsageQueryPath(path: string[]): boolean {
-  return (
-    path.length === USAGE_QUERY_PATH.length &&
-    path.every((segment, index) => segment === USAGE_QUERY_PATH[index])
+  return GUARDED_USAGE_PATHS.some(
+    (guarded) =>
+      path.length === guarded.length && path.every((segment, index) => segment === guarded[index])
   );
 }
 

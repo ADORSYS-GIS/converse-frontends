@@ -75,7 +75,8 @@
  *
  * A caller WITHOUT `usage:read-all` takes a path completely unchanged by any of the above: `account` and `project`
  * still resolve real ownership through `resolveOwnedAccountIds`/`resolveProjectAccountId`, and
- * `user`/`api_key`/`all` still fail closed in `isScopeOwned`, which has no arm for them.
+ * `user`/`api_key`/`all` still fail closed in `isScopeOwned`, which has no arm for them — with
+ * one exception, the caller's OWN `user` scope (self-ownership, see `guardUsageScope`).
  */
 
 /**
@@ -181,6 +182,17 @@ export async function guardUsageScope(
   // still resolve through authz below; a mismatched sub falls through to the slow path, never
   // to a refusal here.
   if (homeAccountId && parsed.scope === 'account' && parsed.scopeId === homeAccountId) {
+    return { ok: true };
+  }
+
+  // ── Self-ownership (lightbridge-governance#36): `scope: 'user'` for the caller's OWN subject.
+  // This is the backend's own rule verbatim — `scope=user` is allowed when `scope_id` equals the
+  // bearer token's validated subject — and the session's `sub` is that subject. Before this arm a
+  // non-admin's `/settings/overview/user` queries, and every execution-grain panel, failed closed
+  // here even though the backend would have answered them. Anyone ELSE's `user` scope still falls
+  // through to `isScopeOwned`, which has no `user` arm and refuses it; a session with no `sub`
+  // never matches, because `homeAccountId` is then undefined.
+  if (homeAccountId && parsed.scope === 'user' && parsed.scopeId === homeAccountId) {
     return { ok: true };
   }
 

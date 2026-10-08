@@ -2480,3 +2480,68 @@ pages:
             - model
           bucket: auto
           limit: 2000
+
+      # ── IDE agents (lightbridge-governance#36) ─────────────────────────────────────────────────
+      # The EXECUTION grain: native telemetry Claude Code, Codex, … push through governance-auth's
+      # local daemon (lightbridge-governance ADR-0016), stored apart from the gateway's
+      # `usage_events` that every panel above reads. A different backend endpoint, so nothing here
+      # is summed with the panels above — the two grains are drawn side by side, never added.
+      #
+      # All three panels read ONE query (same scope, group_by and window), so this section costs a
+      # single request. `ide-spend-by-tool` sits right after `spend-by-model` to fill the other
+      # half of that row; `ide-sessions-by-tool` goes last for the reason `latency-by-model`'s
+      # comment gives.
+      - id: ide-spend-by-tool
+        type: ranked
+        title: settings-overview-user.ide-spend-by-tool.title
+        subtitle: settings-overview-user.ide-spend-by-tool.subtitle
+        span: 1
+        metric: cost
+        options:
+          dimension: source
+          topN: 6
+        query:
+          grain: executions
+          scope: user
+          scope_id: $sub
+          group_by:
+            - source
+          bucket: auto
+          limit: 2000
+
+      - id: ide-spend-over-time
+        type: series
+        title: settings-overview-user.ide-spend-over-time.title
+        span: 2
+        metric: cost
+        options:
+          dimension: source
+          scale: linear
+        query:
+          grain: executions
+          scope: user
+          scope_id: $sub
+          group_by:
+            - source
+          bucket: auto
+          limit: 2000
+
+      # The complete figure beside the cost ones: a session whose tool reported no price adds
+      # nothing to a cost bar (the adapters read a null cost as 0), but it is always counted here.
+      - id: ide-sessions-by-tool
+        type: ranked
+        title: settings-overview-user.ide-sessions-by-tool.title
+        subtitle: settings-overview-user.ide-sessions-by-tool.subtitle
+        span: 1
+        metric: requests
+        options:
+          dimension: source
+          topN: 6
+        query:
+          grain: executions
+          scope: user
+          scope_id: $sub
+          group_by:
+            - source
+          bucket: auto
+          limit: 2000

@@ -158,3 +158,45 @@ describe('the schema itself', () => {
     }
   });
 });
+
+describe('query.grain: executions (lightbridge-governance#36)', () => {
+  const fileWith = (query: Record<string, unknown>) => ({
+    pages: [
+      {
+        route: '/x',
+        filters: ['sub'],
+        panels: [{ id: 'p', type: 'stat', title: 't', span: 1, metric: 'cost', query }],
+      },
+    ],
+  });
+  const base = { grain: 'executions', scope: 'user', scope_id: '$sub', limit: 2000 };
+
+  it('accepts a self-scoped execution query grouped by source', () => {
+    expect(
+      dashboardsFileSchema.safeParse(fileWith({ ...base, group_by: ['source'] })).success
+    ).toBe(true);
+  });
+
+  it.each(['account', 'project', 'api_key', 'family'])(
+    'refuses scope %s — the execution grain has no ownership authority for it',
+    (scope) => {
+      expect(dashboardsFileSchema.safeParse(fileWith({ ...base, scope })).success).toBe(false);
+    }
+  );
+
+  it.each([
+    ['a group_by', { group_by: ['user_id'] }],
+    ['a provider group_by, which no point field can echo', { group_by: ['provider'] }],
+    ['a filter', { filters: { azp: 'x' } }],
+  ])('refuses %s naming a dimension the grain lacks', (_label, extra) => {
+    expect(dashboardsFileSchema.safeParse(fileWith({ ...base, ...extra })).success).toBe(false);
+  });
+
+  it('leaves the event grain unconstrained — the same query without `grain` parses', () => {
+    const { grain: _grain, ...events } = base;
+    expect(
+      dashboardsFileSchema.safeParse(fileWith({ ...events, scope: 'account', group_by: ['azp'] }))
+        .success
+    ).toBe(true);
+  });
+});

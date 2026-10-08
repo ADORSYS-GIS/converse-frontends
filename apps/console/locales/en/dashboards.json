@@ -452,6 +452,17 @@
     "latency-by-model": {
       "title": "Latency by model",
       "subtitle": "Percentiles are computed per bucket by the usage backend; each card states the WORST bucket in this window, never an average of percentiles. p99 is hidden below 100 samples."
+    },
+    "ide-spend-by-tool": {
+      "title": "IDE agent spend by tool",
+      "subtitle": "Claude Code, Codex and other IDE agents, from their own telemetry — separate from gateway spend above. Sessions the tool reported no price for add nothing here; see the session count."
+    },
+    "ide-spend-over-time": {
+      "title": "IDE agent spend over time"
+    },
+    "ide-sessions-by-tool": {
+      "title": "IDE agent sessions by tool",
+      "subtitle": "Every reported session, priced or not."
     }
   }
 }

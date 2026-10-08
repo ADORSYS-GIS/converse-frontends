@@ -2,7 +2,11 @@
 
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
-import type { UsageQueryRequest, UsageQueryResponse } from '@lightbridge/api-rest';
+import type {
+  ExecutionQueryRequest,
+  UsageQueryRequest,
+  UsageQueryResponse,
+} from '@lightbridge/api-rest';
 import type {
   DashboardPanelType,
   DashboardPanelView,
@@ -10,13 +14,14 @@ import type {
 import type { LedgerSort } from '@lightbridge/ui-web/src/components/ledger-table';
 import type { MultiSeriesSpendScale } from '@lightbridge/ui-web/src/components/multi-series-spend-chart';
 
-import { getUsageErrorMessage, queryUsage } from '../client/usage-client';
+import { getUsageErrorMessage, queryExecutions, queryUsage } from '../client/usage-client';
 import { useIntlLocale, useTranslation } from '../i18n/client';
 import type { Translate } from '../i18n/config';
 import type { ResetCadence, UsageWindow } from '../containers/comparison-window';
 import { actorIdsKey, collectActorIds, EMPTY_ACTOR_IDS, withSeedActorIds } from './actor-labels';
 import type { ActorIds, LabelFor } from './actor-labels';
 import type { DashboardPageSpec } from './dashboard-spec';
+import { executionResponseToUsageResponse } from './execution-points';
 import { toPanelView, type DashboardLabelResolver } from './panel-adapters';
 import { queryKey, resolveDashboard } from './resolve-dashboard';
 import type { DashboardFilters, ResolvedDashboard, ResolvedQuery } from './resolve-dashboard';
@@ -198,6 +203,30 @@ function toUsageRequest(query: ResolvedQuery): UsageQueryRequest {
   };
 }
 
+/** The same wire cast for the execution grain (lightbridge-governance#36). `grain` itself is not
+ *  a wire field — it chose this function. */
+function toExecutionRequest(query: ResolvedQuery): ExecutionQueryRequest {
+  return {
+    scope: query.scope as ExecutionQueryRequest['scope'],
+    scope_id: query.scope_id,
+    start_time: query.start_time,
+    end_time: query.end_time,
+    bucket: query.bucket,
+    group_by: query.group_by as ExecutionQueryRequest['group_by'],
+    filters: query.filters as ExecutionQueryRequest['filters'],
+    limit: query.limit,
+  };
+}
+
+/** One resolved query against the endpoint its grain names, always answered in the event grain's
+ *  point shape so the adapters below never branch on grain. */
+async function fetchResolvedQuery(query: ResolvedQuery): Promise<UsageQueryResponse> {
+  if (query.grain === 'executions') {
+    return executionResponseToUsageResponse(await queryExecutions(toExecutionRequest(query)));
+  }
+  return queryUsage(toUsageRequest(query));
+}
+
 /**
  * Merges a `scope: family` fan-out's responses into ONE, as if the backend had a family scope
  * (C12, converse-frontends#455).
@@ -257,7 +286,7 @@ export function useDashboard({
       // The dedupe key IS the cache key: two pages (or a page and its export) resolving the same
       // query share one cache entry, not two that can disagree.
       queryKey: ['dashboard', resolved.route, queryKey(query)],
-      queryFn: () => queryUsage(toUsageRequest(query)),
+      queryFn: () => fetchResolvedQuery(query),
       staleTime: 30_000,
       enabled,
     })),

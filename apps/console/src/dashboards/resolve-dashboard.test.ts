@@ -774,3 +774,47 @@ describe('a list filter (operation_in) through resolution', () => {
     expect(queryKey(resolved.queries[0])).not.toBe(queryKey(resolved.queries[1]));
   });
 });
+
+describe('the execution grain (lightbridge-governance#36)', () => {
+  const executionsPanel = (id: string, query: Record<string, unknown>) =>
+    statPanel(id, {
+      query: { grain: 'executions', bucket: 'auto', limit: 2000, ...query },
+    } as never);
+
+  it('carries the grain onto the resolved query, and leaves event queries without one', () => {
+    const resolved = resolveDashboard({
+      page: page([
+        executionsPanel('ide', { scope: 'user', scope_id: '$sub', group_by: ['source'] }),
+        statPanel('gw'),
+      ]),
+      window: windowOf(7),
+      filters: { sub: 'usr_1' },
+    });
+    expect(resolved.queries[0]).toMatchObject({ grain: 'executions', scope_id: 'usr_1' });
+    expect(resolved.queries[1]).not.toHaveProperty('grain');
+  });
+
+  it('never dedupes an execution query into an event query with the same shape', () => {
+    const resolved = resolveDashboard({
+      page: page([executionsPanel('ide', { scope: 'all' }), statPanel('gw')]),
+      window: windowOf(7),
+    });
+    expect(resolved.queries).toHaveLength(2);
+    expect(queryKey(resolved.queries[0]!)).not.toBe(queryKey(resolved.queries[1]!));
+  });
+
+  it("keeps an event query's key free of any grain prefix", () => {
+    const [query] = resolveDashboard({
+      page: page([statPanel('gw')]),
+      window: windowOf(7),
+    }).queries;
+    expect(queryKey(query!).startsWith('all|')).toBe(true);
+  });
+
+  it('refuses a placeholder scope that substitutes to one the grain cannot read', () => {
+    const spec = { ...page([executionsPanel('ide', { scope: '$type', scope_id: 'a' })]) };
+    expect(() =>
+      resolveDashboard({ page: spec, window: windowOf(7), filters: { type: 'account' } })
+    ).toThrow(/not readable on the execution grain/);
+  });
+});

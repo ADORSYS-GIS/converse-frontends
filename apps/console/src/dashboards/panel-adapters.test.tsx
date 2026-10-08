@@ -1286,3 +1286,28 @@ describe('the operation dimension reads as English', () => {
     expect(view.kind === 'ranked' && view.rows[0].label).toBe('opencode-cli');
   });
 });
+
+describe('the source dimension reads as product names (lightbridge-governance#36)', () => {
+  it('names every known emitter, and keeps an unknown one verbatim', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'ranked',
+          metric: 'requests',
+          query: { scope: 'user', scope_id: 'usr_1', group_by: ['source'], limit: 10 },
+        }),
+        response: response([
+          point({ source: 'claude-code', requests: 40 }),
+          point({ source: 'codex', requests: 30 }),
+          point({ source: 'some-new-agent', requests: 5 }),
+        ]),
+      })
+    );
+
+    expect(view.kind === 'ranked' && view.rows.map((row) => row.label)).toEqual([
+      'Claude Code',
+      'Codex',
+      'some-new-agent',
+    ]);
+  });
+});

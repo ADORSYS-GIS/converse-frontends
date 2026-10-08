@@ -66,14 +66,15 @@ pages:
 
 ### `query` (`dashboard-spec.ts:174`)
 
-| Field      | Notes                                                                                                                     |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `scope`    | A `UsageScope` (`user`/`api_key`/`project`/`account`/`all`, `dashboard-spec.ts:89`), `family`, or a `$placeholder`        |
-| `scope_id` | A literal or a `$placeholder`                                                                                             |
-| `group_by` | A plain string array, deliberately **not** the generated enum — a page must be authorable before its backend column lands |
-| `filters`  | Equality filters, plus list values for the one set-membership filter (`operation_in`). An **empty list is refused**       |
-| `bucket`   | `auto` resolves through `autoBucket` (`resolve-dashboard.ts:176`)                                                         |
-| `limit`    | **Required.** A truncated response renders a caption naming the number, never a quietly short chart                       |
+| Field      | Notes                                                                                                                                                                                                                                                                                                                                    |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scope`    | A `UsageScope` (`user`/`api_key`/`project`/`account`/`all`, `dashboard-spec.ts:89`), `family`, or a `$placeholder`                                                                                                                                                                                                                       |
+| `scope_id` | A literal or a `$placeholder`                                                                                                                                                                                                                                                                                                            |
+| `group_by` | A plain string array, deliberately **not** the generated enum — a page must be authorable before its backend column lands                                                                                                                                                                                                                |
+| `filters`  | Equality filters, plus list values for the one set-membership filter (`operation_in`). An **empty list is refused**                                                                                                                                                                                                                      |
+| `bucket`   | `auto` resolves through `autoBucket` (`resolve-dashboard.ts:176`)                                                                                                                                                                                                                                                                        |
+| `limit`    | **Required.** A truncated response renders a caption naming the number, never a quietly short chart                                                                                                                                                                                                                                      |
+| `grain`    | `events` (default — the gateway's `usage_events`) or `executions` (IDE agents, lightbridge-authz#726). `executions` accepts only `scope: user`/`all` and the `source`/`model` dimensions, checked at parse; its points are mapped onto `UsageSeriesPoint` by `execution-points.ts`, so every panel type and the export read it unchanged |
 
 ### `options` (`dashboard-spec.ts:207`) — the per-type knobs
 

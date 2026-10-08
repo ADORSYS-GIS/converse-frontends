@@ -446,3 +446,42 @@ describe('admin scope=all fast path', () => {
     expect(outcome).toEqual({ ok: false, status: 400, error: 'invalid_body' });
   });
 });
+
+describe('guardUsageScope — self-ownership of the user scope (lightbridge-governance#36)', () => {
+  const refuseResolve = () => {
+    throw new Error('a self-scoped query must not need an ownership round-trip');
+  };
+
+  it('a NON-admin session may read its OWN user scope, without any resolver call', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'user', scope_id: 'usr_self' },
+      refuseResolve as never,
+      refuseResolve as never,
+      'usr_self',
+      false
+    );
+    expect(outcome).toEqual({ ok: true });
+  });
+
+  it("a NON-admin session is still refused someone else's user scope", async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'user', scope_id: 'usr_other' },
+      async () => new Set(['usr_self']),
+      async () => null,
+      'usr_self',
+      false
+    );
+    expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
+  });
+
+  it('a session with no subject never matches a user scope — not even an empty one', async () => {
+    const outcome = await guardUsageScope(
+      { scope: 'user', scope_id: 'usr_self' },
+      async () => new Set<string>(),
+      async () => null,
+      undefined,
+      false
+    );
+    expect(outcome).toEqual({ ok: false, status: 403, error: 'scope_not_owned' });
+  });
+});

@@ -3,7 +3,7 @@ import { ErrorLine } from '@lightbridge/ui-web/src/components/error-line';
 import { InlineStatus } from '@lightbridge/ui-web/src/components/inline-status';
 import Link from 'next/link';
 
-import { repoSlug, type Repository } from '../lib/domain/repos';
+import { platformLabel, repoSlug, type Repository } from '../lib/domain/repos';
 import { absoluteTime, relativeTime } from '../lib/domain/tasks';
 import type { ApiResult } from '../lib/server/api';
 import { Fact } from './fact';
@@ -82,7 +82,7 @@ export function RepositoryOverviewCentre({
               {repo.default_branch}
             </code>
           </Fact>
-          <Fact label="Platform">{repo.platform === 'gitlab' ? 'GitLab' : 'GitHub'}</Fact>
+          <Fact label="Platform">{platformLabel(repo)}</Fact>
           <Fact label="Runs">
             <Link href={`/runs?repo=${repo.id}`} className="text-primary hover:underline">
               {repo.task_count} {repo.task_count === 1 ? 'run' : 'runs'}

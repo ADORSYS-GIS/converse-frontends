@@ -18,6 +18,8 @@ import {
   sumMetric,
   toPanelView,
   totalsByGroup,
+  costCoverage,
+  panelReadsCost,
 } from './panel-adapters';
 
 function point(overrides: Partial<UsageSeriesPoint>): UsageSeriesPoint {
@@ -1309,5 +1311,87 @@ describe('the source dimension reads as product names (lightbridge-governance#36
       'Codex',
       'some-new-agent',
     ]);
+  });
+});
+
+describe('unknown cost is "—", never $0.00 (converse-frontends#540)', () => {
+  const costSpec = (type: DashboardPanelSpec['type']) =>
+    spec({ type, metric: 'cost', query: { scope: 'all', group_by: ['model'], limit: 10 } });
+  const mixed = response([
+    point({ model: 'priced', total_cost: 2_000_000 }),
+    point({ model: 'unpriced', total_cost: null }),
+  ]);
+
+  it('a cost stat with NO priced row reads "—" and carries no delta', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({ type: 'stat', metric: 'cost' }),
+        response: response([point({ total_cost: null })]),
+        compareResponse: response([point({ total_cost: 1_000_000 })]),
+        compareWindow: PREVIOUS_WEEK,
+      })
+    );
+    expect(view).toEqual({ kind: 'stat', label: expect.any(String), metric: '—' });
+  });
+
+  it('a cost stat over an EMPTY window still reads $0.00 — no rows is not unknown rows', () => {
+    const view = toPanelView(
+      input({ spec: spec({ type: 'stat', metric: 'cost' }), response: response([]) })
+    );
+    expect(view.kind === 'stat' && view.metric).toBe('$0.00');
+  });
+
+  it('ranks an all-unpriced group as "—" beside a priced one', () => {
+    const view = toPanelView(input({ spec: costSpec('ranked'), response: mixed }));
+    expect(view.kind === 'ranked' && view.rows.map((row) => [row.key, row.formattedValue])).toEqual(
+      [
+        ['priced', '$2.00'],
+        ['unpriced', '—'],
+      ]
+    );
+  });
+
+  it('prints "—" in a table cost cell for an all-unpriced row', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'table',
+          metric: 'cost',
+          query: { scope: 'all', group_by: ['model'], limit: 10 },
+        }),
+        response: mixed,
+      })
+    );
+    const cells =
+      view.kind === 'table' ? Object.fromEntries(view.rows.map((r) => [r.key, r.cells.cost])) : {};
+    expect(cells).toEqual({ priced: '$2.00', unpriced: '—' });
+  });
+
+  it('leaves a requests panel alone — a count is always known', () => {
+    const view = toPanelView(
+      input({
+        spec: spec({
+          type: 'ranked',
+          metric: 'requests',
+          query: { scope: 'all', group_by: ['model'], limit: 10 },
+        }),
+        response: response([point({ model: 'unpriced', total_cost: null, requests: 4 })]),
+      })
+    );
+    expect(view.kind === 'ranked' && view.rows[0]?.formattedValue).toBe('4');
+  });
+
+  it('counts unpriced rows out of the total for the caption', () => {
+    expect(costCoverage(mixed)).toEqual({ unpriced: 1, total: 2 });
+  });
+
+  it('asks for the caption only on panels that print a cost', () => {
+    expect(panelReadsCost(spec({ metric: 'cost' }))).toBe(true);
+    expect(panelReadsCost(spec({ metric: 'derived:costPerRequest' }))).toBe(true);
+    expect(panelReadsCost(spec({ metric: 'requests' }))).toBe(false);
+    expect(panelReadsCost(spec({ type: 'table', metric: 'requests' }))).toBe(true);
+    expect(
+      panelReadsCost(spec({ type: 'table', metric: 'requests', options: { columns: ['label'] } }))
+    ).toBe(false);
   });
 });

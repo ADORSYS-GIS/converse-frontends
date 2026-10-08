@@ -24,7 +24,7 @@ import {
 } from '@lightbridge/ui-web/src/lib/dashboard-view-mapping';
 
 import { comparisonLabel, type UsageWindow } from '../containers/comparison-window';
-import { safeCost, UNASSIGNED_KEY } from '../containers/overview-usage';
+import { isCostKnown, safeCost, UNASSIGNED_KEY } from '../containers/overview-usage';
 import { IDENTITY_LABEL_FOR, type ActorKind, type LabelFor } from './actor-labels';
 import {
   DEFAULT_TABLE_COLUMNS,
@@ -314,6 +314,44 @@ export function totalsByGroup(
     .sort((a, b) => b.value - a.value);
 }
 
+/**
+ * Unknown cost, kept apart from zero cost (converse-frontends#540).
+ *
+ * `safeCost` reads a null `total_cost` as 0 so a bar or a line can still be drawn — a chart cannot
+ * plot "unknown". What it must not do is PRINT that 0 as a cost. So the number stays 0 for
+ * geometry, and every place a cost becomes TEXT asks these helpers first: a figure with no priced
+ * row behind it reads "—", and a figure with only some priced rows behind it gets a caption saying
+ * how many were not (`costCoverageCaption`, `use-dashboard.ts`).
+ */
+export const UNKNOWN_COST = '—';
+
+/** Group keys with at least one priced row. Any other key's cost total is unknown, not $0. */
+export function pricedGroupKeys(response: UsageQueryResponse, dimension: string): Set<string> {
+  const priced = new Set<string>();
+  for (const point of response.points) {
+    if (isCostKnown(point)) priced.add(groupValue(point, dimension));
+  }
+  return priced;
+}
+
+/** How many of the response's rows carried no cost at all, out of how many. */
+export function costCoverage(response: UsageQueryResponse): { unpriced: number; total: number } {
+  const unpriced = response.points.filter((point) => !isCostKnown(point)).length;
+  return { unpriced, total: response.points.length };
+}
+
+function hasPricedRow(response: UsageQueryResponse): boolean {
+  return response.points.some(isCostKnown);
+}
+
+/** Whether a panel prints a cost figure at all — and therefore owes its reader the caption. */
+export function panelReadsCost(spec: DashboardPanelSpec): boolean {
+  if (spec.metric === 'cost') return true;
+  const derived = derivedMetricName(spec.metric);
+  if (derived === 'costPerRequest' || derived === 'avgCostPerMillionTokens') return true;
+  return spec.type === 'table' && (spec.options?.columns ?? DEFAULT_TABLE_COLUMNS).includes('cost');
+}
+
 /** Per-group day/hour series — the shape both series-flavoured panels plot. */
 export function seriesByGroup(
   response: UsageQueryResponse,
@@ -600,6 +638,13 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
   const labelFor = input.labelFor ?? IDENTITY_LABEL_FOR;
   const label = (key: string, forDimension = dimension) =>
     labelOf(key, forDimension, labelFor, input.localLabels);
+  // A group whose rows were ALL unpriced states its cost as "—", never `$0.00`. Only a `cost`
+  // panel asks; a requests/tokens figure is always known.
+  // Computed once per panel — ranked, share and donut all group on `dimension ?? 'model'`.
+  const priced =
+    spec.metric === 'cost' ? pricedGroupKeys(response, dimension ?? 'model') : undefined;
+  const formatGroup = (key: string, value: number) =>
+    priced && !priced.has(key) ? UNKNOWN_COST : formatMetric(value, spec.metric);
 
   switch (spec.type) {
     case 'stat':
@@ -634,7 +679,7 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
           key: group.key,
           label: label(group.key),
           value: group.value,
-          formattedValue: formatMetric(group.value, spec.metric),
+          formattedValue: formatGroup(group.key, group.value),
           subtle: group.key === UNASSIGNED_KEY,
         })),
         topN,
@@ -652,7 +697,7 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
             key: group.key,
             label: label(group.key, dimension ?? 'model'),
             value: group.value,
-            formattedValue: formatMetric(group.value, spec.metric),
+            formattedValue: formatGroup(group.key, group.value),
           })),
           topN,
           (value) => formatMetric(value, spec.metric)
@@ -674,10 +719,13 @@ export function toPanelView(input: PanelViewInput): DashboardPanelView {
           key: group.key,
           label: label(group.key),
           value: group.value,
-          formattedValue: formatMetric(group.value, spec.metric),
+          formattedValue: formatGroup(group.key, group.value),
         })),
         topN,
-        centreMetric: formatMetric(total, spec.metric),
+        centreMetric:
+          spec.metric === 'cost' && groups.length > 0 && !hasPricedRow(response)
+            ? UNKNOWN_COST
+            : formatMetric(total, spec.metric),
         centreLabel: 'TOTAL',
         hrefFor: link ? (segment) => panelRowHref(link, segment.key) : undefined,
         emptyMessage: donutEmptyMessage(donutDimension),
@@ -770,6 +818,7 @@ function statGroupView(input: PanelViewInput, groupBy: string[] | undefined): Da
   }
 
   const dimension = groupBy?.[0] ?? 'model';
+  const priced = spec.metric === 'cost' ? pricedGroupKeys(response, dimension) : undefined;
   return {
     kind: 'stat-group',
     stats: totalsByGroup(response, dimension, spec.metric)
@@ -777,7 +826,8 @@ function statGroupView(input: PanelViewInput, groupBy: string[] | undefined): Da
       .map((group) => ({
         key: group.key,
         label: keyLabel(group.key, dimension, labelFor),
-        metric: formatMetric(group.value, spec.metric),
+        metric:
+          priced && !priced.has(group.key) ? UNKNOWN_COST : formatMetric(group.value, spec.metric),
       })),
   };
 }
@@ -832,6 +882,7 @@ function tableView(input: PanelViewInput, groupBy: string[] | undefined): Dashbo
   const link = input.link ?? spec.options?.link;
 
   const cost = new Map(totalsByGroup(response, dimension, 'cost').map((g) => [g.key, g.value]));
+  const priced = pricedGroupKeys(response, dimension);
   const requests = new Map(
     totalsByGroup(response, dimension, 'requests').map((g) => [g.key, g.value])
   );
@@ -881,7 +932,9 @@ function tableView(input: PanelViewInput, groupBy: string[] | undefined): Dashbo
       // the name.
       label: <IdentityLines label={row.label} detail={row.secondary} subtle={row.subtle} />,
       type: row.type,
-      cost: formatUsd(row.cost),
+      // "—" for a row none of whose usage was priced; it still SORTS as 0, the only order a
+      // sortable column can give a value it does not have.
+      cost: priced.has(row.key) ? formatUsd(row.cost) : UNKNOWN_COST,
       requests: row.requests.toLocaleString('en-US'),
       tokens: row.tokens.toLocaleString('en-US'),
       lastActive: formatLastActive(row.lastActive),
@@ -1012,6 +1065,12 @@ function statView(input: PanelViewInput): DashboardPanelView {
       label: spec.title,
       metric: chatCount(response).toLocaleString('en-US'),
     };
+  }
+
+  // Rows exist and NONE was priced: the honest total is unknown, and a delta against it would be
+  // a percentage of a number nobody has.
+  if (spec.metric === 'cost' && response.points.length > 0 && !hasPricedRow(response)) {
+    return { kind: 'stat', label: spec.title, metric: UNKNOWN_COST };
   }
 
   const current = sumMetric(response, spec.metric);

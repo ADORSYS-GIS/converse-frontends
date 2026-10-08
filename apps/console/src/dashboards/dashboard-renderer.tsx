@@ -153,6 +153,11 @@ function DashboardPanelSlot({
             {panel.truncationCaption ? (
               <InlineStatus className="mt-2">{panel.truncationCaption}</InlineStatus>
             ) : null}
+            {/* Same slot, same reason: a cost figure missing some of its rows is short in a way
+                the reader must be told about (converse-frontends#540). */}
+            {panel.costCaption ? (
+              <InlineStatus className="mt-2">{panel.costCaption}</InlineStatus>
+            ) : null}
           </>
         );
       }}

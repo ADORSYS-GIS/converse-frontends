@@ -179,6 +179,14 @@ export function safeCost(point: UsageSeriesPoint): number {
   return microUsdToUsd(microUsd);
 }
 
+/** Whether a point carried a cost at all — the distinction `safeCost` deliberately flattens. A
+ *  `null` (no row in the bucket was priced) or non-finite `total_cost` is UNKNOWN; a finite one,
+ *  `0` included, is known. The dashboard engine reads this to print "—" instead of `$0.00` and to
+ *  caption partly-priced panels (converse-frontends#540). */
+export function isCostKnown(point: Pick<UsageSeriesPoint, 'total_cost'>): boolean {
+  return point.total_cost !== null && Number.isFinite(point.total_cost);
+}
+
 /** The sentinel for points the backend attributed to no project/model at all. */
 export const UNASSIGNED_KEY = 'unassigned';
 

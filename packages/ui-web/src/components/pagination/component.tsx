@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 
 import { fillCopy, useCopy } from '../../lib/copy';

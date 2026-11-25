@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Drawer } from '@base-ui/react/drawer';
 

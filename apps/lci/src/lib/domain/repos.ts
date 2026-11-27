@@ -10,7 +10,7 @@ export const REPOS_PAGE_SIZE = 12;
 export interface Repository {
   id: number;
   platform_repo_id: number;
-  platform: 'github' | 'gitlab';
+  platform: 'github' | 'gitlab' | 'bitbucket';
   owner: string;
   name: string;
   default_branch: string;
@@ -24,6 +24,17 @@ export interface Repository {
 
 export function repoSlug(repo: Repository): string {
   return `${repo.owner}/${repo.name}`;
+}
+
+const PLATFORM_LABELS: Record<Repository['platform'], string> = {
+  github: 'GitHub',
+  gitlab: 'GitLab',
+  bitbucket: 'Bitbucket',
+};
+
+/** Human label for a repo's forge, e.g. a "Platform" fact. */
+export function platformLabel(repo: Repository): string {
+  return PLATFORM_LABELS[repo.platform];
 }
 
 /** Map the approval `status` to a `StatusText` tone + label — see `tasks.ts`'s `statusTone` doc

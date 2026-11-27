@@ -30,7 +30,7 @@ export interface Task {
   repo_owner: string | null;
   repo_name: string | null;
   repo_default_branch: string | null;
-  repo_platform: 'github' | 'gitlab' | null;
+  repo_platform: 'github' | 'gitlab' | 'bitbucket' | null;
   job_name: string | null;
   error_detail: string | null;
 }
@@ -141,16 +141,22 @@ export function triggerLabel(task: Task): string {
   return `${task.command_text} · ${target}`;
 }
 
-/** The task's repository, on GitHub or GitLab — `null` when the repo join came back empty. For
- *  GitLab, `installation_id` carries the numeric GitLab project id (GitLab webhooks have no
- *  installation concept of their own, so the control plane reuses this field for it — see
- *  `services/control-plane/src/config.rs`'s `installation_id` doc comment), which is exactly what
- *  `gitlab_project_base_urls` is keyed by. */
+/** The task's repository, on GitHub, GitLab, or Bitbucket — `null` when the repo join came back
+ *  empty. For GitLab, `installation_id` carries the numeric GitLab project id (GitLab webhooks
+ *  have no installation concept of their own, so the control plane reuses this field for it —
+ *  see `services/control-plane/src/config.rs`'s `installation_id` doc comment), which is exactly
+ *  what `gitlab_project_base_urls` is keyed by. Bitbucket Cloud's web host is always
+ *  `bitbucket.org`, independent of any per-project API host override. */
 export function repoUrl(task: Task, gitlab: GitlabLinkConfig): string | null {
   if (!task.repo_owner || !task.repo_name) return null;
-  return task.repo_platform === 'gitlab'
-    ? `${gitlabBaseUrlForProject(gitlab, task.installation_id)}/${task.repo_owner}/${task.repo_name}`
-    : `https://github.com/${task.repo_owner}/${task.repo_name}`;
+  switch (task.repo_platform) {
+    case 'gitlab':
+      return `${gitlabBaseUrlForProject(gitlab, task.installation_id)}/${task.repo_owner}/${task.repo_name}`;
+    case 'bitbucket':
+      return `https://bitbucket.org/${task.repo_owner}/${task.repo_name}`;
+    default:
+      return `https://github.com/${task.repo_owner}/${task.repo_name}`;
+  }
 }
 
 /** Where `triggerLabel` points to, when it names a real pull/merge request — `null` for a
@@ -159,9 +165,14 @@ export function triggerUrl(task: Task, gitlab: GitlabLinkConfig): string | null 
   if (task.target_type !== 'pull_request') return null;
   const base = repoUrl(task, gitlab);
   if (!base) return null;
-  return task.repo_platform === 'gitlab'
-    ? `${base}/-/merge_requests/${task.target_id}`
-    : `${base}/pull/${task.target_id}`;
+  switch (task.repo_platform) {
+    case 'gitlab':
+      return `${base}/-/merge_requests/${task.target_id}`;
+    case 'bitbucket':
+      return `${base}/pull-requests/${task.target_id}`;
+    default:
+      return `${base}/pull/${task.target_id}`;
+  }
 }
 
 export function shortSha(sha: string | null): string | null {

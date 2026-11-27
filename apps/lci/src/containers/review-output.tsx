@@ -1,6 +1,6 @@
 import { StatusText } from '@lightbridge/ui-web/src/components/status-text';
 
-import type { Review, ReviewFinding } from '../lib/domain/tasks';
+import type { Review, ReviewFinding, Task } from '../lib/domain/tasks';
 
 /**
  * The agent's persisted review for a run: one finding per disclosure row, priority and category
@@ -31,12 +31,23 @@ function isSecurity(finding: ReviewFinding): boolean {
   return categoryOf(finding).toLowerCase() === 'security';
 }
 
+function viewOnLabel(repoPlatform: Task['repo_platform'] | undefined): string {
+  switch (repoPlatform) {
+    case 'gitlab':
+      return 'View on GitLab';
+    case 'bitbucket':
+      return 'View on Bitbucket';
+    default:
+      return 'View on GitHub';
+  }
+}
+
 export function ReviewOutput({
   review,
   repoPlatform,
 }: {
   review: Review;
-  repoPlatform?: 'github' | 'gitlab' | null;
+  repoPlatform?: Task['repo_platform'];
 }) {
   const counts = [
     `${review.inline_count} inline`,
@@ -57,7 +68,7 @@ export function ReviewOutput({
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary text-xs hover:underline">
-            {repoPlatform === 'gitlab' ? 'View on GitLab' : 'View on GitHub'}
+            {viewOnLabel(repoPlatform)}
           </a>
         ) : null}
       </div>

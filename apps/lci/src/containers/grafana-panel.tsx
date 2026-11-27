@@ -30,13 +30,26 @@ export function GrafanaPanel({
   }
 
   const src = `${baseUrl.replace(/\/+$/, '')}/d-solo/${dashboardUid}/${dashboardSlug}?${params.toString()}&kiosk`;
+  const signInUrl = `${baseUrl.replace(/\/+$/, '')}/login?redirectTo=${encodeURIComponent(src)}`;
 
   return (
-    <iframe
-      src={src}
-      title={title}
-      className="border-border bg-surface w-full rounded-lg border"
-      style={{ minHeight }}
-    />
+    <div className="flex flex-col gap-2">
+      <div className="text-muted flex items-center justify-between gap-3 text-xs">
+        <span>Grafana may require a separate sign-in for embedded panels.</span>
+        <a
+          href={signInUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="text-primary shrink-0 underline underline-offset-2">
+          Open in Grafana
+        </a>
+      </div>
+      <iframe
+        src={src}
+        title={title}
+        className="border-border bg-surface w-full rounded-lg border"
+        style={{ minHeight }}
+      />
+    </div>
   );
 }

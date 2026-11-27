@@ -25,6 +25,9 @@ describe('GrafanaPanel', () => {
     expect(src).toContain('kiosk');
     expect(src).toContain('var-repo=acme%2Fwidgets');
     expect(src).toContain('var-model=.%2B');
+    expect(screen.getByRole('link', { name: 'Open in Grafana' }).getAttribute('href')).toBe(
+      `https://grafana.example.com/login?redirectTo=${encodeURIComponent(src)}`
+    );
   });
 
   it('includes a from/to range only when one is given', () => {
